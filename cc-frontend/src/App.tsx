@@ -1,7 +1,10 @@
 import "./custom.scss";
 import Home from "./pages/Home/Home";
-import Navigation from "./pages/Home/Nav";
+import Navigation from "./Nav";
 import { useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Rankings from "./pages/Rankings/Rankings";
+import Matches from "./pages/Matches/Matches";
 
 function App() {
   useEffect(() => {
@@ -9,10 +12,14 @@ function App() {
   }, []);
 
   return (
-    <>
+    <Router>
       <Navigation />
-      <Home />
-    </>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/rankings" element={<Rankings />} />
+        <Route path="/matches" element={<Matches />} />
+      </Routes>
+    </Router>
   );
 }
 

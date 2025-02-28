@@ -1,5 +1,6 @@
 import React from "react";
 import { Button, Card, Col, Container, Row } from "react-bootstrap";
+import { Link } from "react-router-dom";
 
 const Match = ({
   key,
@@ -35,7 +36,7 @@ const Match = ({
   </Card>
 );
 
-const Matches: React.FC = () => {
+const MatchesWidget: React.FC = () => {
   const upcomingMatches = [
     {
       id: 1,
@@ -71,7 +72,7 @@ const Matches: React.FC = () => {
     <Container
       style={{
         position: "sticky",
-        top: "5%",
+        top: "60px",
         zIndex: 1000,
       }}
     >
@@ -100,11 +101,16 @@ const Matches: React.FC = () => {
             }}
           >
             <Button variant="info">
-              View More
-              <i
-                className="bi bi-arrow-right"
-                style={{ marginLeft: "5px" }}
-              ></i>
+              <Link
+                to="/matches"
+                style={{ color: "white", textDecoration: "none" }}
+              >
+                View More
+                <i
+                  className="bi bi-arrow-right"
+                  style={{ marginLeft: "5px" }}
+                ></i>
+              </Link>
             </Button>
           </div>
         </Col>
@@ -113,4 +119,4 @@ const Matches: React.FC = () => {
   );
 };
 
-export default Matches;
+export default MatchesWidget;

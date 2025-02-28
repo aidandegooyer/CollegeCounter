@@ -1,8 +1,6 @@
-import { Col, Container, Row, Image } from "react-bootstrap";
-import Ranking from "./Ranking";
-import Matches from "./Matches";
-
-import logo from "../../assets/0.1x/C Logo@0.1x.png";
+import { Col, Container, Row } from "react-bootstrap";
+import RankingWidget from "./RankingWidget";
+import MatchesWidget from "./MatchesWidget";
 import Blog from "./Blog";
 
 const Home = () => {
@@ -10,19 +8,20 @@ const Home = () => {
     <Container
       style={{ marginTop: "0.5rem", maxWidth: "1300px", padding: "0 1rem" }}
     >
-      <Container>
-        <Image src={logo} alt="logo" style={{ width: "75px" }} />
-      </Container>
-
       <Row style={{ marginTop: "2rem" }}>
-        <Col lg={3} md={4} className="d-none d-md-block">
-          <Ranking />
+        <Col
+          lg={3}
+          md={5}
+          className="d-none d-md-block"
+          style={{ minWidth: "300px" }}
+        >
+          <RankingWidget />
         </Col>
-        <Col lg={6} md={8}>
+        <Col lg={6} md={7}>
           <Blog />
         </Col>
         <Col lg={3} className="d-none d-lg-block">
-          <Matches />
+          <MatchesWidget />
         </Col>
       </Row>
     </Container>
