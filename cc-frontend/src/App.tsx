@@ -1,12 +1,17 @@
-import { Theme } from "@radix-ui/themes";
-import "@radix-ui/themes/styles.css";
+import "./custom.scss";
+import Home from "./pages/Home/Home";
+import Navigation from "./pages/Home/Nav";
+import { useEffect } from "react";
 
 function App() {
+  useEffect(() => {
+    document.documentElement.setAttribute("data-bs-theme", "dark");
+  }, []);
+
   return (
     <>
-      <Theme accentColor="orange" radius="small">
-        <h1>Collegiate Counter</h1>
-      </Theme>
+      <Navigation />
+      <Home />
     </>
   );
 }

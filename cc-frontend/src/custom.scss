@@ -1,0 +1,40 @@
+@import "../node_modules/bootstrap/scss/_functions.scss";
+@import "../node_modules/bootstrap/scss/_variables.scss";
+@import "../node_modules/bootstrap-icons/font/bootstrap-icons.css";
+
+// Define primary color as orange
+$white: #FFFFFF;
+$black: #000000;
+$dark: #060a20;
+$primary: #d5872b;
+$danger: #F71735;
+$success: #678D58;
+$warning: #FFFC31;
+$info: #0a4896;
+
+
+// Override Bootstrap theme colors
+$theme-colors: map-merge($theme-colors, (
+  "primary": $primary,
+  "white": $white,
+  "black": $black,
+  "dark" : $dark,
+  "danger": $danger,
+  "success": $success,
+  "warning": $warning,
+  "info": $info
+));
+
+@import "../node_modules/bootstrap/scss/bootstrap";
+
+[data-bs-theme="dark"] {
+    --bs-body-bg: #060A20;
+    --bs-body-color: #fff;
+    
+}
+
+[data-bs-theme="light"] {
+    --bs-body-bg: #e9f4fd;
+    --bs-body-color: #060A20;
+
+}
