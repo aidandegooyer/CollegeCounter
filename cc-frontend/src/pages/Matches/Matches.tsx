@@ -1,16 +1,10 @@
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Badge,
-  Button,
-  Image,
-} from "react-bootstrap";
-import matchesList from "../../../../cc-ranking/.dev/upcoming.json";
+import { Container, Row, Col, Card, Badge, Button } from "react-bootstrap";
 import { useEffect, useState } from "react";
+import matchesList from "../../../../cc-ranking/.dev/upcoming.json";
 import { format } from "date-fns";
+import { Link } from "react-router-dom";
 
+//const matchesList: Match[] = [];
 interface Team {
   name: string;
   roster: {
@@ -62,6 +56,14 @@ const Match = ({ match, today, thisweek }: MatchProps) => {
     window.open(url, "_blank")?.focus();
   }
 
+  function calculateTeamLevel(team: Team) {
+    let total = 0;
+    team.roster.forEach((player) => {
+      total += player.game_skill_level;
+    });
+    return total / 5;
+  }
+
   if (today) {
     useEffect(() => {
       const interval = setInterval(() => {
@@ -70,7 +72,7 @@ const Match = ({ match, today, thisweek }: MatchProps) => {
 
         if (distance < 0) {
           clearInterval(interval);
-          setTimeLeft("Match started");
+          setTimeLeft("Match live");
         } else {
           const hours = Math.floor(
             (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
@@ -78,9 +80,10 @@ const Match = ({ match, today, thisweek }: MatchProps) => {
           const minutes = Math.floor(
             (distance % (1000 * 60 * 60)) / (1000 * 60)
           );
-          setTimeLeft(`${hours}h ${minutes}m`);
+          const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+          setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
         }
-      }, 5000);
+      }, 1000);
 
       return () => clearInterval(interval);
     }, [match.scheduled_at]);
@@ -95,9 +98,16 @@ const Match = ({ match, today, thisweek }: MatchProps) => {
                   style={{ width: "50px", height: "50px" }}
                 ></img>
                 <h3 style={{ marginLeft: "10px", marginRight: "10px" }}>
-                  {match.teams.faction1.name}
+                  <Link
+                    style={{ color: "var(--bs-body-color)" }}
+                    to={`/team?id=${match.teams.faction1.faction_id}`}
+                  >
+                    {match.teams.faction1.name}
+                  </Link>
                 </h3>
-                <Badge bg="info">#23</Badge>
+                <Badge bg="info">
+                  {calculateTeamLevel(match.teams.faction1)}
+                </Badge>
               </div>
             </Row>
             <Row>
@@ -107,9 +117,16 @@ const Match = ({ match, today, thisweek }: MatchProps) => {
                   style={{ width: "50px", height: "50px" }}
                 ></img>
                 <h3 style={{ marginLeft: "10px", marginRight: "10px" }}>
-                  {match.teams.faction2.name}
+                  <Link
+                    style={{ color: "var(--bs-body-color)" }}
+                    to={`/team?id=${match.teams.faction2.faction_id}`}
+                  >
+                    {match.teams.faction2.name}
+                  </Link>
                 </h3>
-                <Badge bg="info">#23</Badge>
+                <Badge bg="info">
+                  {calculateTeamLevel(match.teams.faction2)}
+                </Badge>
               </div>
             </Row>
           </Col>
@@ -121,7 +138,11 @@ const Match = ({ match, today, thisweek }: MatchProps) => {
               <h3>{timeLeft}</h3>
             </Row>
             <Row className="justify-content-end">
-              <Badge bg="secondary" style={{ maxWidth: "50px" }}>
+              <Badge
+                className="mt-2"
+                bg="secondary"
+                style={{ maxWidth: "50px" }}
+              >
                 NECC
               </Badge>
             </Row>
@@ -150,9 +171,16 @@ const Match = ({ match, today, thisweek }: MatchProps) => {
                   style={{ width: "50px", height: "50px" }}
                 ></img>
                 <h4 style={{ marginLeft: "10px", marginRight: "10px" }}>
-                  {match.teams.faction1.name}
+                  <Link
+                    style={{ color: "var(--bs-body-color)" }}
+                    to={`/team?id=${match.teams.faction1.faction_id}`}
+                  >
+                    {match.teams.faction1.name}
+                  </Link>
                 </h4>
-                <Badge bg="info">#23</Badge>
+                <Badge bg="info">
+                  {calculateTeamLevel(match.teams.faction1)}
+                </Badge>
               </div>
             </Row>
             <Row>
@@ -162,9 +190,16 @@ const Match = ({ match, today, thisweek }: MatchProps) => {
                   style={{ width: "50px", height: "50px" }}
                 ></img>
                 <h4 style={{ marginLeft: "10px", marginRight: "10px" }}>
-                  {match.teams.faction2.name}
+                  <Link
+                    style={{ color: "var(--bs-body-color)" }}
+                    to={`/team?id=${match.teams.faction2.faction_id}`}
+                  >
+                    {match.teams.faction2.name}
+                  </Link>
                 </h4>
-                <Badge bg="info">#23</Badge>
+                <Badge bg="info">
+                  {calculateTeamLevel(match.teams.faction2)}
+                </Badge>
               </div>
             </Row>
           </Col>
@@ -172,15 +207,18 @@ const Match = ({ match, today, thisweek }: MatchProps) => {
             <Row className="justify-content-end">
               {format(new Date(match.scheduled_at * 1000), "MMM do, h:mm aaa")}
             </Row>
-            <Row className="justify-content-end mt-1">
+            <Row className="justify-content-end mt-3">
               <Badge bg="secondary" style={{ maxWidth: "50px" }}>
                 NECC
               </Badge>
             </Row>
-            <Row className="justify-content-end mt-1">
+            <Row className="justify-content-end mt-3">
               <Button
                 variant="primary"
-                style={{ maxWidth: "100px", height: "40px" }}
+                style={{
+                  maxWidth: "100px",
+                  height: "40px",
+                }}
                 onClick={() => openMatchPage(match)}
               >
                 Details <i className="bi bi-arrow-right"></i>
@@ -205,7 +243,9 @@ const Match = ({ match, today, thisweek }: MatchProps) => {
               <h6 style={{ marginLeft: "10px", marginRight: "10px" }}>
                 {match.teams.faction1.name}
               </h6>
-              <Badge bg="info">#23</Badge>
+              <Badge bg="info">
+                {calculateTeamLevel(match.teams.faction1)}
+              </Badge>
             </div>
           </Row>
           <Row>
@@ -217,7 +257,9 @@ const Match = ({ match, today, thisweek }: MatchProps) => {
               <h6 style={{ marginLeft: "10px", marginRight: "10px" }}>
                 {match.teams.faction2.name}
               </h6>
-              <Badge bg="info">#23</Badge>
+              <Badge bg="info">
+                {calculateTeamLevel(match.teams.faction2)}
+              </Badge>
             </div>
           </Row>
         </Col>
@@ -243,9 +285,10 @@ const Matches = () => {
     const today = new Date();
     const endOfToday = new Date(today);
     endOfToday.setHours(23, 59, 59, 999);
+    today.setHours(0, 0, 0, 0);
 
     const endOfWeek = new Date(today);
-    endOfWeek.setDate(today.getDate() + (7 - today.getDay()));
+    endOfWeek.setDate(today.getDate() + 7);
     endOfWeek.setHours(23, 59, 59, 999);
 
     const todayMatchesTemp: Match[] = [];
@@ -254,11 +297,11 @@ const Matches = () => {
 
     matchesList.forEach((match) => {
       const matchDate = new Date(match.scheduled_at * 1000);
-      if (matchDate <= endOfToday) {
+      if (matchDate >= today && matchDate <= endOfToday) {
         todayMatchesTemp.push(match);
-      } else if (matchDate <= endOfWeek) {
+      } else if (matchDate > endOfToday && matchDate <= endOfWeek) {
         thisWeekMatchesTemp.push(match);
-      } else {
+      } else if (matchDate > endOfWeek) {
         otherMatchesTemp.push(match);
       }
     });
@@ -315,7 +358,7 @@ const Matches = () => {
       style={{ marginTop: "0.5rem", maxWidth: "1300px", padding: "0 1rem" }}
     >
       <Container style={{ maxWidth: "800px" }}>
-        <h1>Upcoming Matches</h1>
+        <h1 className="text-center">Upcoming Matches</h1>
         <h3>Today</h3>
         {renderMatches({ matches: todayMatches, today: true })}
         <h3>This Week</h3>
