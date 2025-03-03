@@ -1,10 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import React, { useEffect, useState } from "react";
-import { Button, Card, Col, Container, Row, Image } from "react-bootstrap";
+import { Button, Card, Col, Container, Row } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { Team, Match } from "../../types";
-import { format, set } from "date-fns";
-import logo from "../../assets/1x/C Logo.png";
+import { format } from "date-fns";
 
 const fetchTeam = async (teamId: string): Promise<Team> => {
   const response = await fetch(`http://localhost:8889/team/${teamId}`);
@@ -121,10 +120,6 @@ const MatchesWidget: React.FC = () => {
 
   return (
     <>
-      <Image
-        src={logo}
-        style={{ width: "100%", height: "auto", marginBottom: "1rem" }}
-      />
       <Container
         style={{
           position: "sticky",

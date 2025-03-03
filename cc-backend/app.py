@@ -1,4 +1,3 @@
-import json
 import statistics
 import time
 from flask import Flask, send_from_directory, request
@@ -263,7 +262,8 @@ def upload_file():
 
         # Resize the image to 400x400
         image = image.resize((400, 400))
-
+        if os.path.exists(filepath):
+            os.remove(filepath)
         # Save the image as PNG
         image.save(filepath, "PNG")
 
