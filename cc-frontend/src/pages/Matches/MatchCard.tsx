@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { useState, useEffect } from "react";
 import { Card, Row, Col, Badge, Button, Alert } from "react-bootstrap";
 import { Link } from "react-router-dom";
-import { Match, Team } from "../../types";
+import { Match } from "../../types";
 
 interface MatchCardProps {
   match: Match;

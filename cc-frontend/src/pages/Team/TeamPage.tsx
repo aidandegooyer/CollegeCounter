@@ -13,6 +13,7 @@ import ResultCard from "../Results/ResultCard";
 import { useEffect, useState } from "react";
 import { Team, Match, Player } from "../../types";
 import { useQueryClient } from "@tanstack/react-query";
+import "./TeamPageBackground.css";
 
 interface PlayerCardProps {
   player: Player;
@@ -157,83 +158,97 @@ const TeamPage = () => {
   }
 
   return (
-    <Container style={{ marginTop: "0.5rem", padding: "0 1rem" }}>
-      <h1 className="text-center">Team Details</h1>
-      <div className="d-flex justify-content-center align-items-center">
-        <Image
-          src={team.avatar}
-          alt={team.name}
-          style={{ height: "5rem", marginRight: "1rem" }}
-          fluid
-        />
-        <h1 className="text-center" style={{ fontSize: "5rem" }}>
-          {team.name}
-        </h1>
-      </div>
-
-      <Container style={{ marginTop: "1rem" }}>
-        <div className="d-flex justify-content-center">
-          <div className="d-flex flex-wrap justify-content-center">
-            {team.roster ? (
-              team.roster.map((player) => (
-                <div
-                  key={player.player_id}
-                  className="p-2"
-                  style={{
-                    flex: "1 0 200px",
-                    maxWidth: "200px",
-                    margin: "0 1rem",
-                  }}
-                >
-                  <PlayerCard
-                    player={player}
-                    leader={team.leader === player.player_id}
-                  />
-                </div>
-              ))
-            ) : (
-              <p>No players found</p>
-            )}
-          </div>
+    <>
+      <div
+        className="background"
+        style={{
+          backgroundImage: `url('http://0.0.0.0:8889/static/bg/${team.team_id}.png')`,
+        }}
+      />
+      <Container style={{ marginTop: "0.5rem", padding: "0 1rem" }}>
+        <h1 className="text-center">Team Details</h1>
+        <div className="d-flex justify-content-center align-items-center">
+          <Image
+            src={team.avatar}
+            alt={team.name}
+            style={{ height: "5rem", marginRight: "1rem" }}
+            fluid
+          />
+          <h1 className="text-center" style={{ fontSize: "5rem" }}>
+            {team.name}
+          </h1>
         </div>
-      </Container>
 
-      <Container style={{ marginTop: "4rem" }}>
-        <Row>
-          <Col md={12} lg={6}>
-            <h1 className="text-center">Upcoming Matches</h1>
-            {upcomingMatches.length > 0 ? (
-              upcomingMatches
-                .sort(
-                  (a: Match, b: Match) =>
-                    new Date(a.scheduled_time).getTime() -
-                    new Date(b.scheduled_time).getTime()
-                )
-                .map((match, index) => (
-                  <MatchCard
-                    key={match.match_id}
-                    match={match}
-                    today={index === 0}
-                    thisweek={index !== 0}
-                  />
+        <Container style={{ marginTop: "1rem" }}>
+          <div className="d-flex justify-content-center">
+            <div className="d-flex flex-wrap justify-content-center">
+              {team.roster ? (
+                team.roster.map((player) => (
+                  <div
+                    key={player.player_id}
+                    className="p-2"
+                    style={{
+                      flex: "1 0 200px",
+                      maxWidth: "200px",
+                      margin: "0 1rem",
+                    }}
+                  >
+                    <PlayerCard
+                      player={player}
+                      leader={team.leader === player.player_id}
+                    />
+                  </div>
                 ))
-            ) : (
-              <p className="text-center">No upcoming matches</p>
-            )}
-          </Col>
-          <Col md={12} lg={6}>
-            <h1 className="text-center">Past Match Results</h1>
-            {pastMatches.length > 0 ? (
-              pastMatches.map((match) => (
-                <ResultCard key={match.match_id} match={match} />
-              ))
-            ) : (
-              <p className="text-center">No past matches</p>
-            )}
-          </Col>
-        </Row>
+              ) : (
+                <p>No players found</p>
+              )}
+            </div>
+          </div>
+        </Container>
+
+        <Container style={{ marginTop: "4rem" }}>
+          <Row>
+            <Col md={12} lg={6}>
+              <h1 className="text-center">Upcoming Matches</h1>
+              {upcomingMatches.length > 0 ? (
+                upcomingMatches
+                  .sort(
+                    (a: Match, b: Match) =>
+                      new Date(a.scheduled_time).getTime() -
+                      new Date(b.scheduled_time).getTime()
+                  )
+                  .map((match, index) => (
+                    <MatchCard
+                      key={match.match_id}
+                      match={match}
+                      today={index === 0}
+                      thisweek={index !== 0}
+                    />
+                  ))
+              ) : (
+                <p className="text-center">No upcoming matches</p>
+              )}
+            </Col>
+            <Col md={12} lg={6}>
+              <h1 className="text-center">Past Match Results</h1>
+              {pastMatches.length > 0 ? (
+                pastMatches
+                  .sort(
+                    (a: Match, b: Match) =>
+                      new Date(b.scheduled_time).getTime() -
+                      new Date(a.scheduled_time).getTime()
+                  )
+                  .map((match) => (
+                    <ResultCard key={match.match_id} match={match} />
+                  ))
+              ) : (
+                <p className="text-center">No past matches</p>
+              )}
+            </Col>
+          </Row>
+        </Container>
       </Container>
-    </Container>
+    </>
   );
 };
 

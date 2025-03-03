@@ -1,9 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import React, { useEffect, useState } from "react";
-import { Button, Card, Col, Container, Row } from "react-bootstrap";
+import { Button, Card, Col, Container, Row, Image } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { Team, Match } from "../../types";
 import { format, set } from "date-fns";
+import logo from "../../assets/1x/C Logo.png";
 
 const fetchTeam = async (teamId: string): Promise<Team> => {
   const response = await fetch(`http://localhost:8889/team/${teamId}`);
@@ -21,7 +22,21 @@ const MatchCard = ({ match }: { match: Match }) => (
                 src={match.teams?.team1?.avatar}
                 style={{ height: "30px", width: "30px", marginRight: "10px" }}
               />
-              <Card.Title>{match.teams?.team1?.name}</Card.Title>
+              <Card.Title>
+                <Link
+                  to={`/team?id=${match.teams?.team1?.team_id}`}
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    display: "inline",
+                    marginLeft: "5px",
+                    color: "var(--bs-body-color)",
+                  }}
+                >
+                  {match.teams?.team1?.name}
+                </Link>
+              </Card.Title>
             </div>
           </Row>
           <Row>
@@ -30,7 +45,21 @@ const MatchCard = ({ match }: { match: Match }) => (
                 src={match.teams?.team2?.avatar}
                 style={{ height: "30px", width: "30px", marginRight: "10px" }}
               />
-              <Card.Title>{match.teams?.team2?.name}</Card.Title>
+              <Card.Title>
+                <Link
+                  to={`/team?id=${match.teams?.team2?.team_id}`}
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    display: "inline",
+                    marginLeft: "5px",
+                    color: "var(--bs-body-color)",
+                  }}
+                >
+                  {match.teams?.team2?.name}
+                </Link>
+              </Card.Title>
             </div>
           </Row>
         </Col>
@@ -91,47 +120,53 @@ const MatchesWidget: React.FC = () => {
   }, []);
 
   return (
-    <Container
-      style={{
-        position: "sticky",
-        top: "60px",
-        zIndex: 1000,
-      }}
-    >
-      <Row>
-        <Col
-          style={{
-            borderRight: "1px solid #dee2e6",
-            borderLeft: "1px dotted #dee2e6",
-          }}
-        >
-          <h3 style={{ fontSize: "1.5rem" }}>Upcoming Matches</h3>
-          {matches.map((match) => (
-            <MatchCard match={match} key={match.match_id} />
-          ))}
-          <div
+    <>
+      <Image
+        src={logo}
+        style={{ width: "100%", height: "auto", marginBottom: "1rem" }}
+      />
+      <Container
+        style={{
+          position: "sticky",
+          top: "60px",
+          zIndex: 1000,
+        }}
+      >
+        <Row>
+          <Col
             style={{
-              display: "flex",
-              justifyContent: "center",
-              marginTop: "10px",
+              borderRight: "1px solid #dee2e6",
+              borderLeft: "1px dotted #dee2e6",
             }}
           >
-            <Button variant="info">
-              <Link
-                to="/matches"
-                style={{ color: "white", textDecoration: "none" }}
-              >
-                View More
-                <i
-                  className="bi bi-arrow-right"
-                  style={{ marginLeft: "5px" }}
-                ></i>
-              </Link>
-            </Button>
-          </div>
-        </Col>
-      </Row>
-    </Container>
+            <h3 style={{ fontSize: "1.5rem" }}>Upcoming Matches</h3>
+            {matches.map((match) => (
+              <MatchCard match={match} key={match.match_id} />
+            ))}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                marginTop: "10px",
+              }}
+            >
+              <Button variant="info">
+                <Link
+                  to="/matches"
+                  style={{ color: "white", textDecoration: "none" }}
+                >
+                  View More
+                  <i
+                    className="bi bi-arrow-right"
+                    style={{ marginLeft: "5px" }}
+                  ></i>
+                </Link>
+              </Button>
+            </div>
+          </Col>
+        </Row>
+      </Container>
+    </>
   );
 };
 

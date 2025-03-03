@@ -11,6 +11,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code
 COPY . .
 
+# Copy the static files
+COPY static /app/static
+
+# Copy the uploads directory
+COPY static/uploads /app/static/uploads
+
 # Expose port 5000 for the Flask app
 EXPOSE 5000
 

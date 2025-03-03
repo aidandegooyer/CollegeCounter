@@ -1,0 +1,12 @@
+.background {
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  position: fixed;
+  filter: brightness(0.4) blur(6px);
+  top: 70px;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+}

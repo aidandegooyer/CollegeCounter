@@ -46,19 +46,20 @@ const Ranking = forwardRef<HTMLDivElement, RankingProps>(
           <div className="d-flex align-items-center">
             <h1 style={{ position: "absolute", left: "1rem" }}>{rank + 1}. </h1>
             <img
+              className="d-none d-sm-block"
               src={team.avatar}
               alt={team.name}
               style={{
                 width: "50px",
                 height: "50px",
                 marginLeft: "5rem",
-                marginRight: "2rem",
               }}
             />
 
             <h3 className="ml-2 text-truncate">
               <Link
                 style={{
+                  marginLeft: "3rem",
                   color: "var(--bs-body-color)",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -74,6 +75,7 @@ const Ranking = forwardRef<HTMLDivElement, RankingProps>(
           </div>
           {rankChange != 0 ? (
             <Badge
+              className="d-none d-sm-block"
               bg={
                 rankChange > 0
                   ? "success"

@@ -73,20 +73,23 @@ const Results = () => {
               acc[date].push(match);
               return acc;
             }, {} as Record<string, Match[]>)
-          ).map(([date, matches]) => (
-            <div key={date}>
-              <h2>
-                {new Date(date).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </h2>
-              {matches.map((match: Match) => (
-                <ResultCard key={match.match_id} match={match} />
-              ))}
-            </div>
-          ))
+          )
+            .sort(
+              ([dateA], [dateB]) =>
+                new Date(dateB).getTime() - new Date(dateA).getTime()
+            )
+            .map(([date, matches]) => (
+              <div key={date}>
+                <h2>
+                  {new Date(date).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </h2>
+                {renderMatches({ matches })}
+              </div>
+            ))
         )}
       </Container>
     </Container>
