@@ -1,72 +1,94 @@
-import React from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import React, { useEffect, useState } from "react";
 import { Button, Card, Col, Container, Row } from "react-bootstrap";
 import { Link } from "react-router-dom";
+import { Team, Match } from "../../types";
+import { format, set } from "date-fns";
 
-const Match = ({
-  key,
-  team1,
-  team2,
-  date,
-  time,
-}: {
-  key: number;
-  team1: string;
-  team2: string;
-  date: string;
-  time: string;
-}) => (
-  <Card key={key} style={{ marginBottom: "10px" }}>
+const fetchTeam = async (teamId: string): Promise<Team> => {
+  const response = await fetch(`http://localhost:8889/team/${teamId}`);
+  return response.json();
+};
+
+const MatchCard = ({ match }: { match: Match }) => (
+  <Card key={match.match_id} style={{ marginBottom: "10px" }}>
     <Card.Body>
-      <Card.Title>
-        {team1} vs {team2}
-      </Card.Title>
-      <Card.Text>
-        {date}, {time}pm
-      </Card.Text>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          marginTop: "10px",
-        }}
-      >
-        <Button variant="primary">View Match</Button>
-      </div>
+      <Row>
+        <Col>
+          <Row>
+            <div className="d-flex align-items-center">
+              <img
+                src={match.teams?.team1?.avatar}
+                style={{ height: "30px", width: "30px", marginRight: "10px" }}
+              />
+              <Card.Title>{match.teams?.team1?.name}</Card.Title>
+            </div>
+          </Row>
+          <Row>
+            <div className="d-flex align-items-center">
+              <img
+                src={match.teams?.team2?.avatar}
+                style={{ height: "30px", width: "30px", marginRight: "10px" }}
+              />
+              <Card.Title>{match.teams?.team2?.name}</Card.Title>
+            </div>
+          </Row>
+        </Col>
+      </Row>
+      <Row className="align-items-center mt-2">
+        <Col>
+          <Card.Text>
+            {format(new Date(match.scheduled_time * 1000), "MMMM do, h:mm aaa")}
+          </Card.Text>
+        </Col>
+        <Col xs={3}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "100%",
+            }}
+          >
+            <Button variant="primary">View</Button>
+          </div>
+        </Col>
+      </Row>
     </Card.Body>
   </Card>
 );
 
 const MatchesWidget: React.FC = () => {
-  const upcomingMatches = [
-    {
-      id: 1,
-      team1: "Team A",
-      team2: "Team B",
-      date: "2025-10-01",
-      time: "12:00",
-    },
-    {
-      id: 2,
-      team1: "Team C",
-      team2: "Team D",
-      date: "2025-10-02",
-      time: "12:00",
-    },
-    {
-      id: 3,
-      team1: "Team E",
-      team2: "Team F",
-      date: "2025-10-03",
-      time: "12:00",
-    },
-    {
-      id: 4,
-      team1: "Team G",
-      team2: "Team H",
-      date: "2025-10-04",
-      time: "12:00",
-    },
-  ];
+  const [matches, setMatches] = useState<Match[]>([]);
+  const queryClient = useQueryClient();
+
+  const fetchMatches = async () => {
+    const response = await fetch("http://localhost:8889/upcoming/4");
+    const matches: Match[] = await response.json();
+
+    const matchesWithTeams = await Promise.all(
+      matches.map(async (match) => {
+        const team1 = await queryClient.fetchQuery({
+          queryKey: ["team", match.team1_id],
+          queryFn: () => fetchTeam(match.team1_id),
+        });
+        const team2 = await queryClient.fetchQuery({
+          queryKey: ["team", match.team2_id],
+          queryFn: () => fetchTeam(match.team2_id),
+        });
+        return { ...match, teams: { team1, team2 } };
+      })
+    );
+    return matchesWithTeams;
+  };
+
+  useEffect(() => {
+    const fetchAndSetMatches = async () => {
+      const matches = await fetchMatches();
+      setMatches(matches);
+    };
+    fetchAndSetMatches();
+  }, []);
 
   return (
     <Container
@@ -84,14 +106,8 @@ const MatchesWidget: React.FC = () => {
           }}
         >
           <h3 style={{ fontSize: "1.5rem" }}>Upcoming Matches</h3>
-          {upcomingMatches.map((match) => (
-            <Match
-              key={match.id}
-              team1={match.team1}
-              team2={match.team2}
-              date={match.date}
-              time={match.time}
-            ></Match>
+          {matches.map((match) => (
+            <MatchCard match={match} key={match.match_id} />
           ))}
           <div
             style={{

@@ -31,6 +31,9 @@ const Navigation = () => {
             <Nav.Link as={Link} to="/matches">
               Matches
             </Nav.Link>
+            <Nav.Link as={Link} to="/results">
+              Results
+            </Nav.Link>
           </Nav>
 
           <input

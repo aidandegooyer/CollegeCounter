@@ -6,18 +6,13 @@ import Blog from "./Blog";
 const Home = () => {
   return (
     <Container
-      style={{ marginTop: "0.5rem", maxWidth: "1300px", padding: "0 1rem" }}
+      style={{ marginTop: "0.5rem", maxWidth: "1500px", padding: "0 1rem" }}
     >
       <Row style={{ marginTop: "2rem" }}>
-        <Col
-          lg={3}
-          md={5}
-          className="d-none d-md-block"
-          style={{ minWidth: "300px" }}
-        >
+        <Col lg={4} md={5} className="d-none d-md-block">
           <RankingWidget />
         </Col>
-        <Col lg={6} md={7}>
+        <Col lg={5} md={7}>
           <Blog />
         </Col>
         <Col lg={3} className="d-none d-lg-block">

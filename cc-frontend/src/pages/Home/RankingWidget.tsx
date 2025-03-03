@@ -1,8 +1,16 @@
 import React from "react";
 import { Badge, Button, Container, ListGroup } from "react-bootstrap";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Team } from "../../types";
 
-const RankingItem = ({ team, index }: { team: any; index: number }) => (
+const fetchTopTeams = async () => {
+  const response = await fetch("http://localhost:8889/top10");
+  const data = await response.json();
+  return data;
+};
+
+const RankingItem = ({ team, index }: { team: Team; index: number }) => (
   <ListGroup.Item
     style={{
       marginBottom: "10px",
@@ -10,35 +18,50 @@ const RankingItem = ({ team, index }: { team: any; index: number }) => (
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
+      marginRight: "0",
     }}
   >
     <span>
-      <strong>{index + 1}.</strong> {team.name}
+      <strong>{index + 1}.</strong>
+      <Link
+        to={`/team?id=${team.team_id}`}
+        style={{
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          display: "inline",
+          marginLeft: "5px",
+          color: "var(--bs-body-color)",
+        }}
+      >
+        {team.name}
+      </Link>
     </span>
     <div>
       <img
-        src="holder.js/30x30"
-        alt={`${team.name} logo`}
+        src={team.avatar}
+        alt={`logo`}
         style={{ height: "30px", marginRight: "10px" }}
       />
-      <Badge bg="primary">{team.elo}</Badge>
+      <Badge bg="primary">{team.elo.toPrecision(4)}</Badge>
     </div>
   </ListGroup.Item>
 );
 
 const RankingWidget: React.FC = () => {
-  const teams = [
-    { name: "Team A", elo: 2000 },
-    { name: "Team B", elo: 1950 },
-    { name: "Team C", elo: 1900 },
-    { name: "Team D", elo: 1850 },
-    { name: "Team E", elo: 1800 },
-    { name: "Team F", elo: 1750 },
-    { name: "Team G", elo: 1700 },
-    { name: "Team H", elo: 1650 },
-    { name: "Team I", elo: 1600 },
-    { name: "Team J", elo: 1550 },
-  ];
+  const {
+    data: teams = [],
+    isLoading,
+    isError,
+  } = useQuery({ queryKey: ["topTeams"], queryFn: fetchTopTeams });
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (isError) {
+    return <div>Error loading teams</div>;
+  }
 
   return (
     <Container
@@ -52,7 +75,7 @@ const RankingWidget: React.FC = () => {
     >
       <h3 style={{ fontSize: "1.5rem" }}>Team Rankings</h3>
       <ListGroup variant="flush">
-        {teams.map((team, index) => (
+        {teams.map((team: Team, index: number) => (
           <RankingItem key={team.name} team={team} index={index} />
         ))}
       </ListGroup>
