@@ -9,6 +9,7 @@ import TeamPage from "./pages/Team/TeamPage";
 import Results from "./pages/Results/Results";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import UserPicture from "./pages/admin/UserPicture";
+import TeamPictures from "./pages/admin/TeamPictures";
 
 function App() {
   useEffect(() => {
@@ -27,7 +28,8 @@ function App() {
           <Route path="/matches" element={<Matches />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/results" element={<Results />} />
-          <Route path="/admin" element={<UserPicture />} />
+          <Route path="/admin/player" element={<UserPicture />} />
+          <Route path="/admin/team" element={<TeamPictures />} />
         </Routes>
       </Router>
     </QueryClientProvider>

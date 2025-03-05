@@ -2,11 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Container, Form, Button, Image } from "react-bootstrap";
 import { Player, Team } from "../../types";
 
-const UserPicture: React.FC = () => {
+const TeamPictures: React.FC = () => {
   const [Teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [selectedPic, setSelectedPic] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [privateKey, setPrivateKey] = useState<string | null>(null);
@@ -31,15 +30,18 @@ const UserPicture: React.FC = () => {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (selectedFile && selectedPlayer) {
+    if (selectedFile && selectedPic && selectedTeam) {
       const formData = new FormData();
       formData.append("file", selectedFile);
-      formData.append("player_id", selectedPlayer.player_id);
+      formData.append("team_id", selectedTeam.team_id);
 
-      fetch(`${apiBaseUrl}/upload_profile_pic?token=${privateKey}`, {
-        method: "POST",
-        body: formData,
-      })
+      fetch(
+        `${apiBaseUrl}/upload_team_photo?type=${selectedPic}&token=${privateKey}`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      )
         .then((response) => response.json())
         .then((data) => {
           console.log("Success:", data);
@@ -73,13 +75,6 @@ const UserPicture: React.FC = () => {
               const teamId = e.target.value;
               const team = Teams.find((t) => t.team_id === teamId) || null;
               setSelectedTeam(team);
-              if (team) {
-                const response = await fetch(
-                  `${apiBaseUrl}/team/${teamId}/players`
-                );
-                const players: Player[] = await response.json();
-                setPlayers(players);
-              }
             }}
           >
             <option value="" disabled>
@@ -91,30 +86,23 @@ const UserPicture: React.FC = () => {
               </option>
             ))}
           </Form.Control>
-          {selectedTeam && (
-            <>
-              <Form.Label>Select Player</Form.Label>
-              <Form.Control
-                as="select"
-                value={selectedPlayer?.player_id || ""}
-                onChange={(e) => {
-                  const playerId = e.target.value;
-                  const player =
-                    players.find((p) => p.player_id === playerId) || null;
-                  setSelectedPlayer(player);
-                }}
-              >
-                <option value="" disabled>
-                  Select a player
-                </option>
-                {players.map((player) => (
-                  <option key={player.player_id} value={player.player_id}>
-                    {player.nickname}
-                  </option>
-                ))}
-              </Form.Control>
-            </>
-          )}
+
+          <Form.Label>Select Picture Type</Form.Label>
+          <Form.Control
+            as="select"
+            value={selectedPic}
+            onChange={(e) => {
+              const pic = e.target.value;
+              setSelectedPic(pic);
+            }}
+          >
+            <option value="" disabled>
+              Select a picture type
+            </option>
+            <option value="logo">logo</option>
+            <option value="bg">background</option>
+          </Form.Control>
+
           <Form.Label>Upload new profile picture</Form.Label>
           <Form.Control type="file" onChange={handleFileChange} />
           <Form.Label>enter private key</Form.Label>
@@ -130,4 +118,4 @@ const UserPicture: React.FC = () => {
   );
 };
 
-export default UserPicture;
+export default TeamPictures;

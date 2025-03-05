@@ -14,6 +14,8 @@ import { useEffect, useState } from "react";
 import { Team, Match, Player } from "../../types";
 import { useQueryClient } from "@tanstack/react-query";
 import "./TeamPageBackground.css";
+const apiBaseUrl =
+  import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org";
 
 interface PlayerCardProps {
   player: Player;
@@ -21,7 +23,7 @@ interface PlayerCardProps {
 }
 
 const fetchTeam = async (teamId: string): Promise<Team> => {
-  const response = await fetch(`http://localhost:8889/team/${teamId}`);
+  const response = await fetch(`${apiBaseUrl}/team/${teamId}`);
   return response.json();
 };
 
@@ -46,37 +48,41 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, leader }) => {
   };
 
   return (
-    <Card style={{ width: "200px" }}>
-      <Card.Img variant="top" src={player.avatar} />
-
-      <Card.Title
-        className="text-center"
-        style={{ fontSize: "1.5rem", marginTop: "1rem" }}
-      >
-        {leader ? (
-          <i
-            className="bi bi-star"
-            style={{ fontSize: "1rem", color: "gold", marginRight: "0.5rem" }}
-          />
-        ) : (
-          ""
-        )}
-        {player.nickname}
-      </Card.Title>
-      <div className="d-flex justify-content-center">
-        <Badge bg={getLevelColor(player.skill_level)} style={{ width: "70px" }}>
-          Level: {player.skill_level}
-        </Badge>
-      </div>
-      <Button
-        className="d-none d-md-block"
-        variant="primary"
-        style={{ margin: "1rem" }}
-        onClick={handlePlayerClick}
-      >
-        View Profile
-      </Button>
-    </Card>
+    <>
+      <img src={player.avatar} style={{ width: "200px" }} />
+      <Card style={{ width: "200px" }}>
+        <Card.Title
+          className="text-center"
+          style={{ fontSize: "1.5rem", marginTop: "1rem" }}
+        >
+          {leader ? (
+            <i
+              className="bi bi-star"
+              style={{ fontSize: "1rem", color: "gold", marginRight: "0.5rem" }}
+            />
+          ) : (
+            ""
+          )}
+          {player.nickname}
+        </Card.Title>
+        <div className="d-flex justify-content-center">
+          <Badge
+            bg={getLevelColor(player.skill_level)}
+            style={{ width: "70px" }}
+          >
+            Level: {player.skill_level}
+          </Badge>
+        </div>
+        <Button
+          className="d-none d-md-block"
+          variant="primary"
+          style={{ margin: "1rem" }}
+          onClick={handlePlayerClick}
+        >
+          View Profile
+        </Button>
+      </Card>
+    </>
   );
 };
 
@@ -94,7 +100,7 @@ const TeamPage = () => {
 
   const fetchTeamInfo = async () => {
     try {
-      const response = await fetch(`http://localhost:8889/team/${id}`);
+      const response = await fetch(`${apiBaseUrl}/team/${id}`);
       const data: Team = await response.json();
       setTeam(data);
     } catch (error) {
@@ -103,7 +109,7 @@ const TeamPage = () => {
   };
 
   const fetchMatches = async () => {
-    const response = await fetch(`http://localhost:8889/team/${id}/matches`);
+    const response = await fetch(`${apiBaseUrl}/team/${id}/matches`);
     const matches: Match[] = await response.json();
 
     const matchesWithTeams = await Promise.all(
@@ -111,10 +117,12 @@ const TeamPage = () => {
         const team1 = await queryClient.fetchQuery({
           queryKey: ["team", match.team1_id],
           queryFn: () => fetchTeam(match.team1_id),
+          staleTime: 1000 * 60 * 10,
         });
         const team2 = await queryClient.fetchQuery({
           queryKey: ["team", match.team2_id],
           queryFn: () => fetchTeam(match.team2_id),
+          staleTime: 1000 * 60 * 10,
         });
         return { ...match, teams: { team1, team2 } };
       })
@@ -123,7 +131,7 @@ const TeamPage = () => {
   };
   const fetchTeamPlayers = async () => {
     try {
-      const response = await fetch(`http://localhost:8889/team/${id}/players`);
+      const response = await fetch(`${apiBaseUrl}/team/${id}/players`);
       const players: Player[] = await response.json();
       setTeam((prevTeam) => {
         if (prevTeam) {
@@ -153,6 +161,10 @@ const TeamPage = () => {
     }
   }, [id]);
 
+  useEffect(() => {
+    document.title = team ? `CC - ${team.name}` : "CC - Team";
+  }, [team?.name]);
+
   if (!team) {
     return <div>Team not found</div>;
   }
@@ -162,7 +174,7 @@ const TeamPage = () => {
       <div
         className="background"
         style={{
-          backgroundImage: `url('http://0.0.0.0:8889/static/bg/${team.team_id}.png')`,
+          backgroundImage: `url('${apiBaseUrl}/static/bg/${team.team_id}.png')`,
         }}
       />
       <Container style={{ marginTop: "0.5rem", padding: "0 1rem" }}>
@@ -183,22 +195,28 @@ const TeamPage = () => {
           <div className="d-flex justify-content-center">
             <div className="d-flex flex-wrap justify-content-center">
               {team.roster ? (
-                team.roster.map((player) => (
-                  <div
-                    key={player.player_id}
-                    className="p-2"
-                    style={{
-                      flex: "1 0 200px",
-                      maxWidth: "200px",
-                      margin: "0 1rem",
-                    }}
-                  >
-                    <PlayerCard
-                      player={player}
-                      leader={team.leader === player.player_id}
-                    />
-                  </div>
-                ))
+                team.roster
+                  .sort((a, b) => {
+                    if (team.leader === a.player_id) return -1;
+                    if (team.leader === b.player_id) return 1;
+                    return a.nickname.localeCompare(b.nickname);
+                  })
+                  .map((player) => (
+                    <div
+                      key={player.player_id}
+                      className="p-2"
+                      style={{
+                        flex: "1 0 200px",
+                        maxWidth: "200px",
+                        margin: "0 1rem",
+                      }}
+                    >
+                      <PlayerCard
+                        player={player}
+                        leader={team.leader === player.player_id}
+                      />
+                    </div>
+                  ))
               ) : (
                 <p>No players found</p>
               )}

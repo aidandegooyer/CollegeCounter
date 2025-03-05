@@ -43,6 +43,32 @@ def get_faceit_tournament(
         teams_json[faction1["faction_id"]] = faction1
         teams_json[faction2["faction_id"]] = faction2
 
+        # Create teams and attach the players using the dictionary
+    teams_dict = {}
+    for team in teams_json.values():
+        team_id = team["faction_id"]
+        # Use no_autoflush when querying for an existing team
+
+        existing_team = Team.query.get(team_id)
+        if not existing_team and team_id not in teams_dict:
+            db_team = Team(
+                team_id=team_id,
+                name=team["name"],
+                leader=team["leader"],
+                avatar=team["avatar"],
+                elo=0,
+            )
+
+            db.session.add(db_team)
+            db.session.flush()
+
+            teams_dict[team_id] = db_team
+        else:
+            # Use the already persisted team
+            teams_dict[team_id] = (
+                existing_team if existing_team else teams_dict[team_id]
+            )
+
     # Create players and store them in a dictionary for quick lookup
     #    load players into database
     players_dict = {}
@@ -61,42 +87,10 @@ def get_faceit_tournament(
                     team_id=team["faction_id"],
                 )
                 db.session.add(db_player)
+                db.session.flush()
                 players_dict[player["player_id"]] = db_player
             else:
                 players_dict[player["player_id"]] = existing_player
-
-    # Create teams and attach the players using the dictionary
-    teams_dict = {}
-    for team in teams_json.values():
-        team_id = team["faction_id"]
-        # Use no_autoflush when querying for an existing team
-
-        existing_team = Team.query.get(team_id)
-        if not existing_team and team_id not in teams_dict:
-            db_team = Team(
-                team_id=team_id,
-                name=team["name"],
-                leader=team["leader"],
-                avatar=team["avatar"],
-                elo=0,
-            )
-            existing_player_ids = {p.player_id for p in db_team.roster}
-            for player in team["roster"]:
-                player_id = player["player_id"]
-                # Only append if not already in the roster
-                if player_id not in existing_player_ids:
-                    print(f"Adding player {player_id} to team {team_id}")
-                    db_team.roster.append(players_dict[player_id])
-                    existing_player_ids.add(player_id)
-                else:
-                    print(f"Player {player_id} already in team {team_id}")
-            db.session.add(db_team)
-            teams_dict[team_id] = db_team
-        else:
-            # Use the already persisted team
-            teams_dict[team_id] = (
-                existing_team if existing_team else teams_dict[team_id]
-            )
 
     # Create matches and set up team relationships using the teams_dict
     for match in match_list:
@@ -129,5 +123,6 @@ def get_faceit_tournament(
             if team2_id in teams_dict:
                 db_match.teams.append(teams_dict[team2_id])
             db.session.add(db_match)
+            db.session.flush()
 
     db.session.commit()

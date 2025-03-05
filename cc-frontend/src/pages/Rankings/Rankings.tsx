@@ -1,45 +1,54 @@
 import { Badge, Card, Container, Form } from "react-bootstrap";
-import teamsElo from "../../../../cc-ranking/.dev/team_elo_history.json";
 import { Link } from "react-router-dom";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import FlipMove from "react-flip-move";
 import { forwardRef } from "react";
+import { Team, EloHistory } from "../../types";
+import { useQueryClient } from "@tanstack/react-query";
+const apiBaseUrl =
+  import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org";
 
-interface Team {
-  name: string;
-  roster: {
-    player_id: string;
-    nickname: string;
-    avatar: string;
-    membership: string;
-    game_player_id: string;
-    game_player_name: string;
-    game_skill_level: number;
-    anticheat_required: boolean;
-  }[];
-  faction_id: string;
-  leader: string;
-  avatar: string;
-  substituted: boolean;
-  type: string;
-  elo: number;
-  elo_history: {
-    match_id: string | null;
-    opponent_id: string;
-    result: number;
-    new_elo: number;
+interface GroupedEloHistory {
+  [team_id: string]: {
+    elo: number;
+    timestamp: number;
   }[];
 }
 
 interface RankingProps {
-  team: Team;
+  team_id: string;
   rank: number;
   elo: number;
   rankChange: number;
 }
 
+const fetchTeam = async (teamId: string): Promise<Team> => {
+  const response = await fetch(`${apiBaseUrl}/team/${teamId}`);
+  return response.json();
+};
+
 const Ranking = forwardRef<HTMLDivElement, RankingProps>(
-  ({ team, rank, elo, rankChange }, ref) => {
+  ({ team_id, rank, elo, rankChange }, ref) => {
+    const [team, setTeam] = useState<Team | null>(null);
+    const queryClient = useQueryClient();
+
+    useEffect(() => {
+      async function fetchTeamData(team_id: string): Promise<void> {
+        const team = await queryClient.fetchQuery({
+          queryKey: ["team", team_id],
+          queryFn: () => fetchTeam(team_id),
+          staleTime: 1000 * 60 * 10,
+        });
+        setTeam(team);
+      }
+
+      fetchTeamData(team_id);
+    }, [team_id]);
+
+    if (!team) {
+      return null;
+    }
+
     return (
       <Card className="mb-2" ref={ref}>
         <div className="d-flex justify-content-between align-items-center p-2">
@@ -67,7 +76,7 @@ const Ranking = forwardRef<HTMLDivElement, RankingProps>(
                   display: "block",
                   textDecoration: "none",
                 }}
-                to={`/team?id=${team.faction_id}`}
+                to={`/team?id=${team.team_id}`}
               >
                 {team.name}
               </Link>
@@ -115,7 +124,81 @@ const Rankings = () => {
   const totalMatchDays = 5;
   const [matchDay, setMatchDay] = useState(totalMatchDays);
   const [sliderPosition, setSliderPosition] = useState(100);
+  const [eloData, setEloData] = useState<GroupedEloHistory>({});
   const containerRef = useRef<HTMLDivElement>(null);
+
+  function groupEloHistories(histories: EloHistory[]): {
+    [team_id: string]: { elo: number; timestamp: number }[];
+  } {
+    return histories.reduce((acc, { team_id, elo, timestamp }) => {
+      if (!acc[team_id]) {
+        acc[team_id] = [];
+      }
+      acc[team_id].push({ elo, timestamp });
+      return acc;
+    }, {} as { [team_id: string]: { elo: number; timestamp: number }[] });
+  }
+
+  async function fetchEloHistory(): Promise<GroupedEloHistory> {
+    const response = await fetch(`${apiBaseUrl}/get_elo_history`);
+    const elo_history = await response.json();
+
+    const eloHistoryGroups = groupEloHistories(elo_history);
+    return eloHistoryGroups;
+  }
+
+  function getEloForMatchDay(
+    _team: { team_id: string },
+    matchDay: number
+  ): number {
+    const teamEloHistory = eloData[_team.team_id];
+    if (!teamEloHistory || teamEloHistory.length === 0) {
+      // Return a default value if no data exists; adjust as needed.
+      return 0;
+    }
+    // If the requested matchDay exists, use it, otherwise use the last available entry.
+    const entry =
+      teamEloHistory[matchDay] ?? teamEloHistory[teamEloHistory.length - 1];
+    return entry.elo;
+  }
+
+  function getRankChange(_team: { team_id: string }, matchDay: number): number {
+    // get the rankings from the previous matchday
+    const previousMatchDay = matchDay - 1;
+    if (previousMatchDay < 0) {
+      return 0;
+    }
+    const currentRanking = Object.entries(eloData).sort(
+      ([team_a], [team_b]) =>
+        getEloForMatchDay({ team_id: team_b }, matchDay) -
+        getEloForMatchDay({ team_id: team_a }, matchDay)
+    );
+    // find the index of the team in the sorted array
+    const teamIndex = currentRanking.findIndex(
+      ([team_id]) => team_id === _team.team_id
+    );
+    // get the rankings from the previous matchday
+    const previousRanking = Object.entries(eloData).sort(
+      ([team_a], [team_b]) =>
+        getEloForMatchDay({ team_id: team_b }, previousMatchDay) -
+        getEloForMatchDay({ team_id: team_a }, previousMatchDay)
+    );
+    // find the index of the team in the sorted array
+    const previousTeamIndex = previousRanking.findIndex(
+      ([team_id]) => team_id === _team.team_id
+    );
+    // calculate the rank change
+    return previousTeamIndex - teamIndex;
+  }
+
+  useEffect(() => {
+    const fetchData = async () => {
+      document.title = "CC - Rankings";
+      const eloHistoryGroups = await fetchEloHistory();
+      setEloData(eloHistoryGroups);
+    };
+    fetchData();
+  }, []);
 
   const handleSliderChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.valueAsNumber || Number(event.target.value);
@@ -127,35 +210,6 @@ const Rankings = () => {
       containerRef.current.scrollTop = containerRef.current.scrollTop;
     }
   };
-
-  const getEloForMatchDay = (team: Team, matchDay: number) => {
-    if (matchDay === 0) {
-      return team.elo_history[0]?.new_elo ?? team.elo;
-    }
-    const history = team.elo_history.filter((entry) => entry.result !== -1);
-    return history.length >= matchDay
-      ? history[matchDay - 1]?.new_elo ?? team.elo
-      : team.elo;
-  };
-
-  const getRankChange = (
-    team: Team,
-    currentRank: number,
-    previousRankings: Team[]
-  ) => {
-    const previousRank = previousRankings.findIndex(
-      (t) => t.faction_id === team.faction_id
-    );
-    if (matchDay === 0) {
-      return 0;
-    }
-    return previousRank === -1 ? 0 : previousRank - currentRank;
-  };
-
-  const previousRankings = [...teamsElo].sort(
-    (a, b) =>
-      getEloForMatchDay(b, matchDay - 1) - getEloForMatchDay(a, matchDay - 1)
-  );
 
   return (
     <>
@@ -187,22 +241,26 @@ const Rankings = () => {
           </div>
         </div>
 
-        <FlipMove>
-          {teamsElo
-            .sort(
-              (a, b) =>
-                getEloForMatchDay(b, matchDay) - getEloForMatchDay(a, matchDay)
-            )
-            .map((team, index) => (
-              <Ranking
-                key={team.faction_id}
-                team={team}
-                elo={getEloForMatchDay(team, matchDay)}
-                rank={index}
-                rankChange={getRankChange(team, index, previousRankings)}
-              />
-            ))}
-        </FlipMove>
+        {
+          <FlipMove>
+            {eloData &&
+              Object.entries(eloData)
+                .sort(
+                  ([team_a], [team_b]) =>
+                    getEloForMatchDay({ team_id: team_b }, matchDay) -
+                    getEloForMatchDay({ team_id: team_a }, matchDay)
+                )
+                .map(([team_id], index) => (
+                  <Ranking
+                    key={team_id}
+                    team_id={team_id} // or pass the full team data if available
+                    elo={getEloForMatchDay({ team_id: team_id }, matchDay)}
+                    rank={index}
+                    rankChange={getRankChange({ team_id: team_id }, matchDay)}
+                  />
+                ))}
+          </FlipMove>
+        }
       </Container>
     </>
   );

@@ -11,14 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code
 COPY . .
 
-# Copy the static files
-COPY static /app/static
-
-# Copy the uploads directory
-COPY static/uploads /app/static/uploads
-
-# Expose port 5000 for the Flask app
-EXPOSE 5000
+EXPOSE 8889
 
 # Define the command to run the app
-CMD ["python", "app.py"]
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8889", "app:app"]

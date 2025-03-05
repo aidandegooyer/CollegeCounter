@@ -3,9 +3,11 @@ import { Badge, Button, Container, ListGroup } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Team } from "../../types";
+const apiBaseUrl =
+  import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org";
 
 const fetchTopTeams = async () => {
-  const response = await fetch("http://localhost:8889/top10");
+  const response = await fetch(`${apiBaseUrl}/top10`);
   const data = await response.json();
   return data;
 };

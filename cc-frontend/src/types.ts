@@ -34,5 +34,13 @@ interface Match {
     results_score_team2?: number;
     };
 
+interface EloHistory {
+    elo: number;
+    timestamp: number;
+    id: number;
+    team_id: string;
+    match_id: string;
+}
 
-export type { Player, Team, Match };
+
+export type { Player, Team, Match, EloHistory };

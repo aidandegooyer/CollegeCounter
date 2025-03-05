@@ -49,6 +49,27 @@ class Match(db.Model):
     teams = db.relationship("Team", secondary="team_match", back_populates="matches")
 
 
+class EloHistory(db.Model):
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.String, db.ForeignKey("team.team_id"), nullable=False)
+    elo = db.Column(db.Integer, nullable=False)
+    match_id = db.Column(db.String, db.ForeignKey("match.match_id"), nullable=False)
+    timestamp = db.Column(db.Integer, nullable=False)
+
+
+team_elo_history = db.Table(
+    "team_elo_history",
+    db.Column("team_id", db.String, db.ForeignKey("team.team_id"), primary_key=True),
+    db.Column(
+        "elo_history_id", db.Integer, db.ForeignKey("elo_history.id"), primary_key=True
+    ),
+    db.Column("match_id", db.String, db.ForeignKey("match.match_id"), primary_key=True),
+)
+
+
 team_match = db.Table(
     "team_match",
     db.Column("team_id", db.String, db.ForeignKey("team.team_id"), primary_key=True),

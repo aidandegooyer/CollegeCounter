@@ -3,9 +3,11 @@ import { useEffect, useState } from "react";
 import ResultCard from "./ResultCard";
 import { useQueryClient } from "@tanstack/react-query";
 import { Match, Team } from "../../types";
+const apiBaseUrl =
+  import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org";
 
 const fetchTeam = async (teamId: string): Promise<Team> => {
-  const response = await fetch(`http://localhost:8889/team/${teamId}`);
+  const response = await fetch(`${apiBaseUrl}/team/${teamId}`);
   return response.json();
 };
 
@@ -13,10 +15,13 @@ const Results = () => {
   const [matches, setMatches] = useState<Match[]>([]);
 
   const queryClient = useQueryClient();
+  useEffect(() => {
+    document.title = "CC - Results";
+  }, []);
 
   useEffect(() => {
     const fetchMatches = async () => {
-      const response = await fetch("http://localhost:8889/results");
+      const response = await fetch(`${apiBaseUrl}/results`);
       const matches: Match[] = await response.json();
 
       const matchesWithTeams = await Promise.all(
@@ -24,10 +29,12 @@ const Results = () => {
           const team1 = await queryClient.fetchQuery({
             queryKey: ["team", match.team1_id],
             queryFn: () => fetchTeam(match.team1_id),
+            staleTime: 1000 * 60 * 10,
           });
           const team2 = await queryClient.fetchQuery({
             queryKey: ["team", match.team2_id],
             queryFn: () => fetchTeam(match.team2_id),
+            staleTime: 1000 * 60 * 10,
           });
           return { ...match, teams: { team1, team2 } };
         })

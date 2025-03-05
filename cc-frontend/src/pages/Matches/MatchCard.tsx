@@ -1,6 +1,14 @@
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
-import { Card, Row, Col, Badge, Button, Alert } from "react-bootstrap";
+import {
+  Card,
+  Row,
+  Col,
+  Badge,
+  Button,
+  Alert,
+  ProgressBar,
+} from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { Match } from "../../types";
 
@@ -28,6 +36,7 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
           clearInterval(interval);
           setTimeLeft("Live");
         } else {
+          const days = Math.floor(distance / (1000 * 60 * 60 * 24));
           const hours = Math.floor(
             (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
           );
@@ -35,7 +44,7 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
             (distance % (1000 * 60 * 60)) / (1000 * 60)
           );
           const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-          setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
+          setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
         }
       }, 1000);
 
@@ -50,6 +59,9 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
       </Alert>
     );
   }
+
+  const expected_score =
+    1 / (1 + 10 ** ((match.teams?.team2.elo - match.teams?.team1.elo) / 800));
 
   if (today) {
     return (
@@ -130,6 +142,42 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
             </Row>
           </Col>
         </Row>
+        <h6
+          style={{
+            margin: "1rem",
+            marginTop: "0",
+            marginBottom: "0",
+          }}
+        >
+          Win Probability:
+        </h6>
+        <ProgressBar
+          style={{
+            margin: "1rem",
+            marginTop: "0.25rem",
+          }}
+        >
+          <ProgressBar
+            now={Math.round(expected_score * 100)}
+            label={
+              match.teams.team1.name +
+              " " +
+              Math.round(expected_score * 100) +
+              "%"
+            }
+            variant="info"
+          />
+          <ProgressBar
+            now={Math.round((1 - expected_score) * 100)}
+            label={
+              match.teams.team2.name +
+              " " +
+              Math.round((1 - expected_score) * 100) +
+              "%"
+            }
+            variant="primary"
+          />
+        </ProgressBar>
         <Button
           variant="primary"
           style={{

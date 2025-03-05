@@ -1,35 +1,72 @@
+from functools import wraps
 import statistics
 import time
-from flask import Flask, send_from_directory, request
+from flask import Flask, abort, send_from_directory, request
 from flask_cors import CORS
 import requests
 import os
 from dotenv import load_dotenv
 from PIL import Image
-from cc_backend.models import Player, Team, Match
+from cc_backend.models import Player, Team, Match, EloHistory
 from cc_backend.db import db
 import cc_backend.views
+from google.cloud import storage
+from io import BytesIO
 
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 
 # For local development, you can start with SQLite:
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///test.db"
+# app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///test.db"
+
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_URI")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
+
+
+CORS(
+    app,
+    resources={
+        r"/*": {
+            "origins": [
+                "https://collegecounter.org",
+                "https://api.collegecounter.org",
+                "https://www.collegecounter.org",
+            ]
+        }
+    },
+)
+
+CORS(app)
 
 
 UPLOAD_FOLDER = "static/uploads"
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["BUCKET_NAME"] = "cc-static"
+
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 # Read the .env file and set environment variables
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 FACEIT_API_KEY = os.getenv("FACEIT_API_KEY")
+SECRET_TOKEN = os.environ.get("MY_SECRET_TOKEN")
 if FACEIT_API_KEY is None:
     raise ValueError("FACEIT_API_KEY not found in the environment variables.")
+
+
+def require_token(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check for the token in a query parameter or in the headers
+        token = request.args.get("token") or request.headers.get("X-Secret-Token")
+        if not token or token != SECRET_TOKEN:
+            abort(403)  # Forbidden if token doesn't match
+        return f(*args, **kwargs)
+
+    return decorated_function
 
 
 def create_tables():
@@ -49,6 +86,7 @@ def get_all_matches():
 
 
 @app.route("/update_matches")
+@require_token
 def update_matches():
     # get all matches that are scheduled with a time before now
     matches = Match.query.filter(
@@ -76,6 +114,7 @@ def update_matches():
 
 
 @app.route("/update_schedule")
+@require_token
 def update_schedule():
     one_week_from_now = int(time.time()) + 7 * 24 * 60 * 60
     matches = Match.query.filter(
@@ -102,24 +141,28 @@ def update_schedule():
 
 
 @app.route("/inspect_db")
+@require_token
 def inspect_db():
     players = Player.query.all()
     teams = Team.query.all()
     matches = Match.query.all()
+    elo_history = EloHistory.query.all()
     return {
         "matches": [match.as_dict() for match in matches],
         "teams": [team.as_dict() for team in teams],
         "players": [player.as_dict() for player in players],
+        "elo_history": [entry.as_dict() for entry in elo_history],
     }
 
 
 @app.route("/update_all_players_elo")
+@require_token
 def update_all_players_elo():
     players = Player.query.all()
     for player in players:
         user_id = player.player_id
         # get the elo number from faceit api at https://open.faceit.com/data/v4/players/{player_id}/games/{game_id}/stats
-        headers = {"Authorization": "Bearer 10221230-93bb-4048-9c7b-1183ffe42f90"}
+        headers = {"Authorization": "Bearer " + FACEIT_API_KEY}
         response = requests.get(
             f"https://open.faceit.com/data/v4/players/{user_id}", headers=headers
         )
@@ -127,16 +170,31 @@ def update_all_players_elo():
             elo = response.json()["games"]["cs2"]["faceit_elo"]
             player.elo = elo
             print(f"Got elo {elo} for user {player.nickname}")
+        else:
+            print(f"Error getting elo for user {player.nickname}")
 
     db.session.commit()
     return "All players' ELO updated!"
 
 
+@app.route("/clear_elo_history")
+@require_token
+def clear_elo_history():
+    EloHistory.query.delete()
+    db.session.commit()
+    return "ELO history cleared!"
+
+
 @app.route("/calculate_initial_elo")
+@require_token
 def calculate_initial_elo():
     teams = Team.query.all()
     for team in teams:
         player_elos = [player.elo for player in team.roster]
+        # take the highest 5 elos for this average
+        player_elos.sort(reverse=True)
+        player_elos = player_elos[:5]
+        print(player_elos)
         mean_elo = statistics.mean(player_elos)
         std_dev = statistics.stdev(player_elos)
         k = 0.1
@@ -145,6 +203,60 @@ def calculate_initial_elo():
         print(f"Calculated ELO for team {team.name}: {team_elo}")
     db.session.commit()
     return "Initial ELO calculated!"
+
+
+@app.route("/update_all_elo")
+@require_token
+def update_all_elo():
+    # ensure match isnt already updated by checking if matchid is in elo history
+
+    matches = Match.query.filter(Match.status == "FINISHED").all()
+    sorted_matches = sorted(matches, key=lambda x: x.scheduled_time)
+    for match in sorted_matches:
+        update_elo(match)
+        print(f"Updated ELO for match {match.match_id}")
+
+
+def update_elo(match: Match):
+    team1 = Team.query.get(match.team1_id)
+    team2 = Team.query.get(match.team2_id)
+    if match.results_winner == "faction1":
+        team1_new_elo = calculate_new_elo(team1.elo, team2.elo, 1)
+        team2_new_elo = calculate_new_elo(team2.elo, team1.elo, 0)
+    else:
+        team1_new_elo = calculate_new_elo(team1.elo, team2.elo, 0)
+        team2_new_elo = calculate_new_elo(team2.elo, team1.elo, 1)
+    # create elo history entries
+    elo_history_team1 = EloHistory(
+        team_id=team1.team_id,
+        elo=team1_new_elo,
+        match_id=match.match_id,
+        timestamp=match.scheduled_time,
+    )
+    elo_history_team2 = EloHistory(
+        team_id=team2.team_id,
+        elo=team2_new_elo,
+        match_id=match.match_id,
+        timestamp=match.scheduled_time,
+    )
+    db.session.add(elo_history_team1)
+    db.session.add(elo_history_team2)
+    team1.elo = team1_new_elo
+    team2.elo = team2_new_elo
+    db.session.commit()
+
+
+def calculate_new_elo(current_elo, opponent_elo, result):
+    k = 150  # K-factor, determines the maximum possible adjustment per game
+    expected_score = 1 / (1 + 10 ** ((opponent_elo - current_elo) / 600))
+    new_elo = current_elo + k * (result - expected_score)
+    return new_elo
+
+
+@app.route("/get_elo_history")
+def get_elo_history():
+    elo_history = EloHistory.query.all()
+    return [entry.as_dict() for entry in elo_history]
 
 
 @app.route("/player/<player_id>")
@@ -226,7 +338,8 @@ def serve_static(filename):
 
 
 @app.route("/upload_profile_pic", methods=["POST"])
-def upload_file():
+@require_token
+def upload_profile_pic():
     if "file" not in request.files:
         return {"error": "No file part"}, 400
 
@@ -241,12 +354,6 @@ def upload_file():
             return {"error": "Player not found"}, 404
 
         team_id = player.team_id
-        filepath = os.path.join(
-            app.config["UPLOAD_FOLDER"], team_id, f"{player_id}.png"
-        )
-
-        # Create the directory if it doesn't exist
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         image = Image.open(file)
         image = image.convert("RGBA")
@@ -262,13 +369,77 @@ def upload_file():
 
         # Resize the image to 400x400
         image = image.resize((400, 400))
-        if os.path.exists(filepath):
-            os.remove(filepath)
-        # Save the image as PNG
-        image.save(filepath, "PNG")
 
-        player.avatar = "http://localhost:8889/" + filepath
+        buffer = BytesIO()
+        image.save(buffer, "PNG")
+        buffer.seek(0)
+
+        # Upload the image to Google Cloud Storage
+        client = storage.Client()
+        bucket_name = app.config["BUCKET_NAME"]
+        bucket = client.get_bucket(bucket_name)
+        blob_path = f"static/uploads/{team_id}/{player_id}.png"
+        blob = bucket.blob(blob_path)
+        blob.upload_from_file(buffer, content_type="image/png")
+
+        # With uniform bucket-level access, you control public access via IAM, so no need to call blob.make_public()
+        # Instead, construct the public URL manually:
+        public_url = f"https://storage.googleapis.com/{bucket_name}/{blob_path}"
+        player.avatar = public_url
         db.session.commit()
+
+        return {"message": "File uploaded successfully"}, 200
+
+    return {"error": "File type not allowed"}, 400
+
+
+@app.route("/upload_team_photo", methods=["POST"])
+@require_token
+def upload_team_photo():
+    if "file" not in request.files:
+        return {"error": "No file part"}, 400
+
+    type = request.args.get("type")
+
+    file = request.files["file"]
+    if file.filename == "":
+        return {"error": "No selected file"}, 400
+
+    if file and allowed_file(file.filename):
+        team_id = request.form.get("team_id")
+        team = Team.query.get(team_id)
+        if not team:
+            return {"error": "Team not found"}, 404
+
+        image = Image.open(file)
+        image = image.convert("RGBA")
+
+        if type == "logo":
+            image = image.resize((400, 400))
+
+        buffer = BytesIO()
+        image.save(buffer, "PNG")
+        buffer.seek(0)
+
+        # Upload the image to Google Cloud Storage
+        client = storage.Client()
+        bucket_name = app.config["BUCKET_NAME"]
+        bucket = client.get_bucket(bucket_name)
+        if type == "logo":
+            blob_path = f"static/uploads/{team_id}/logo.png"
+        elif type == "bg":
+            blob_path = f"static/bg/{team_id}.png"
+        else:
+            return {"error": "Invalid type"}, 400
+        blob = bucket.blob(blob_path)
+        blob.upload_from_file(buffer, content_type="image/png")
+
+        # With uniform bucket-level access, you control public access via IAM, so no need to call blob.make_public()
+        # Instead, construct the public URL manually:
+        if type == "logo":
+            public_url = f"https://storage.googleapis.com/{bucket_name}/{blob_path}"
+            team.avatar = public_url
+            db.session.commit()
 
         return {"message": "File uploaded successfully"}, 200
 
@@ -285,8 +456,20 @@ def index():
 
 
 if __name__ == "__main__":
-    print(FACEIT_API_KEY)
     create_tables()
-    CORS(app)  # Enable CORS for all routes
-    # Run on 0.0.0.0 so it’s accessible from Docker
-    app.run(host="localhost", port="8889", debug=True)
+
+    # CORS(app)  # Enable CORS for all routes
+
+    CORS(
+        app,
+        resources={
+            r"/*": {
+                "origins": [
+                    "https://collegecounter.org",
+                    "https://api.collegecounter.org",
+                    "https://www.collegecounter.org",
+                ]
+            }
+        },
+    )
+    app.run(host="0.0.0.0", port=8889, debug=True)
