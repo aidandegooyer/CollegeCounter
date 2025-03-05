@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { Team, Match, Player } from "../../types";
 import { useQueryClient } from "@tanstack/react-query";
 import "./TeamPageBackground.css";
+import { te } from "date-fns/locale";
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org";
 
@@ -24,6 +25,11 @@ interface PlayerCardProps {
 
 const fetchTeam = async (teamId: string): Promise<Team> => {
   const response = await fetch(`${apiBaseUrl}/team/${teamId}`);
+  return response.json();
+};
+
+const fetchPlayers = async (teamId: string): Promise<Player[]> => {
+  const response = await fetch(`${apiBaseUrl}/team/${teamId}/players`);
   return response.json();
 };
 
@@ -131,8 +137,11 @@ const TeamPage = () => {
   };
   const fetchTeamPlayers = async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/team/${id}/players`);
-      const players: Player[] = await response.json();
+      const players: Player[] = await queryClient.fetchQuery({
+        queryKey: ["team", id, "players"],
+        queryFn: () => fetchPlayers(id!),
+        staleTime: 1000 * 60 * 10,
+      });
       setTeam((prevTeam) => {
         if (prevTeam) {
           return { ...prevTeam, roster: players };
