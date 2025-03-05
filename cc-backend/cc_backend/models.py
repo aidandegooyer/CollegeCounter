@@ -66,7 +66,12 @@ team_elo_history = db.Table(
     db.Column(
         "elo_history_id", db.Integer, db.ForeignKey("elo_history.id"), primary_key=True
     ),
-    db.Column("match_id", db.String, db.ForeignKey("match.match_id"), primary_key=True),
+    db.Column(
+        "match_id",
+        db.String,
+        db.ForeignKey("match.match_id"),
+        nullable=True,
+    ),
 )
 
 

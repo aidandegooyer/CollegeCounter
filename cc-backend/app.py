@@ -88,6 +88,7 @@ def get_all_matches():
 @app.route("/update_matches")
 @require_token
 def update_matches():
+    count = 0
     # get all matches that are scheduled with a time before now
     matches = Match.query.filter(
         Match.scheduled_time < int(time.time()), Match.status == "SCHEDULED"
@@ -108,14 +109,16 @@ def update_matches():
             )
             db.session.commit()
             print(f"Updated match {match.match_id}")
+            count += 1
         else:
             print(f"Error updating match {match.match_id}")
-    return "Matches updated!"
+    return "Matches updated! " + str(count) + " matches updated"
 
 
 @app.route("/update_schedule")
 @require_token
 def update_schedule():
+    count = 0
     one_week_from_now = int(time.time()) + 7 * 24 * 60 * 60
     matches = Match.query.filter(
         Match.scheduled_time > int(time.time()),
@@ -131,13 +134,14 @@ def update_schedule():
             if match_data.get("scheduled_at") != match.scheduled_time:
                 match.scheduled_time = match_data.get("scheduled_at")
                 print(f"Updated match {match.match_id}")
+                count += 1
                 db.session.commit()
             else:
                 print(f"Match {match.match_id} already up to date")
 
         else:
             print(f"Error updating match {match.match_id}")
-    return "Schedule updated!"
+    return "Schedule updated! " + str(count) + " matches updated"
 
 
 @app.route("/inspect_db")
@@ -201,6 +205,15 @@ def calculate_initial_elo():
         team_elo = mean_elo - k * std_dev
         team.elo = team_elo
         print(f"Calculated ELO for team {team.name}: {team_elo}")
+
+        elo_history_initial = EloHistory(
+            team_id=team.team_id,
+            elo=team_elo,
+            match_id=None,
+            timestamp=0,
+        )
+        db.session.add(elo_history_initial)
+
     db.session.commit()
     return "Initial ELO calculated!"
 
@@ -209,12 +222,17 @@ def calculate_initial_elo():
 @require_token
 def update_all_elo():
     # ensure match isnt already updated by checking if matchid is in elo history
-
-    matches = Match.query.filter(Match.status == "FINISHED").all()
+    count = 0
+    matches = Match.query.filter(
+        Match.status == "FINISHED",
+        ~Match.match_id.in_(db.session.query(EloHistory.match_id).distinct()),
+    ).all()
     sorted_matches = sorted(matches, key=lambda x: x.scheduled_time)
     for match in sorted_matches:
         update_elo(match)
         print(f"Updated ELO for match {match.match_id}")
+        count += 1
+    return f"Updated ELO for {count} matches!"
 
 
 def update_elo(match: Match):
@@ -251,6 +269,14 @@ def calculate_new_elo(current_elo, opponent_elo, result):
     expected_score = 1 / (1 + 10 ** ((opponent_elo - current_elo) / 600))
     new_elo = current_elo + k * (result - expected_score)
     return new_elo
+
+
+@app.route("/update")
+def update():
+    matches = update_matches()
+    schedule = update_schedule()
+    elo = update_all_elo()
+    return f"{matches}\n{schedule}\n{elo}"
 
 
 @app.route("/get_elo_history")
