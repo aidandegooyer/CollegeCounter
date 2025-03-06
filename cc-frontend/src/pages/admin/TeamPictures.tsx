@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Container, Form, Button, Image } from "react-bootstrap";
-import { Player, Team } from "../../types";
+import { Team } from "../../types";
 
 const TeamPictures: React.FC = () => {
   const [Teams, setTeams] = useState<Team[]>([]);

@@ -44,7 +44,15 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
             (distance % (1000 * 60 * 60)) / (1000 * 60)
           );
           const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-          setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+          const timeComponents = [
+            days > 0 ? `${days}d` : "",
+            hours > 0 ? `${hours}h` : "",
+            minutes > 0 ? `${minutes}m` : "",
+            seconds > 0 ? `${seconds}s` : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+          setTimeLeft(timeComponents);
         }
       }, 1000);
 
@@ -111,9 +119,18 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
           </Col>
           <Col style={{ marginRight: "1rem" }} className="text-end">
             <Row className="justify-content-end">
-              <h3>
-                {format(new Date(match.scheduled_time * 1000), "h:mm aaa")}
-              </h3>
+              {timeLeft.includes("d") ? (
+                <h3>
+                  {format(
+                    new Date(match.scheduled_time * 1000),
+                    "MMM do, h:mm aaa"
+                  )}
+                </h3>
+              ) : (
+                <h3>
+                  {format(new Date(match.scheduled_time * 1000), "h:mm aaa")}
+                </h3>
+              )}
             </Row>
             <Row className="justify-content-end">
               {timeLeft === "Live" ? (

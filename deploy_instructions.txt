@@ -1,0 +1,20 @@
+docker buildx build --platform linux/amd64 -t us-central1-docker.pkg.dev/college-counter/cc-repo/backend:latest -f cc-backend/Dockerfile cc-backend/
+
+docker buildx build --platform linux/amd64 -t us-central1-docker.pkg.dev/college-counter/cc-repo/frontend:latest -f cc-frontend/Dockerfile cc-frontend/
+
+docker push us-central1-docker.pkg.dev/college-counter/cc-repo/backend:latest
+docker push us-central1-docker.pkg.dev/college-counter/cc-repo/frontend:latest
+
+gcloud run deploy backend-service \
+  --image us-central1-docker.pkg.dev/college-counter/cc-repo/backend:latest \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+ --port 8889
+
+gcloud run deploy frontend-service \
+  --image us-central1-docker.pkg.dev/college-counter/cc-repo/frontend:latest \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+ --port 80
