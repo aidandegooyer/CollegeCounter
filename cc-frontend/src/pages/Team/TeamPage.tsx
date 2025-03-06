@@ -7,7 +7,7 @@ import {
   Col,
   Row,
 } from "react-bootstrap";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import MatchCard from "../Matches/MatchCard";
 import ResultCard from "../Results/ResultCard";
 import { useEffect, useState } from "react";
@@ -31,6 +31,12 @@ const fetchTeam = async (teamId: string): Promise<Team> => {
 const fetchPlayers = async (teamId: string): Promise<Player[]> => {
   const response = await fetch(`${apiBaseUrl}/team/${teamId}/players`);
   return response.json();
+};
+
+const fetchRank = async (teamId: string): Promise<number> => {
+  const response = await fetch(`${apiBaseUrl}/team/${teamId}/rank`);
+  const data = await response.json();
+  return data.rank;
 };
 
 const PlayerCard: React.FC<PlayerCardProps> = ({ player, leader }) => {
@@ -115,6 +121,7 @@ const TeamPage = () => {
   const [team, setTeam] = useState<Team | null>(null);
   const [upcomingMatches, setUpcomingMatches] = useState<any[]>([]);
   const [pastMatches, setPastMatches] = useState<any[]>([]);
+  const [rank, setRank] = useState<number | null>(null);
 
   const fetchTeamInfo = async () => {
     try {
@@ -122,6 +129,12 @@ const TeamPage = () => {
       const data: Team = await response.json();
       setTeam(data);
       fetchTeamPlayers();
+      const rank = await queryClient.fetchQuery({
+        queryKey: ["team", id, "rank"],
+        queryFn: () => fetchRank(id!),
+        staleTime: 1000 * 60 * 10,
+      });
+      setRank(rank);
     } catch (error) {
       console.error("Error fetching team info:", error);
     }
@@ -210,6 +223,12 @@ const TeamPage = () => {
           <h1 className="text-center" style={{ fontSize: "5rem" }}>
             {team.name}
           </h1>
+        </div>
+
+        <div className="d-flex justify-content-center align-items-center mt-2">
+          <h3>
+            Rank: <Link to="/rankings">#{rank}</Link>
+          </h3>
         </div>
 
         <Container style={{ marginTop: "1rem" }}>

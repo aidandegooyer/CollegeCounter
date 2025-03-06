@@ -12,6 +12,52 @@ from cc_backend.db import db
 import cc_backend.views
 from google.cloud import storage
 from io import BytesIO
+import argparse
+import logging
+
+
+parser = argparse.ArgumentParser(description="CollegeCounter Backend")
+parser.add_argument("--dev", action="store_true", help="Run in development mode")
+parser.add_argument(
+    "--log",
+    choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+    default="INFO",
+    help="Set the logging level",
+)
+args = parser.parse_args()
+
+is_dev = args.dev
+
+
+# Configure logging
+class CustomFormatter(logging.Formatter):
+    grey = "\x1b[38m"
+    yellow = "\x1b[33m"
+    red = "\x1b[31m"
+    bold_red = "\x1b[31;1m"
+    cyan = "\x1b[36m"
+    reset = "\x1b[0m"
+
+    FORMATS = {
+        logging.DEBUG: grey + "%(levelname)s - %(message)s" + reset,
+        logging.INFO: cyan + "%(levelname)s - %(message)s" + reset,
+        logging.WARNING: yellow + "%(levelname)s - %(message)s" + reset,
+        logging.ERROR: red + "%(levelname)s - %(message)s" + reset,
+        logging.CRITICAL: bold_red + "%(levelname)s - %(message)s" + reset,
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(getattr(logging, args.log))
+ch = logging.StreamHandler()
+ch.setLevel(getattr(logging, args.log))
+ch.setFormatter(CustomFormatter())
+logger.addHandler(ch)
 
 
 app = Flask(__name__)
@@ -19,27 +65,28 @@ app = Flask(__name__)
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 
 # For local development, you can start with SQLite:
-# app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///test.db"
 
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_URI")
+if is_dev:
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///test.db"
+    CORS(app)
+else:
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_URI")
+    CORS(
+        app,
+        resources={
+            r"/*": {
+                "origins": [
+                    "https://collegecounter.org",
+                    "https://api.collegecounter.org",
+                    "https://www.collegecounter.org",
+                ]
+            }
+        },
+    )
+
+
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
-
-
-CORS(
-    app,
-    resources={
-        r"/*": {
-            "origins": [
-                "https://collegecounter.org",
-                "https://api.collegecounter.org",
-                "https://www.collegecounter.org",
-            ]
-        }
-    },
-)
-
-CORS(app)
 
 
 UPLOAD_FOLDER = "static/uploads"
@@ -108,11 +155,11 @@ def update_matches():
                 match_data.get("results", {}).get("score", {}).get("faction2")
             )
             db.session.commit()
-            print(f"Updated match {match.match_id}")
+            logger.info(f"Updated match {match.match_id}")
             count += 1
         else:
-            print(f"Error updating match {match.match_id}")
-    return "Matches updated! " + str(count) + " matches updated"
+            logger.error(f"Error updating match {match.match_id}")
+    return f"Results for {count} matches updated!"
 
 
 @app.route("/update_schedule")
@@ -133,15 +180,15 @@ def update_schedule():
             match_data = response.json()
             if match_data.get("scheduled_at") != match.scheduled_time:
                 match.scheduled_time = match_data.get("scheduled_at")
-                print(f"Updated match {match.match_id}")
+                logger.info(f"Updated match {match.match_id}")
                 count += 1
                 db.session.commit()
             else:
-                print(f"Match {match.match_id} already up to date")
+                logger.debug(f"Match {match.match_id} already up to date")
 
         else:
-            print(f"Error updating match {match.match_id}")
-    return "Schedule updated! " + str(count) + " matches updated"
+            logger.error(f"Error updating match {match.match_id}")
+    return f"Schedule for {count} matches updated! " + str(count)
 
 
 @app.route("/inspect_db")
@@ -173,9 +220,9 @@ def update_all_players_elo():
         if response.status_code == 200:
             elo = response.json()["games"]["cs2"]["faceit_elo"]
             player.elo = elo
-            print(f"Got elo {elo} for user {player.nickname}")
+            logger.debug(f"Got elo {elo} for user {player.nickname}")
         else:
-            print(f"Error getting elo for user {player.nickname}")
+            logger.warning(f"Error getting elo for user {player.nickname}")
 
     db.session.commit()
     return "All players' ELO updated!"
@@ -198,13 +245,12 @@ def calculate_initial_elo():
         # take the highest 5 elos for this average
         player_elos.sort(reverse=True)
         player_elos = player_elos[:5]
-        print(player_elos)
         mean_elo = statistics.mean(player_elos)
         std_dev = statistics.stdev(player_elos)
         k = 0.1
         team_elo = mean_elo - k * std_dev
         team.elo = team_elo
-        print(f"Calculated ELO for team {team.name}: {team_elo}")
+        logger.info(f"Calculated ELO for team {team.name}: {team_elo}")
 
         elo_history_initial = EloHistory(
             team_id=team.team_id,
@@ -225,12 +271,16 @@ def update_all_elo():
     count = 0
     matches = Match.query.filter(
         Match.status == "FINISHED",
-        ~Match.match_id.in_(db.session.query(EloHistory.match_id).distinct()),
+        ~Match.match_id.in_(
+            db.session.query(EloHistory.match_id).filter(
+                EloHistory.match_id.isnot(None)
+            )
+        ),
     ).all()
     sorted_matches = sorted(matches, key=lambda x: x.scheduled_time)
     for match in sorted_matches:
         update_elo(match)
-        print(f"Updated ELO for match {match.match_id}")
+        logger.info(f"Updated ELO for match {match.match_id}")
         count += 1
     return f"Updated ELO for {count} matches!"
 
@@ -272,11 +322,12 @@ def calculate_new_elo(current_elo, opponent_elo, result):
 
 
 @app.route("/update")
+@require_token
 def update():
     matches = update_matches()
     schedule = update_schedule()
     elo = update_all_elo()
-    return f"{matches}\n{schedule}\n{elo}"
+    return f"{matches} | {schedule} | {elo}"
 
 
 @app.route("/get_elo_history")
@@ -321,6 +372,20 @@ def get_team_players(team_id):
         if team
         else {"error": "Team not found"}
     )
+
+
+@app.route("/team/<team_id>/rank")
+def get_team_rank(team_id):
+    # get current rank of team, we have to get all teams to do this.
+    # TODO: FIX THIS, MAYBE ADD A RANK COLUMN TO TEAM TABLE
+    teams = Team.query.all()
+    teams.sort(key=lambda x: x.elo, reverse=True)
+    rank = 1
+    for team in teams:
+        if team.team_id == team_id:
+            break
+        rank += 1
+    return {"rank": rank}
 
 
 @app.route("/match/<match_id>")
