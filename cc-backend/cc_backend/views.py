@@ -1,7 +1,44 @@
+from flask import current_app, Blueprint
 import json
+import logging
+import time
 import requests
 from cc_backend.db import db
 from cc_backend.models import Player, Team, Match
+
+bp = Blueprint("main", __name__)
+
+
+# Configure logging
+class CustomFormatter(logging.Formatter):
+    grey = "\x1b[38m"
+    yellow = "\x1b[33m"
+    red = "\x1b[31m"
+    bold_red = "\x1b[31;1m"
+    cyan = "\x1b[36m"
+    reset = "\x1b[0m"
+
+    FORMATS = {
+        logging.DEBUG: grey + "%(levelname)s - %(message)s" + reset,
+        logging.INFO: cyan + "%(levelname)s - %(message)s" + reset,
+        logging.WARNING: yellow + "%(levelname)s - %(message)s" + reset,
+        logging.ERROR: red + "%(levelname)s - %(message)s" + reset,
+        logging.CRITICAL: bold_red + "%(levelname)s - %(message)s" + reset,
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
+
+
+with current_app.app_context():
+    logger = logging.getLogger(__name__)
+    logger.setLevel(getattr(logging, current_app.config.get["LOG_LEVEL"]))
+    ch = logging.StreamHandler()
+    ch.setLevel(getattr(logging, current_app.config.get["LOG_LEVEL"]))
+    ch.setFormatter(CustomFormatter())
+    logger.addHandler(ch)
 
 
 def get_faceit_tournament(
@@ -126,3 +163,29 @@ def get_faceit_tournament(
             db.session.flush()
 
     db.session.commit()
+
+
+def get_updated_schedule(api_key: str):
+    count = 0
+    one_week_from_now = int(time.time()) + 7 * 24 * 60 * 60
+    matches = Match.query.filter(
+        Match.scheduled_time > int(time.time()),
+        Match.scheduled_time <= one_week_from_now,
+        Match.status == "SCHEDULED",
+    ).all()
+    for match in matches:
+        url = f"https://open.faceit.com/data/v4/matches/{match.match_id}"
+        headers = {"Authorization": "Bearer " + api_key}
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            match_data = response.json()
+            if match_data.get("scheduled_at") != match.scheduled_time:
+                match.scheduled_time = match_data.get("scheduled_at")
+                logger.info(f"Updated match {match.match_id}")
+                count += 1
+                db.session.commit()
+            else:
+                logger.debug(f"Match {match.match_id} already up to date")
+
+        else:
+            logger.error(f"Error updating match {match.match_id}")

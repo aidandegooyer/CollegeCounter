@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 from PIL import Image
 from cc_backend.models import Player, Team, Match, EloHistory
 from cc_backend.db import db
-import cc_backend.views
 from google.cloud import storage
 from io import BytesIO
 import argparse
@@ -88,6 +87,9 @@ else:
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
+app.config["DEV"] = args.dev
+app.config["LOG_LEVEL"] = args.log
+
 
 UPLOAD_FOLDER = "static/uploads"
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
@@ -102,6 +104,8 @@ FACEIT_API_KEY = os.getenv("FACEIT_API_KEY")
 SECRET_TOKEN = os.environ.get("MY_SECRET_TOKEN")
 if FACEIT_API_KEY is None:
     raise ValueError("FACEIT_API_KEY not found in the environment variables.")
+
+import cc_backend.views  # noqa: E402
 
 
 def require_token(f):
@@ -165,30 +169,8 @@ def update_matches():
 @app.route("/update_schedule")
 @require_token
 def update_schedule():
-    count = 0
-    one_week_from_now = int(time.time()) + 7 * 24 * 60 * 60
-    matches = Match.query.filter(
-        Match.scheduled_time > int(time.time()),
-        Match.scheduled_time <= one_week_from_now,
-        Match.status == "SCHEDULED",
-    ).all()
-    for match in matches:
-        url = f"https://open.faceit.com/data/v4/matches/{match.match_id}"
-        headers = {"Authorization": "Bearer " + FACEIT_API_KEY}
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            match_data = response.json()
-            if match_data.get("scheduled_at") != match.scheduled_time:
-                match.scheduled_time = match_data.get("scheduled_at")
-                logger.info(f"Updated match {match.match_id}")
-                count += 1
-                db.session.commit()
-            else:
-                logger.debug(f"Match {match.match_id} already up to date")
-
-        else:
-            logger.error(f"Error updating match {match.match_id}")
-    return f"Schedule for {count} matches updated! " + str(count)
+    count = cc_backend.views.get_updated_schedule(api_key=FACEIT_API_KEY)
+    return f"Schedule for {count} matches updated! "
 
 
 @app.route("/inspect_db")
