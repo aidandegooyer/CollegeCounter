@@ -1,16 +1,21 @@
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
-import {
-  Card,
-  Row,
-  Col,
-  Badge,
-  Button,
-  Alert,
-  ProgressBar,
-} from "react-bootstrap";
+import { Card, Row, Col, Badge, Button, ProgressBar } from "react-bootstrap";
 import { Link } from "react-router-dom";
-import { Match } from "../../types";
+import { Match, Team } from "../../types";
+import errorImage from "../../assets/error-profile-pic.png";
+
+import { useQuery } from "@tanstack/react-query";
+const apiBaseUrl =
+  import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org";
+
+const fetchTeam = async (teamid: string): Promise<Team> => {
+  const response = await fetch(`${apiBaseUrl}/team/${teamid}`);
+  if (!response.ok) {
+    throw new Error("Error fetching team");
+  }
+  return response.json();
+};
 
 interface MatchCardProps {
   match: Match;
@@ -60,16 +65,51 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
     }
   }, [today, match.scheduled_time]);
 
-  if (match.teams === undefined) {
+  const {
+    data: team1Data,
+    isPending: team1Pending,
+    isError: team1Error,
+    error: team1ErrorObj,
+  } = useQuery({
+    queryKey: ["team", match.team1_id],
+    queryFn: () => fetchTeam(match.team1_id),
+    staleTime: 1000 * 60 * 10,
+    enabled: !match.teams, // only run if teams are not already provided
+  });
+
+  const {
+    data: team2Data,
+    isPending: team2Pending,
+    isError: team2Error,
+    error: team2ErrorObj,
+  } = useQuery({
+    queryKey: ["team", match.team2_id],
+    queryFn: () => fetchTeam(match.team2_id),
+    staleTime: 1000 * 60 * 10,
+    enabled: !match.teams,
+  });
+
+  if (!match.teams && (team1Pending || team2Pending)) {
+    return <p>Loading teams...</p>;
+  }
+
+  if (!match.teams && (team1Error || team2Error)) {
     return (
-      <Alert variant="danger">
-        This match is missing team information. Please contact an admin.
-      </Alert>
+      <p>
+        Error:{" "}
+        {team1ErrorObj?.message || team2ErrorObj?.message || "Unknown error"}
+      </p>
     );
   }
 
-  const expected_score =
-    1 / (1 + 10 ** ((match.teams?.team2.elo - match.teams?.team1.elo) / 800));
+  // Use provided team data if available, otherwise use fetched data
+  const team1: Team = match.teams ? match.teams.team1 : (team1Data as Team);
+  const team2: Team = match.teams ? match.teams.team2 : (team2Data as Team);
+
+  let expected_score: number | undefined;
+  if (team1 && team2) {
+    expected_score = 1 / (1 + 10 ** ((team2.elo - team1.elo) / 800));
+  }
 
   if (today) {
     return (
@@ -79,8 +119,12 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
             <Row style={{ marginBottom: "1rem" }}>
               <div style={{ display: "flex", alignItems: "center" }}>
                 <img
-                  src={match.teams.team1.avatar}
+                  src={team1.avatar}
                   style={{ width: "50px", height: "50px" }}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = errorImage;
+                  }}
                 ></img>
                 <h3 style={{ marginLeft: "10px", marginRight: "10px" }}>
                   <Link
@@ -88,19 +132,23 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
                       color: "var(--bs-body-color)",
                       textDecoration: "none",
                     }}
-                    to={`/team?id=${match.teams.team1.team_id}`}
+                    to={`/team?id=${team1.team_id}`}
                   >
-                    {match.teams.team1.name}
+                    {team1.name}
                   </Link>
                 </h3>
-                <Badge bg="info">{match.teams.team1.elo.toPrecision(4)}</Badge>
+                <Badge bg="info">{team1.elo.toPrecision(4)}</Badge>
               </div>
             </Row>
             <Row>
               <div style={{ display: "flex", alignItems: "center" }}>
                 <img
-                  src={match.teams.team2.avatar}
+                  src={team2.avatar}
                   style={{ width: "50px", height: "50px" }}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = errorImage;
+                  }}
                 ></img>
                 <h3 style={{ marginLeft: "10px", marginRight: "10px" }}>
                   <Link
@@ -108,12 +156,12 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
                       color: "var(--bs-body-color)",
                       textDecoration: "none",
                     }}
-                    to={`/team?id=${match.teams.team2.team_id}`}
+                    to={`/team?id=${team2.team_id}`}
                   >
-                    {match.teams.team2.name}
+                    {team2.name}
                   </Link>
                 </h3>
-                <Badge bg="info">{match.teams.team2.elo.toPrecision(4)}</Badge>
+                <Badge bg="info">{team2.elo.toPrecision(4)}</Badge>
               </div>
             </Row>
           </Col>
@@ -159,42 +207,46 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
             </Row>
           </Col>
         </Row>
-        <h6
-          style={{
-            margin: "1rem",
-            marginTop: "0",
-            marginBottom: "0",
-          }}
-        >
-          Win Probability:
-        </h6>
-        <ProgressBar
-          style={{
-            margin: "1rem",
-            marginTop: "0.25rem",
-          }}
-        >
-          <ProgressBar
-            now={Math.round(expected_score * 100)}
-            label={
-              match.teams.team1.name +
-              " " +
-              Math.round(expected_score * 100) +
-              "%"
-            }
-            variant="info"
-          />
-          <ProgressBar
-            now={Math.round((1 - expected_score) * 100)}
-            label={
-              match.teams.team2.name +
-              " " +
-              Math.round((1 - expected_score) * 100) +
-              "%"
-            }
-            variant="primary"
-          />
-        </ProgressBar>
+        {expected_score ? (
+          <>
+            <h6
+              style={{
+                margin: "1rem",
+                marginTop: "0",
+                marginBottom: "0",
+              }}
+            >
+              Win Probability:
+            </h6>
+            <ProgressBar
+              style={{
+                margin: "1rem",
+                marginTop: "0.25rem",
+              }}
+            >
+              <ProgressBar
+                now={Math.round(expected_score * 100)}
+                label={
+                  team1.name + " " + Math.round(expected_score * 100) + "%"
+                }
+                variant="info"
+              />
+              <ProgressBar
+                now={Math.round((1 - expected_score) * 100)}
+                label={
+                  team2.name +
+                  " " +
+                  Math.round((1 - expected_score) * 100) +
+                  "%"
+                }
+                variant="primary"
+              />
+            </ProgressBar>
+          </>
+        ) : (
+          <></>
+        )}
+
         <Button
           variant="primary"
           style={{
@@ -217,8 +269,12 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
             <Row style={{ marginBottom: "1rem" }}>
               <div style={{ display: "flex", alignItems: "center" }}>
                 <img
-                  src={match.teams.team1.avatar}
+                  src={team1.avatar}
                   style={{ width: "50px", height: "50px" }}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = errorImage;
+                  }}
                 ></img>
                 <h4 style={{ marginLeft: "10px", marginRight: "10px" }}>
                   <Link
@@ -226,19 +282,23 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
                       color: "var(--bs-body-color)",
                       textDecoration: "none",
                     }}
-                    to={`/team?id=${match.teams.team1.team_id}`}
+                    to={`/team?id=${team1.team_id}`}
                   >
-                    {match.teams.team1.name}
+                    {team1.name}
                   </Link>
                 </h4>
-                <Badge bg="info">{match.teams.team1.elo.toPrecision(4)}</Badge>
+                <Badge bg="info">{team1.elo.toPrecision(4)}</Badge>
               </div>
             </Row>
             <Row>
               <div style={{ display: "flex", alignItems: "center" }}>
                 <img
-                  src={match.teams.team2.avatar}
+                  src={team2.avatar}
                   style={{ width: "50px", height: "50px" }}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = errorImage;
+                  }}
                 ></img>
                 <h4 style={{ marginLeft: "10px", marginRight: "10px" }}>
                   <Link
@@ -246,12 +306,12 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
                       color: "var(--bs-body-color)",
                       textDecoration: "none",
                     }}
-                    to={`/team?id=${match.teams.team2.team_id}`}
+                    to={`/team?id=${team2.team_id}`}
                   >
-                    {match.teams.team2.name}
+                    {team2.name}
                   </Link>
                 </h4>
-                <Badge bg="info">{match.teams.team2.elo.toPrecision(4)}</Badge>
+                <Badge bg="info">{team2.elo.toPrecision(4)}</Badge>
               </div>
             </Row>
           </Col>
@@ -281,6 +341,46 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
             </Row>
           </Col>
         </Row>
+
+        {expected_score ? (
+          <>
+            <h6
+              style={{
+                margin: "1rem",
+                marginTop: "0",
+                marginBottom: "0",
+              }}
+            >
+              Win Probability:
+            </h6>
+            <ProgressBar
+              style={{
+                margin: "1rem",
+                marginTop: "0.25rem",
+              }}
+            >
+              <ProgressBar
+                now={Math.round(expected_score * 100)}
+                label={
+                  team1.name + " " + Math.round(expected_score * 100) + "%"
+                }
+                variant="info"
+              />
+              <ProgressBar
+                now={Math.round((1 - expected_score) * 100)}
+                label={
+                  team2.name +
+                  " " +
+                  Math.round((1 - expected_score) * 100) +
+                  "%"
+                }
+                variant="primary"
+              />
+            </ProgressBar>
+          </>
+        ) : (
+          <></>
+        )}
       </Card>
     );
   }
@@ -292,25 +392,33 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
           <Row>
             <div style={{ display: "flex", alignItems: "center" }}>
               <img
-                src={match.teams.team1.avatar}
+                src={team1.avatar}
                 style={{ width: "30px", height: "30px" }}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = errorImage;
+                }}
               ></img>
               <h6 style={{ marginLeft: "10px", marginRight: "10px" }}>
-                {match.teams.team1.name}
+                {team1.name}
               </h6>
-              <Badge bg="info">{match.teams.team1.elo.toPrecision(4)}</Badge>
+              <Badge bg="info">{team1.elo.toPrecision(4)}</Badge>
             </div>
           </Row>
           <Row>
             <div style={{ display: "flex", alignItems: "center" }}>
               <img
-                src={match.teams.team2.avatar}
+                src={team2.avatar}
                 style={{ width: "30px", height: "30px" }}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = errorImage;
+                }}
               ></img>
               <h6 style={{ marginLeft: "10px", marginRight: "10px" }}>
-                {match.teams.team2.name}
+                {team2.name}
               </h6>
-              <Badge bg="info">{match.teams.team2.elo.toPrecision(4)}</Badge>
+              <Badge bg="info">{team2.elo.toPrecision(4)}</Badge>
             </div>
           </Row>
         </Col>

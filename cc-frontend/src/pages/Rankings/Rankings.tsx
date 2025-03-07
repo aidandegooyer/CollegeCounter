@@ -1,10 +1,12 @@
-import { Badge, Card, Container, Form } from "react-bootstrap";
+import { Alert, Badge, Card, Container, Form, Spinner } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import FlipMove from "react-flip-move";
 import { forwardRef } from "react";
 import { Team, EloHistory } from "../../types";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import errorImage from "../../assets/error-profile-pic.png";
+
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org";
 
@@ -29,24 +31,40 @@ const fetchTeam = async (teamId: string): Promise<Team> => {
 
 const Ranking = forwardRef<HTMLDivElement, RankingProps>(
   ({ team_id, rank, elo, rankChange }, ref) => {
-    const [team, setTeam] = useState<Team | null>(null);
-    const queryClient = useQueryClient();
+    const {
+      data: team,
+      isPending: teamPending,
+      isError: teamError,
+      error: teamErrorObj,
+    } = useQuery({
+      queryKey: ["team", team_id],
+      queryFn: () => fetchTeam(team_id),
+      staleTime: 1000 * 60 * 10,
+    });
 
-    useEffect(() => {
-      async function fetchTeamData(team_id: string): Promise<void> {
-        const team = await queryClient.fetchQuery({
-          queryKey: ["team", team_id],
-          queryFn: () => fetchTeam(team_id),
-          staleTime: 1000 * 60 * 10,
-        });
-        setTeam(team);
-      }
+    if (teamPending) {
+      return (
+        <Card className="mb-2" ref={ref}>
+          <div className="d-flex justify-content-between align-items-center p-2">
+            <div className="d-flex align-items-center">
+              <h1 style={{ position: "absolute", left: "1rem" }}>
+                {rank + 1}.{" "}
+              </h1>
+              <Spinner />
 
-      fetchTeamData(team_id);
-    }, [team_id]);
+              <h3 className="ml-2 text-truncate">Loading...</h3>
+            </div>
 
-    if (!team) {
-      return null;
+            <Badge style={{ position: "absolute", right: "1rem" }} bg="primary">
+              <h5 className="mb-0">...</h5>
+            </Badge>
+          </div>
+        </Card>
+      );
+    }
+
+    if (teamError) {
+      return <div>Error: {teamErrorObj.message}</div>;
     }
 
     return (
@@ -58,6 +76,10 @@ const Ranking = forwardRef<HTMLDivElement, RankingProps>(
               className="d-none d-sm-block"
               src={team.avatar}
               alt={team.name}
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = errorImage;
+              }}
               style={{
                 width: "50px",
                 height: "50px",
@@ -124,82 +146,92 @@ const Rankings = () => {
   const totalMatchDays = 5;
   const [matchDay, setMatchDay] = useState(totalMatchDays);
   const [sliderPosition, setSliderPosition] = useState(100);
-  const [eloData, setEloData] = useState<GroupedEloHistory>({});
   const containerRef = useRef<HTMLDivElement>(null);
 
-  function groupEloHistories(histories: EloHistory[]): {
-    [team_id: string]: { elo: number; timestamp: number }[];
-  } {
+  // Groups a flat array of EloHistory into an object keyed by team_id
+  function groupEloHistories(histories: EloHistory[]): GroupedEloHistory {
     return histories.reduce((acc, { team_id, elo, timestamp }) => {
       if (!acc[team_id]) {
         acc[team_id] = [];
       }
       acc[team_id].push({ elo, timestamp });
       return acc;
-    }, {} as { [team_id: string]: { elo: number; timestamp: number }[] });
+    }, {} as GroupedEloHistory);
   }
 
+  // Fetch Elo history and group it by team
   async function fetchEloHistory(): Promise<GroupedEloHistory> {
     const response = await fetch(`${apiBaseUrl}/get_elo_history`);
-    const elo_history = await response.json();
-
-    const eloHistoryGroups = groupEloHistories(elo_history);
-    return eloHistoryGroups;
+    if (!response.ok) {
+      throw new Error("Error fetching elo history");
+    }
+    const elo_history: EloHistory[] = await response.json();
+    return groupEloHistories(elo_history);
   }
 
+  // Use TanStack Query to fetch the Elo history data
+  const {
+    data: eloData,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["eloHistory"],
+    queryFn: fetchEloHistory,
+    staleTime: 1, //1000 * 60 * 10, // 10 minutes
+  });
+
+  // Return the elo for a team for a given match day.
+  // If the requested matchDay doesn't exist, fallback to the last available entry.
   function getEloForMatchDay(
     _team: { team_id: string },
     matchDay: number
   ): number {
-    const teamEloHistory = eloData[_team.team_id];
-    if (!teamEloHistory || teamEloHistory.length === 0) {
-      // Return a default value if no data exists; adjust as needed.
+    if (
+      !eloData ||
+      !eloData[_team.team_id] ||
+      eloData[_team.team_id].length === 0
+    ) {
       return 0;
     }
-    // If the requested matchDay exists, use it, otherwise use the last available entry.
+    const teamEloHistory = eloData[_team.team_id];
     const entry =
       teamEloHistory[matchDay] ?? teamEloHistory[teamEloHistory.length - 1];
     return entry.elo;
   }
 
+  // Calculate the rank change for a team between the current match day and the previous one.
   function getRankChange(_team: { team_id: string }, matchDay: number): number {
-    // get the rankings from the previous matchday
+    if (!eloData) return 0;
     const previousMatchDay = matchDay - 1;
-    if (previousMatchDay < 0) {
-      return 0;
-    }
+    if (previousMatchDay < 0) return 0;
+    // Sort teams by elo descending for the current match day.
     const currentRanking = Object.entries(eloData).sort(
-      ([team_a], [team_b]) =>
-        getEloForMatchDay({ team_id: team_b }, matchDay) -
-        getEloForMatchDay({ team_id: team_a }, matchDay)
+      ([teamA], [teamB]) =>
+        getEloForMatchDay({ team_id: teamB }, matchDay) -
+        getEloForMatchDay({ team_id: teamA }, matchDay)
     );
-    // find the index of the team in the sorted array
     const teamIndex = currentRanking.findIndex(
       ([team_id]) => team_id === _team.team_id
     );
-    // get the rankings from the previous matchday
+    // Sort teams by elo descending for the previous match day.
     const previousRanking = Object.entries(eloData).sort(
-      ([team_a], [team_b]) =>
-        getEloForMatchDay({ team_id: team_b }, previousMatchDay) -
-        getEloForMatchDay({ team_id: team_a }, previousMatchDay)
+      ([teamA], [teamB]) =>
+        getEloForMatchDay({ team_id: teamB }, previousMatchDay) -
+        getEloForMatchDay({ team_id: teamA }, previousMatchDay)
     );
-    // find the index of the team in the sorted array
     const previousTeamIndex = previousRanking.findIndex(
       ([team_id]) => team_id === _team.team_id
     );
-    // calculate the rank change
     return previousTeamIndex - teamIndex;
   }
 
+  // Set the document title once on mount.
   useEffect(() => {
-    const fetchData = async () => {
-      document.title = "CC - Rankings";
-      const eloHistoryGroups = await fetchEloHistory();
-      setEloData(eloHistoryGroups);
-    };
-    fetchData();
+    document.title = "CC - Rankings";
   }, []);
 
+  // Handle slider changes by quantizing the slider value to a match day.
   const handleSliderChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.valueAsNumber || Number(event.target.value);
     setSliderPosition(value);
@@ -210,6 +242,32 @@ const Rankings = () => {
       containerRef.current.scrollTop = containerRef.current.scrollTop;
     }
   };
+
+  // Render a loading or error state if necessary.
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        <Spinner animation="border" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Alert variant="danger">
+        {" "}
+        <strong>Error: </strong>
+        {error?.message}
+      </Alert>
+    );
+  }
 
   return (
     <>

@@ -1,13 +1,13 @@
-import { Container, Row, Col } from "react-bootstrap";
+import { Container, Row, Col, Spinner, Alert } from "react-bootstrap";
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import MatchCard from "./MatchCard";
-import { Match, Team } from "../../types";
+import { Match } from "../../types";
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org";
 
-const fetchTeam = async (teamId: string): Promise<Team> => {
-  const response = await fetch(`${apiBaseUrl}/team/${teamId}`);
+const fetchMatches = async (): Promise<Match[]> => {
+  const response = await fetch(`${apiBaseUrl}/upcoming`);
   return response.json();
 };
 
@@ -16,67 +16,83 @@ const Matches = () => {
   const [thisWeekMatches, setThisWeekMatches] = useState<Match[]>([]);
   const [otherMatches, setOtherMatches] = useState<Match[]>([]);
 
-  const queryClient = useQueryClient();
   useEffect(() => {
     document.title = "CC - Matches";
   }, []);
 
+  const {
+    data: matches,
+    isPending: matchesLoading,
+    isError: matchesError,
+    error: matchesErrorObj,
+  } = useQuery({
+    queryKey: ["matches"],
+    queryFn: fetchMatches,
+    staleTime: 1000 * 60 * 10,
+  });
+
   useEffect(() => {
-    const fetchMatches = async () => {
-      const response = await fetch(`${apiBaseUrl}/upcoming`);
-      const matches: Match[] = await response.json();
-
-      const matchesWithTeams = await Promise.all(
-        matches.map(async (match) => {
-          const team1 = await queryClient.fetchQuery({
-            queryKey: ["team", match.team1_id],
-            queryFn: () => fetchTeam(match.team1_id),
-            staleTime: 1000 * 60 * 10,
-          });
-          const team2 = await queryClient.fetchQuery({
-            queryKey: ["team", match.team2_id],
-            queryFn: () => fetchTeam(match.team2_id),
-            staleTime: 1000 * 60 * 10,
-          });
-          return { ...match, teams: { team1, team2 } };
-        })
-      );
-
+    if (matches) {
+      console.log("Matches data:", matches); // Debugging log
       const today = new Date();
-      const endOfToday = new Date(today);
-      endOfToday.setHours(23, 59, 59, 999);
-      today.setHours(0, 0, 0, 0);
-
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate());
       const endOfWeek = new Date(today);
-      endOfWeek.setDate(today.getDate() + 7);
-      endOfWeek.setHours(23, 59, 59, 999);
+      endOfWeek.setDate(today.getDate() + 6);
 
-      const todayMatchesTemp: Match[] = [];
-      const thisWeekMatchesTemp: Match[] = [];
-      const otherMatchesTemp: Match[] = [];
-
-      matchesWithTeams.forEach((match) => {
-        const matchDate = new Date(match.scheduled_time * 1000);
-        if (matchDate >= today && matchDate <= endOfToday) {
-          todayMatchesTemp.push(match);
-        } else if (matchDate > endOfToday && matchDate <= endOfWeek) {
-          thisWeekMatchesTemp.push(match);
-        } else if (matchDate > endOfWeek) {
-          otherMatchesTemp.push(match);
-        }
+      const todayMatches = matches.filter((match) => {
+        const matchDate = new Date(match.scheduled_time * 1000); // Convert Unix timestamp to Date
+        return matchDate.toDateString() === new Date().toDateString();
       });
 
-      todayMatchesTemp.sort((a, b) => a.scheduled_time - b.scheduled_time);
-      thisWeekMatchesTemp.sort((a, b) => a.scheduled_time - b.scheduled_time);
-      otherMatchesTemp.sort((a, b) => a.scheduled_time - b.scheduled_time);
+      const thisWeekMatches = matches.filter((match) => {
+        const matchDate = new Date(match.scheduled_time * 1000); // Convert Unix timestamp to Date
+        return (
+          matchDate >= startOfWeek &&
+          matchDate <= endOfWeek &&
+          matchDate.toDateString() !== new Date().toDateString()
+        );
+      });
 
-      setTodayMatches(todayMatchesTemp);
-      setThisWeekMatches(thisWeekMatchesTemp);
-      setOtherMatches(otherMatchesTemp);
-    };
+      const otherMatches = matches.filter((match) => {
+        const matchDate = new Date(match.scheduled_time * 1000); // Convert Unix timestamp to Date
+        return matchDate > endOfWeek;
+      });
 
-    fetchMatches();
-  }, [queryClient]);
+      console.log("Today Matches:", todayMatches); // Debugging log
+      console.log("This Week Matches:", thisWeekMatches); // Debugging log
+      console.log("Other Matches:", otherMatches); // Debugging log
+
+      setTodayMatches(todayMatches);
+      setThisWeekMatches(thisWeekMatches);
+      setOtherMatches(otherMatches);
+    }
+  }, [matches, matchesLoading]);
+
+  if (matchesLoading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        <Spinner animation="border" />
+      </div>
+    );
+  }
+
+  if (matchesError) {
+    return (
+      <Alert variant="danger">
+        {" "}
+        <strong>Error: </strong>
+        {matchesErrorObj?.message}
+      </Alert>
+    );
+  }
 
   interface RenderMatchesProps {
     matches: Match[];
@@ -125,8 +141,12 @@ const Matches = () => {
         <h3>Today</h3>
         {renderMatches({ matches: todayMatches, today: true })}
         <h3>This Week</h3>
-        {thisWeekMatches.length > 0 &&
+        {todayMatches.length === 0 &&
+          thisWeekMatches.length > 0 &&
           renderMatches({ matches: [thisWeekMatches[0]], today: true })}
+        {todayMatches.length != 0 &&
+          thisWeekMatches.length > 0 &&
+          renderMatches({ matches: [thisWeekMatches[0]], thisweek: true })}
         {renderMatches({ matches: thisWeekMatches.slice(1), thisweek: true })}
         <h3>Other</h3>
         {renderMatches({ matches: otherMatches, other: true })}
