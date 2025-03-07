@@ -158,10 +158,10 @@ def get_updated_schedule(api_key: str):
     count = 0
     one_week_from_now = int(time.time()) + 7 * 24 * 60 * 60
     matches = Match.query.filter(
-        Match.scheduled_time > int(time.time()),
         Match.scheduled_time <= one_week_from_now,
         Match.status == "SCHEDULED",
     ).all()
+    logger.debug(f"Found {len(matches)} matches to update")
     for match in matches:
         url = f"https://open.faceit.com/data/v4/matches/{match.match_id}"
         headers = {"Authorization": "Bearer " + api_key}
@@ -178,6 +178,7 @@ def get_updated_schedule(api_key: str):
 
         else:
             logger.error(f"Error updating match {match.match_id}")
+    return count
 
 
 def require_token(f):
@@ -185,6 +186,9 @@ def require_token(f):
     def decorated_function(*args, **kwargs):
         # Check for the token in a query parameter or in the headers
         token = request.args.get("token") or request.headers.get("X-Secret-Token")
+        if current_app.debug:
+            return f(*args, **kwargs)
+
         if not token or token != SECRET_TOKEN:
             abort(403)  # Forbidden if token doesn't match
         return f(*args, **kwargs)
