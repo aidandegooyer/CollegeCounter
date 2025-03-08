@@ -33,7 +33,6 @@ const Matches = () => {
 
   useEffect(() => {
     if (matches) {
-      console.log("Matches data:", matches); // Debugging log
       const today = new Date();
       const startOfWeek = new Date(today);
       startOfWeek.setDate(today.getDate());
@@ -58,10 +57,6 @@ const Matches = () => {
         const matchDate = new Date(match.scheduled_time * 1000); // Convert Unix timestamp to Date
         return matchDate > endOfWeek;
       });
-
-      console.log("Today Matches:", todayMatches); // Debugging log
-      console.log("This Week Matches:", thisWeekMatches); // Debugging log
-      console.log("Other Matches:", otherMatches); // Debugging log
 
       setTodayMatches(todayMatches);
       setThisWeekMatches(thisWeekMatches);

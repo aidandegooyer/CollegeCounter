@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Card, Row, Col, Button, Image, Badge, Alert } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { Match, Team } from "../../types";
+import errorImage from "../../assets/error-profile-pic.png";
 import React from "react";
 
 interface ResultCardProps {
@@ -54,6 +55,10 @@ const ResultCard: React.FC<ResultCardProps> = ({ match }) => {
               <Image
                 src={match.teams.team1.avatar}
                 style={{ maxWidth: "100px", width: "100%" }}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = errorImage;
+                }}
               ></Image>
             </Col>
             <Col
@@ -116,6 +121,10 @@ const ResultCard: React.FC<ResultCardProps> = ({ match }) => {
               <Image
                 src={match.teams.team2.avatar}
                 style={{ maxWidth: "100px", width: "100%" }}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = errorImage;
+                }}
                 fluid
               ></Image>
             </Col>
