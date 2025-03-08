@@ -7,8 +7,6 @@ from cc_backend.db import db
 from cc_backend.models import EloHistory, Player, Team, Match
 from functools import wraps
 import statistics
-import os
-from dotenv import load_dotenv
 from PIL import Image
 from google.cloud import storage
 from io import BytesIO
@@ -17,13 +15,6 @@ from io import BytesIO
 bp = Blueprint("main", __name__)
 
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
-SECRET_TOKEN = os.environ.get("MY_SECRET_TOKEN")
-FACEIT_API_KEY = os.getenv("FACEIT_API_KEY")
-if FACEIT_API_KEY is None:
-    raise ValueError("FACEIT_API_KEY not found in the environment variables.")
-if SECRET_TOKEN is None:
-    raise ValueError("SECRET_TOKEN not found in the environment variables.")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 
 
@@ -189,7 +180,7 @@ def require_token(f):
         if current_app.debug:
             return f(*args, **kwargs)
 
-        if not token or token != SECRET_TOKEN:
+        if not token or token != current_app.config.get("SECRET_TOKEN"):
             abort(403)  # Forbidden if token doesn't match
         return f(*args, **kwargs)
 
@@ -209,7 +200,7 @@ def get_all_matches():
         championship_id="62554deb-7401-4e35-ae05-8ee04e1bf9e2",
         match_type="all",
         competition="necc",
-        api_key=FACEIT_API_KEY,
+        api_key=current_app.config.get("FACEIT_API_KEY"),
     )
     return "Matches updated!"
 
@@ -225,7 +216,9 @@ def update_matches():
     ).all()
     for match in matches:
         url = f"https://open.faceit.com/data/v4/matches/{match.match_id}"
-        headers = {"Authorization": "Bearer " + FACEIT_API_KEY}
+        headers = {
+            "Authorization": "Bearer " + current_app.config.get("FACEIT_API_KEY")
+        }
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             match_data = response.json()
@@ -250,7 +243,7 @@ def update_matches():
 def update_schedule():
     logger.debug("Updating schedule")
 
-    count = get_updated_schedule(api_key=FACEIT_API_KEY)
+    count = get_updated_schedule(api_key=current_app.config.get("FACEIT_API_KEY"))
     return f"Schedule for {count} matches updated! "
 
 
@@ -276,7 +269,9 @@ def update_all_players_elo():
     for player in players:
         user_id = player.player_id
         # get the elo number from faceit api at https://open.faceit.com/data/v4/players/{player_id}/games/{game_id}/stats
-        headers = {"Authorization": "Bearer " + FACEIT_API_KEY}
+        headers = {
+            "Authorization": "Bearer " + current_app.config.get("FACEIT_API_KEY")
+        }
         response = requests.get(
             f"https://open.faceit.com/data/v4/players/{user_id}", headers=headers
         )

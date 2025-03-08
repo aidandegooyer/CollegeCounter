@@ -5,22 +5,16 @@ from cc_backend import logger
 from dotenv import load_dotenv
 from cc_backend.db import db
 import argparse
+from cc_backend.views import bp
 
 
-parser = argparse.ArgumentParser(description="CollegeCounter Backend")
-parser.add_argument("--dev", action="store_true", help="Run in development mode")
-parser.add_argument(
-    "--log",
-    choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-    default="INFO",
-    help="Set the logging level",
-)
-args = parser.parse_args()
-
-is_dev = args.dev
+is_dev = False
 
 
 app = Flask(__name__)
+
+
+app.register_blueprint(bp)
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 
@@ -52,9 +46,6 @@ else:
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
-app.config["DEV"] = args.dev
-LOG_LEVEL = args.log
-
 
 UPLOAD_FOLDER = "static/uploads"
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
@@ -67,14 +58,26 @@ GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 FACEIT_API_KEY = os.getenv("FACEIT_API_KEY")
 SECRET_TOKEN = os.environ.get("MY_SECRET_TOKEN")
+app.config["SECRET_TOKEN"] = SECRET_TOKEN
+app.config["FACEIT_API_KEY"] = FACEIT_API_KEY
 if FACEIT_API_KEY is None:
     raise ValueError("FACEIT_API_KEY not found in the environment variables.")
 
 
 if __name__ == "__main__":
-    from cc_backend.views import bp
+    parser = argparse.ArgumentParser(description="CollegeCounter Backend")
+    parser.add_argument("--dev", action="store_true", help="Run in development mode")
+    parser.add_argument(
+        "--log",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        default="INFO",
+        help="Set the logging level",
+    )
+    args = parser.parse_args()
 
-    app.register_blueprint(bp)
+    is_dev = args.dev
+    app.config["DEV"] = args.dev
+    LOG_LEVEL = args.log
 
     # CORS(app)  # Enable CORS for all routes
 
