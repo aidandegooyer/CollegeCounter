@@ -197,13 +197,24 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
               )}
             </Row>
             <Row className="justify-content-end">
-              <Badge
-                className="mt-2"
-                bg="secondary"
-                style={{ maxWidth: "75px", fontSize: "1rem" }}
-              >
-                {match.competition.toUpperCase()}
-              </Badge>
+              {match.competition == "necc" ? (
+                <Badge
+                  className="mt-2"
+                  bg="secondary"
+                  style={{ maxWidth: "75px", fontSize: "1rem" }}
+                >
+                  NECC
+                </Badge>
+              ) : null}
+              {match.competition == "playfly" ? (
+                <Badge
+                  className="mt-2"
+                  bg="info"
+                  style={{ maxWidth: "75px", fontSize: "1rem" }}
+                >
+                  PlayFly
+                </Badge>
+              ) : null}
             </Row>
           </Col>
         </Row>
@@ -323,9 +334,20 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
               )}
             </Row>
             <Row className="justify-content-end mt-3">
-              <Badge bg="secondary" style={{ maxWidth: "50px" }}>
-                {match.competition.toUpperCase()}
-              </Badge>
+              {match.competition === "necc" ? (
+                <Badge
+                  bg="secondary"
+                  className="mb-1"
+                  style={{ maxWidth: "75px" }}
+                >
+                  NECC
+                </Badge>
+              ) : null}
+              {match.competition === "playfly" ? (
+                <Badge bg="info" style={{ maxWidth: "75px" }}>
+                  PlayFly
+                </Badge>
+              ) : null}
             </Row>
             <Row className="justify-content-end mt-3">
               <Button

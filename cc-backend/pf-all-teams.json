@@ -1,0 +1,2164 @@
+[
+    {
+        "name": "VCU CS2",
+        "roster": [
+            {
+                "player_id": "ca77385e-f5b8-495d-bc6f-a268e4740cd7",
+                "nickname": "kkyle",
+                "avatar": "https://distribution.faceit-cdn.net/images/3a711208-ae3d-428f-ab82-6c9d3b50a0b8.jpeg",
+                "skill_level": 10,
+                "elo": 2494,
+                "steam_id": "76561198323129272",
+                "faceit_id": "ca77385e-f5b8-495d-bc6f-a268e4740cd7"
+            },
+            {
+                "player_id": "6f3cefe0-eafd-4ee2-a87e-1d6eaac814dc",
+                "nickname": "Wyvern",
+                "avatar": "https://distribution.faceit-cdn.net/images/3e7c6360-321c-4e74-b336-890608778d42.jpeg",
+                "skill_level": 10,
+                "elo": 2012,
+                "steam_id": "76561198318523908",
+                "faceit_id": "6f3cefe0-eafd-4ee2-a87e-1d6eaac814dc"
+            },
+            {
+                "player_id": "0ae35817-ec7d-4892-9ee8-d6658f33b67d",
+                "nickname": "s1lynt_",
+                "avatar": "https://distribution.faceit-cdn.net/images/87ca9346-544f-43c4-9cd8-23a19909898b.jpeg",
+                "skill_level": 9,
+                "elo": 1995,
+                "steam_id": "76561199081787272",
+                "faceit_id": "0ae35817-ec7d-4892-9ee8-d6658f33b67d"
+            },
+            {
+                "player_id": "bee25415-ce23-4c73-bdb3-bba968b05317",
+                "nickname": "PhamtomOpera",
+                "avatar": "https://distribution.faceit-cdn.net/images/71d87687-7413-45a3-9c39-419a1ed3c57b.jpeg",
+                "skill_level": 9,
+                "elo": 1952,
+                "steam_id": "76561198148299456",
+                "faceit_id": "bee25415-ce23-4c73-bdb3-bba968b05317"
+            },
+            {
+                "player_id": "38514f79-d06b-45b3-a481-84f4cec84da3",
+                "nickname": "rybo_",
+                "avatar": "https://distribution.faceit-cdn.net/images/61ca2885-3911-4eb5-81a1-e156604d008f.jpeg",
+                "skill_level": 10,
+                "elo": 2135,
+                "steam_id": "76561198269592078",
+                "faceit_id": "38514f79-d06b-45b3-a481-84f4cec84da3"
+            }
+        ],
+        "leader": "ca77385e-f5b8-495d-bc6f-a268e4740cd7",
+        "avatar": null,
+        "team_id": "7c2a375e-bd3a-4730-b64e-5ffaf315455d",
+        "elo": 0,
+        "playfly_id": "c208372b-56a1-4811-be62-e8fe3f95a0be",
+        "playfly_participant_id": "2bb7672f-e18b-4a66-80a5-b1c147397216"
+    },
+    {
+        "name": "USF CS2 GOLD",
+        "roster": [
+            {
+                "player_id": "0a602514-267c-4895-80f3-d83ba80de0ed",
+                "nickname": "seeyou5",
+                "avatar": "",
+                "skill_level": 10,
+                "elo": 2109,
+                "steam_id": "76561198160401170",
+                "faceit_id": "0a602514-267c-4895-80f3-d83ba80de0ed"
+            },
+            {
+                "player_id": "0ed14ea9-33bd-4651-8aa3-42a8fd93c512",
+                "nickname": "mysor666",
+                "avatar": "https://distribution.faceit-cdn.net/images/041d0b19-9f91-450e-93c3-91a5159092f4.jpeg",
+                "skill_level": 8,
+                "elo": 1750,
+                "steam_id": "76561199803317044",
+                "faceit_id": "0ed14ea9-33bd-4651-8aa3-42a8fd93c512"
+            },
+            {
+                "player_id": "6d50bdfd-9dac-432e-a57d-39732fe9f2e1",
+                "nickname": "jellybran",
+                "avatar": "https://distribution.faceit-cdn.net/images/eeae1ccc-1ca4-4723-a808-79bdb04a921f.jpeg",
+                "skill_level": 10,
+                "elo": 2450,
+                "steam_id": "76561198386571701",
+                "faceit_id": "6d50bdfd-9dac-432e-a57d-39732fe9f2e1"
+            },
+            {
+                "player_id": "d3a0c232-1a64-4b4a-8c87-51db7e5e1e61",
+                "nickname": "SystemChips",
+                "avatar": "https://distribution.faceit-cdn.net/images/a0f86a5f-fb1b-4813-872d-f7901b2c3872.jpeg",
+                "skill_level": 10,
+                "elo": 2186,
+                "steam_id": "76561198068741001",
+                "faceit_id": "d3a0c232-1a64-4b4a-8c87-51db7e5e1e61"
+            },
+            {
+                "player_id": "106b4423-5812-4f3d-a584-c6e2a1092610",
+                "nickname": "ersss1k",
+                "avatar": "https://distribution.faceit-cdn.net/images/20573ce8-c598-4be2-8586-7592f0990d25.jpeg",
+                "skill_level": 8,
+                "elo": 1534,
+                "steam_id": "76561199065670820",
+                "faceit_id": "106b4423-5812-4f3d-a584-c6e2a1092610"
+            }
+        ],
+        "leader": "6d50bdfd-9dac-432e-a57d-39732fe9f2e1",
+        "avatar": null,
+        "team_id": "76480141-a94e-4e7e-ac16-4908c2b7e9ea",
+        "elo": 0,
+        "playfly_id": "82f299d2-b077-4b79-8457-72708b8980d4",
+        "playfly_participant_id": "08df50c1-7858-4362-8d11-e6b3bf4eae77"
+    },
+    {
+        "name": "Texas Matthew McConaughey Fan Club",
+        "roster": [
+            {
+                "player_id": "bea9f71f-1a4d-446a-93d0-d6037e6d7711",
+                "nickname": "EthanolOG",
+                "avatar": "https://distribution.faceit-cdn.net/images/a6cca1bf-c4c1-469e-acf5-649f8b4d4495.jpeg",
+                "skill_level": 10,
+                "elo": 2767,
+                "steam_id": "76561198119273655",
+                "faceit_id": "bea9f71f-1a4d-446a-93d0-d6037e6d7711"
+            },
+            {
+                "player_id": "294ddab3-1146-4322-82c7-d6a4dd5b5829",
+                "nickname": "_miIkman_",
+                "avatar": "https://distribution.faceit-cdn.net/images/52cae22d-47c3-48f3-a491-d718156db831.jpeg",
+                "skill_level": 10,
+                "elo": 2325,
+                "steam_id": "76561199485141739",
+                "faceit_id": "294ddab3-1146-4322-82c7-d6a4dd5b5829"
+            },
+            {
+                "player_id": "076fe988-ff58-4036-8044-964828881dcf",
+                "nickname": "Ding--",
+                "avatar": "https://distribution.faceit-cdn.net/images/3ea430e7-697b-4a93-9504-6b960b6921a8.jpeg",
+                "skill_level": 10,
+                "elo": 2025,
+                "steam_id": "76561199034847824",
+                "faceit_id": "076fe988-ff58-4036-8044-964828881dcf"
+            },
+            {
+                "player_id": "0401f6b2-8f29-49f3-a638-b69335fe61b2",
+                "nickname": "thunnus",
+                "avatar": "https://assets.faceit-cdn.net/avatars/0401f6b2-8f29-49f3-a638-b69335fe61b2_1591412361901.jpg",
+                "skill_level": 10,
+                "elo": 2852,
+                "steam_id": "76561198302561066",
+                "faceit_id": "0401f6b2-8f29-49f3-a638-b69335fe61b2"
+            },
+            {
+                "player_id": "675cee7b-2fab-42d1-bb77-ce73604d45c6",
+                "nickname": "Xkingsly",
+                "avatar": "https://distribution.faceit-cdn.net/images/9c0f6d2f-cf17-4360-9d81-9885ac94cfe5.jpeg",
+                "skill_level": 10,
+                "elo": 2818,
+                "steam_id": "76561198145975783",
+                "faceit_id": "675cee7b-2fab-42d1-bb77-ce73604d45c6"
+            }
+        ],
+        "leader": "bea9f71f-1a4d-446a-93d0-d6037e6d7711",
+        "avatar": null,
+        "team_id": "e974e3b1-d625-426c-a950-0223a092a223",
+        "elo": 0,
+        "playfly_id": "b7c07d8f-ad71-49a1-8865-2e73b51ddcfb",
+        "playfly_participant_id": "ecfa164b-35ef-434a-b5bd-a8cb1bcc28d8"
+    },
+    {
+        "name": "UW-Madison",
+        "roster": [
+            {
+                "player_id": "048ff6a1-b2ce-4d18-8081-ce004f582bd3",
+                "nickname": "qfk_xpoes",
+                "avatar": "",
+                "skill_level": 4,
+                "elo": 1000,
+                "steam_id": "76561198160571149",
+                "faceit_id": "048ff6a1-b2ce-4d18-8081-ce004f582bd3"
+            },
+            {
+                "player_id": "20277bf5-d10d-4816-8ef0-7c2ee0f3b1f2",
+                "nickname": "947",
+                "avatar": "https://distribution.faceit-cdn.net/images/0de65dca-a7c4-4b5b-b5f3-29eb217eda66.jpeg",
+                "skill_level": 7,
+                "elo": 1507,
+                "steam_id": "76561198965789116",
+                "faceit_id": "20277bf5-d10d-4816-8ef0-7c2ee0f3b1f2"
+            },
+            {
+                "player_id": "cb5b557e-2ead-4362-b827-de7d1f1884db",
+                "nickname": "exie21",
+                "avatar": "",
+                "skill_level": 5,
+                "elo": 1069,
+                "steam_id": "76561198965189815",
+                "faceit_id": "cb5b557e-2ead-4362-b827-de7d1f1884db"
+            },
+            {
+                "player_id": "da985275-2f46-464a-8a6e-fbef066544a7",
+                "nickname": "red-xd",
+                "avatar": "https://assets.faceit-cdn.net/avatars/da985275-2f46-464a-8a6e-fbef066544a7_1553294432878.jpg",
+                "skill_level": 8,
+                "elo": 1633,
+                "steam_id": "76561198378884078",
+                "faceit_id": "da985275-2f46-464a-8a6e-fbef066544a7"
+            },
+            {
+                "player_id": "fcb898b2-7d3a-4642-b73c-b7009e19b5e3",
+                "nickname": "Rabbit55",
+                "avatar": "https://assets.faceit-cdn.net/avatars/fcb898b2-7d3a-4642-b73c-b7009e19b5e3_1626322244473.jpg",
+                "skill_level": 10,
+                "elo": 2094,
+                "steam_id": "76561198140681548",
+                "faceit_id": "fcb898b2-7d3a-4642-b73c-b7009e19b5e3"
+            }
+        ],
+        "leader": "fcb898b2-7d3a-4642-b73c-b7009e19b5e3",
+        "avatar": null,
+        "team_id": "467969ed-3223-437c-9b4b-8f68a097e8b1",
+        "elo": 0,
+        "playfly_id": "6bf5dfa0-02aa-4fab-a056-52c36057abd8",
+        "playfly_participant_id": "eab3df13-2267-4ffd-af87-f6002b42201e"
+    },
+    {
+        "name": "Cumberland Phoenix CS2",
+        "roster": [
+            {
+                "player_id": "0f930129-a2bd-4be3-8375-ef02697a103c",
+                "nickname": "Neighborly",
+                "avatar": "https://assets.faceit-cdn.net/avatars/0f930129-a2bd-4be3-8375-ef02697a103c_1557440737365.jpg",
+                "skill_level": 10,
+                "elo": 2077,
+                "steam_id": "76561198271735692",
+                "faceit_id": "0f930129-a2bd-4be3-8375-ef02697a103c"
+            },
+            {
+                "player_id": "3bbbb4fd-b94b-4355-9427-7d73d9e73919",
+                "nickname": "RexOxo",
+                "avatar": "https://distribution.faceit-cdn.net/images/7e21dfb9-84f4-453b-9f97-6f8f03d8f644.jpeg",
+                "skill_level": 9,
+                "elo": 1902,
+                "steam_id": "76561198054724005",
+                "faceit_id": "3bbbb4fd-b94b-4355-9427-7d73d9e73919"
+            },
+            {
+                "player_id": "ae62aa1a-d70f-495c-9dd9-0779de41296f",
+                "nickname": "Blaine",
+                "avatar": "https://distribution.faceit-cdn.net/images/3ce52691-8e0c-4c3f-b22e-c9bbdf4d159e.jpeg",
+                "skill_level": 10,
+                "elo": 2370,
+                "steam_id": "76561198256863254",
+                "faceit_id": "ae62aa1a-d70f-495c-9dd9-0779de41296f"
+            },
+            {
+                "player_id": "de88e208-5460-470d-a634-5d4550e44329",
+                "nickname": "WhyNotPeachy",
+                "avatar": "https://assets.faceit-cdn.net/avatars/de88e208-5460-470d-a634-5d4550e44329_1632872462952.jpg",
+                "skill_level": 10,
+                "elo": 2408,
+                "steam_id": "76561198091981246",
+                "faceit_id": "de88e208-5460-470d-a634-5d4550e44329"
+            },
+            {
+                "player_id": "f6865544-b437-4713-87e5-aa5fdaae202e",
+                "nickname": "Kranoli-",
+                "avatar": "https://distribution.faceit-cdn.net/images/3d20b61b-e91b-4a1c-a167-dd9f389e0010.jpeg",
+                "skill_level": 10,
+                "elo": 2817,
+                "steam_id": "76561198145987912",
+                "faceit_id": "f6865544-b437-4713-87e5-aa5fdaae202e"
+            }
+        ],
+        "leader": "3bbbb4fd-b94b-4355-9427-7d73d9e73919",
+        "avatar": null,
+        "team_id": "302204b4-baf6-4e0e-ab2f-3e229b18c9e2",
+        "elo": 0,
+        "playfly_id": "f368a5d9-609e-4d9c-a06f-e622fb44d529",
+        "playfly_participant_id": "e927e765-fb34-49e5-96b6-5eaaf99b3c07"
+    },
+    {
+        "name": "CU White",
+        "roster": [
+            {
+                "player_id": "1732b337-935d-4435-829f-8bd97cc9a5aa",
+                "nickname": "Cadet_K",
+                "avatar": "https://distribution.faceit-cdn.net/images/45310248-1662-46b3-bbc3-251b433d5e7e.jpeg",
+                "skill_level": 10,
+                "elo": 2175,
+                "steam_id": "76561198135496115",
+                "faceit_id": "1732b337-935d-4435-829f-8bd97cc9a5aa"
+            },
+            {
+                "player_id": "74179cbd-f3bb-4b4c-a8a8-a3af3f29a4ca",
+                "nickname": "GrayshaValor",
+                "avatar": "https://distribution.faceit-cdn.net/images/d0c1bda4-547d-43cb-b352-e5d3504fa5ab.jpeg",
+                "skill_level": 8,
+                "elo": 1643,
+                "steam_id": "76561199236480413",
+                "faceit_id": "74179cbd-f3bb-4b4c-a8a8-a3af3f29a4ca"
+            },
+            {
+                "player_id": "7a892054-171a-448b-8ee8-79da21dce6af",
+                "nickname": "sagafreya",
+                "avatar": "",
+                "skill_level": 5,
+                "elo": 1156,
+                "steam_id": "76561198268225621",
+                "faceit_id": "7a892054-171a-448b-8ee8-79da21dce6af"
+            },
+            {
+                "player_id": "70223690-25a9-49b1-81c2-fd22174f529d",
+                "nickname": "s325_",
+                "avatar": "https://distribution.faceit-cdn.net/images/9526b2ec-8879-4798-86f4-99912d576402.jpeg",
+                "skill_level": 10,
+                "elo": 2167,
+                "steam_id": "76561199184653791",
+                "faceit_id": "70223690-25a9-49b1-81c2-fd22174f529d"
+            },
+            {
+                "player_id": "fec05375-e06e-4071-9d81-3ade03997ef0",
+                "nickname": "chipper412",
+                "avatar": "https://distribution.faceit-cdn.net/images/788dd016-d20d-4e3c-acc2-e5ffb129db1e.jpeg",
+                "skill_level": 10,
+                "elo": 2181,
+                "steam_id": "76561198123142753",
+                "faceit_id": "fec05375-e06e-4071-9d81-3ade03997ef0"
+            }
+        ],
+        "leader": "74179cbd-f3bb-4b4c-a8a8-a3af3f29a4ca",
+        "avatar": null,
+        "team_id": "8ddb022e-b0ea-4f44-96a6-84b10952406c",
+        "elo": 0,
+        "playfly_id": "f7b8314d-f66f-4a2c-a4d9-72ef5efcab3f",
+        "playfly_participant_id": "be5fe4e1-c6f0-40b2-8ede-4efbcb14d517"
+    },
+    {
+        "name": "Syracuse  CS2",
+        "roster": [
+            {
+                "player_id": "7e823fff-c212-458d-8ddb-05845bcf9bc8",
+                "nickname": "_bird1337",
+                "avatar": "https://distribution.faceit-cdn.net/images/a4f83f97-0cd5-4d94-aeef-fc6b94134c00.jpeg",
+                "skill_level": 10,
+                "elo": 2482,
+                "steam_id": "76561198010639654",
+                "faceit_id": "7e823fff-c212-458d-8ddb-05845bcf9bc8"
+            },
+            {
+                "player_id": "4231bf56-db8e-4d55-b24a-a30c33823f9e",
+                "nickname": "iconOvO",
+                "avatar": "https://distribution.faceit-cdn.net/images/54d1c9aa-8001-4947-9ad0-b0dcb4a7db98.jpeg",
+                "skill_level": 10,
+                "elo": 2050,
+                "steam_id": "76561198427684349",
+                "faceit_id": "4231bf56-db8e-4d55-b24a-a30c33823f9e"
+            },
+            {
+                "player_id": "7aaa1fb1-7420-42aa-b0ca-2d9cceff085f",
+                "nickname": "sensh",
+                "avatar": "https://distribution.faceit-cdn.net/images/5fc0fbfe-dd0f-4c07-8dd9-d79c8526092c.jpeg",
+                "skill_level": 10,
+                "elo": 2040,
+                "steam_id": "76561198138870277",
+                "faceit_id": "7aaa1fb1-7420-42aa-b0ca-2d9cceff085f"
+            },
+            {
+                "player_id": "9d0c67df-2ec4-4aef-8bec-032fdc4fcbda",
+                "nickname": "aidanxi",
+                "avatar": "https://assets.faceit-cdn.net/avatars/9d0c67df-2ec4-4aef-8bec-032fdc4fcbda_1634255691874.jpg",
+                "skill_level": 8,
+                "elo": 1671,
+                "steam_id": "76561198152885939",
+                "faceit_id": "9d0c67df-2ec4-4aef-8bec-032fdc4fcbda"
+            },
+            {
+                "player_id": "3946bcaf-1e0b-46b3-9863-62559f62bea5",
+                "nickname": "Carbyn",
+                "avatar": "https://assets.faceit-cdn.net/avatars/3946bcaf-1e0b-46b3-9863-62559f62bea5_1551033474022.jpg",
+                "skill_level": 10,
+                "elo": 2085,
+                "steam_id": "76561198176399799",
+                "faceit_id": "3946bcaf-1e0b-46b3-9863-62559f62bea5"
+            }
+        ],
+        "leader": "7aaa1fb1-7420-42aa-b0ca-2d9cceff085f",
+        "avatar": null,
+        "team_id": "a4088bc1-09fd-48f1-9bf9-8a90d3ad7ee0",
+        "elo": 0,
+        "playfly_id": "fbc0c5b5-b6b1-4b62-ae70-85402bc1ed1d",
+        "playfly_participant_id": "91532bb4-3bae-4f7e-9b54-690b329b54c8"
+    },
+    {
+        "name": "OSUBGC Scarlet",
+        "roster": [
+            {
+                "player_id": "bdfb5d74-8500-4a31-bead-0583dbbc9c44",
+                "nickname": "swifty",
+                "avatar": "https://distribution.faceit-cdn.net/images/bb0be963-6bf7-49c3-b57b-4f895a078766.jpeg",
+                "skill_level": 10,
+                "elo": 2118,
+                "steam_id": "76561198035962315",
+                "faceit_id": "bdfb5d74-8500-4a31-bead-0583dbbc9c44"
+            },
+            {
+                "player_id": "5178947f-e1d0-4d78-a6e9-3b57221fb001",
+                "nickname": "Cheddar",
+                "avatar": "https://distribution.faceit-cdn.net/images/fb2f6385-a134-4e6d-8ad7-c05fed237a70.jpeg",
+                "skill_level": 10,
+                "elo": 2138,
+                "steam_id": "76561198162625552",
+                "faceit_id": "5178947f-e1d0-4d78-a6e9-3b57221fb001"
+            },
+            {
+                "player_id": "de3d0b00-bdbb-4a35-8557-bfc094891b0b",
+                "nickname": "BaII",
+                "avatar": "https://distribution.faceit-cdn.net/images/806819ab-b87b-45b8-be0c-463af63129af.jpeg",
+                "skill_level": 10,
+                "elo": 2680,
+                "steam_id": "76561198183876587",
+                "faceit_id": "de3d0b00-bdbb-4a35-8557-bfc094891b0b"
+            },
+            {
+                "player_id": "ee1be8eb-5b39-4501-8818-4a03264c2de7",
+                "nickname": "_-JAKEY-_",
+                "avatar": "https://distribution.faceit-cdn.net/images/d2a5c8bb-97a2-42af-9ef7-82b88b7ce1ea.jpeg",
+                "skill_level": 10,
+                "elo": 2729,
+                "steam_id": "76561198128796527",
+                "faceit_id": "ee1be8eb-5b39-4501-8818-4a03264c2de7"
+            },
+            {
+                "player_id": "8f8d4036-4ea4-413e-83bc-29c0fad4e588",
+                "nickname": "jax",
+                "avatar": "https://distribution.faceit-cdn.net/images/deb9f1bb-5a13-4c0c-8e26-0e2ee91c2cfd.jpeg",
+                "skill_level": 10,
+                "elo": 2313,
+                "steam_id": "76561198370554798",
+                "faceit_id": "8f8d4036-4ea4-413e-83bc-29c0fad4e588"
+            }
+        ],
+        "leader": "bdfb5d74-8500-4a31-bead-0583dbbc9c44",
+        "avatar": null,
+        "team_id": "f51edfe4-72d6-4ef8-b850-cb13af523ef3",
+        "elo": 0,
+        "playfly_id": "e510beb0-0309-4c7c-8e87-c74a139cc0ef",
+        "playfly_participant_id": "358ae230-7670-4b11-b076-4c2d283890b0"
+    },
+    {
+        "name": "UMN GOLD",
+        "roster": [
+            {
+                "player_id": "04a9a496-252d-4bb7-b195-b4640ae8d566",
+                "nickname": "4pple3ater",
+                "avatar": "https://assets.faceit-cdn.net/avatars/04a9a496-252d-4bb7-b195-b4640ae8d566_1582447860553.jpg",
+                "skill_level": 4,
+                "elo": 945,
+                "steam_id": "76561198801952447",
+                "faceit_id": "04a9a496-252d-4bb7-b195-b4640ae8d566"
+            },
+            {
+                "player_id": "2006fbe0-656e-42e7-8104-edb237b45c1b",
+                "nickname": "z1ro",
+                "avatar": "https://distribution.faceit-cdn.net/images/e1f57afa-4bd3-44b1-ba79-2fa0b92126b2.jpeg",
+                "skill_level": 10,
+                "elo": 2049,
+                "steam_id": "76561198235804652",
+                "faceit_id": "2006fbe0-656e-42e7-8104-edb237b45c1b"
+            },
+            {
+                "player_id": "60d25191-29ee-4755-b420-4a34ab8112de",
+                "nickname": "pinguWIN",
+                "avatar": "https://distribution.faceit-cdn.net/images/d657918f-cee6-46bf-9d83-c49af63aff0f.jpeg",
+                "skill_level": 10,
+                "elo": 2053,
+                "steam_id": "76561198449994266",
+                "faceit_id": "60d25191-29ee-4755-b420-4a34ab8112de"
+            },
+            {
+                "player_id": "2e3075ce-27dd-467e-99b3-eabac878a39f",
+                "nickname": "peeanut2",
+                "avatar": "https://distribution.faceit-cdn.net/images/2b741d35-d00d-4213-bb07-08e9bf687b14.jpeg",
+                "skill_level": 8,
+                "elo": 1657,
+                "steam_id": "76561198328214302",
+                "faceit_id": "2e3075ce-27dd-467e-99b3-eabac878a39f"
+            },
+            {
+                "player_id": "0c223eed-7d2c-43bd-b132-33cfb50edfba",
+                "nickname": "Speed-Weed",
+                "avatar": "https://assets.faceit-cdn.net/avatars/0c223eed-7d2c-43bd-b132-33cfb50edfba_1600382922754.jpg",
+                "skill_level": 9,
+                "elo": 1947,
+                "steam_id": "76561198142465210",
+                "faceit_id": "0c223eed-7d2c-43bd-b132-33cfb50edfba"
+            }
+        ],
+        "leader": "60d25191-29ee-4755-b420-4a34ab8112de",
+        "avatar": null,
+        "team_id": "dfeba4fb-3e91-4378-a6bd-ee288632826b",
+        "elo": 0,
+        "playfly_id": "199d4f13-8486-4beb-8253-6a44ee5ca3d6",
+        "playfly_participant_id": "12e0343a-ace1-4681-a911-609a7c977309"
+    },
+    {
+        "name": "UWS CS2 Black",
+        "roster": [
+            {
+                "player_id": "a970c792-f200-4626-a61f-1f4dd4f084e7",
+                "nickname": "Hoollala",
+                "avatar": "https://distribution.faceit-cdn.net/images/78b590da-1ffd-4ed4-be25-27b659f4120a.jpeg",
+                "skill_level": 7,
+                "elo": 1392,
+                "steam_id": "76561198220262167",
+                "faceit_id": "a970c792-f200-4626-a61f-1f4dd4f084e7"
+            },
+            {
+                "player_id": "6933b9d4-be6e-444a-84cd-d431dee70e4a",
+                "nickname": "Purinsu-",
+                "avatar": "https://distribution.faceit-cdn.net/images/51a9587f-798a-4079-bbea-ed6813c4f440.jpeg",
+                "skill_level": 7,
+                "elo": 1373,
+                "steam_id": "76561199058199188",
+                "faceit_id": "6933b9d4-be6e-444a-84cd-d431dee70e4a"
+            },
+            {
+                "player_id": "fa085575-3363-4f9c-af60-6a6f193ad6e6",
+                "nickname": "-G4K-iwnl-",
+                "avatar": "https://distribution.faceit-cdn.net/images/db8a3d7a-4c03-41a8-bba9-2abf6fa5f5a2.jpeg",
+                "skill_level": 10,
+                "elo": 2043,
+                "steam_id": "76561199150576408",
+                "faceit_id": "fa085575-3363-4f9c-af60-6a6f193ad6e6"
+            },
+            {
+                "player_id": "e6fe3641-82f0-4426-ae16-75deb621982f",
+                "nickname": "F4RAiden",
+                "avatar": "https://distribution.faceit-cdn.net/images/6cc966e0-3d24-4afd-8090-2c99a6c0d2e3.jpeg",
+                "skill_level": 6,
+                "elo": 1206,
+                "steam_id": "76561198212975533",
+                "faceit_id": "e6fe3641-82f0-4426-ae16-75deb621982f"
+            },
+            {
+                "player_id": "57cb93a3-ae03-4926-b7fd-61f91cbbb96a",
+                "nickname": "AceRaid",
+                "avatar": "",
+                "skill_level": 4,
+                "elo": 914,
+                "steam_id": "76561198976382015",
+                "faceit_id": "57cb93a3-ae03-4926-b7fd-61f91cbbb96a"
+            }
+        ],
+        "leader": "6933b9d4-be6e-444a-84cd-d431dee70e4a",
+        "avatar": null,
+        "team_id": "7b2d7814-a80d-44af-9b45-d819fae3eeff",
+        "elo": 0,
+        "playfly_id": "bca0c140-3259-4428-92da-2c141db6d81e",
+        "playfly_participant_id": "e078d472-d5ab-4192-94aa-95d4a23090b3"
+    },
+    {
+        "name": "Stony Brook Seawolves CS",
+        "roster": [
+            {
+                "player_id": "dce6aeea-1bb9-4fe8-866c-2ad18f998e5f",
+                "nickname": "MabelMcGraw",
+                "avatar": "https://distribution.faceit-cdn.net/images/9e4ad81c-4a9b-429a-a1a3-fcb5cb438561.jpeg",
+                "skill_level": 10,
+                "elo": 2640,
+                "steam_id": "76561198263641233",
+                "faceit_id": "dce6aeea-1bb9-4fe8-866c-2ad18f998e5f"
+            },
+            {
+                "player_id": "50440888-707d-400d-9bf7-9923c40fdd81",
+                "nickname": "-DacS-",
+                "avatar": "https://assets.faceit-cdn.net/avatars/50440888-707d-400d-9bf7-9923c40fdd81_1551291225689.jpg",
+                "skill_level": 10,
+                "elo": 2522,
+                "steam_id": "76561198175815589",
+                "faceit_id": "50440888-707d-400d-9bf7-9923c40fdd81"
+            },
+            {
+                "player_id": "6d176de5-6099-4d1e-96e6-c3d173b81ec8",
+                "nickname": "DigiMon-",
+                "avatar": "https://assets.faceit-cdn.net/avatars/6d176de5-6099-4d1e-96e6-c3d173b81ec8_1564007886887.jpg",
+                "skill_level": 10,
+                "elo": 2492,
+                "steam_id": "76561198870123081",
+                "faceit_id": "6d176de5-6099-4d1e-96e6-c3d173b81ec8"
+            },
+            {
+                "player_id": "b3a9baad-71ad-43ee-9790-c9d6b81af553",
+                "nickname": "1talp",
+                "avatar": "https://distribution.faceit-cdn.net/images/c536dbba-61ab-4635-8962-c7cd1d19a918.jpeg",
+                "skill_level": 10,
+                "elo": 2384,
+                "steam_id": "76561198093512235",
+                "faceit_id": "b3a9baad-71ad-43ee-9790-c9d6b81af553"
+            },
+            {
+                "player_id": "178dc350-99e7-409b-9793-9b1659e5dc36",
+                "nickname": "StankLord",
+                "avatar": "https://assets.faceit-cdn.net/avatars/178dc350-99e7-409b-9793-9b1659e5dc36_1575479008197.jpg",
+                "skill_level": 10,
+                "elo": 2091,
+                "steam_id": "76561198182599678",
+                "faceit_id": "178dc350-99e7-409b-9793-9b1659e5dc36"
+            }
+        ],
+        "leader": "dce6aeea-1bb9-4fe8-866c-2ad18f998e5f",
+        "avatar": null,
+        "team_id": "5ff098c3-7f41-480d-8ee9-ae93114929a3",
+        "elo": 0,
+        "playfly_id": "ac663082-48f8-4766-b3b4-448547b688f2",
+        "playfly_participant_id": "08b96759-6e92-4c35-ba1e-42280957f1b8"
+    },
+    {
+        "name": "CMU Tartans CS2",
+        "roster": [
+            {
+                "player_id": "4110e173-3e26-46d9-bca9-80d51177ef85",
+                "nickname": "cobalt",
+                "avatar": "https://distribution.faceit-cdn.net/images/ca2f749d-8c55-4c99-9feb-906d5fb76b70.jpeg",
+                "skill_level": 10,
+                "elo": 2755,
+                "steam_id": "76561198311911152",
+                "faceit_id": "4110e173-3e26-46d9-bca9-80d51177ef85"
+            },
+            {
+                "player_id": "8debf3e0-3ffc-406f-85ee-9fe1bc2776ee",
+                "nickname": "EthanSevert",
+                "avatar": "",
+                "skill_level": 5,
+                "elo": 1174,
+                "steam_id": "76561198358934138",
+                "faceit_id": "8debf3e0-3ffc-406f-85ee-9fe1bc2776ee"
+            },
+            {
+                "player_id": "37ba5a8b-7a0a-47b0-8abc-8552d12d3659",
+                "nickname": "Eddie_Comet",
+                "avatar": "https://assets.faceit-cdn.net/avatars/37ba5a8b-7a0a-47b0-8abc-8552d12d3659_1606110954776.jpg",
+                "skill_level": 10,
+                "elo": 2001,
+                "steam_id": "76561198140652880",
+                "faceit_id": "37ba5a8b-7a0a-47b0-8abc-8552d12d3659"
+            },
+            {
+                "player_id": "8b70b51d-dff6-4f9b-a088-77d27162aa4e",
+                "nickname": "w0nderb1t",
+                "avatar": "https://distribution.faceit-cdn.net/images/92f6f365-a8c0-47a3-94d7-8bc09b9c70a7.jpeg",
+                "skill_level": 9,
+                "elo": 1773,
+                "steam_id": "76561198360451715",
+                "faceit_id": "8b70b51d-dff6-4f9b-a088-77d27162aa4e"
+            },
+            {
+                "player_id": "f36f4b78-7cb0-4210-931d-331c1789b090",
+                "nickname": "JtheMunch",
+                "avatar": "https://assets.faceit-cdn.net/avatars/f36f4b78-7cb0-4210-931d-331c1789b090_1550529372160.png",
+                "skill_level": 9,
+                "elo": 1822,
+                "steam_id": "76561198044647045",
+                "faceit_id": "f36f4b78-7cb0-4210-931d-331c1789b090"
+            }
+        ],
+        "leader": "4110e173-3e26-46d9-bca9-80d51177ef85",
+        "avatar": null,
+        "team_id": "d109a982-408b-454b-add1-a5a2736e67e9",
+        "elo": 0,
+        "playfly_id": "369fcd04-d892-4243-91e1-5f3f6926ccf8",
+        "playfly_participant_id": "641d53ce-84c7-4f1d-b69d-c326fd734c44"
+    },
+    {
+        "name": "Fisher College",
+        "roster": [
+            {
+                "player_id": "19121622-cb18-482e-a120-dafb90be7b32",
+                "nickname": "AAlekSS",
+                "avatar": "https://assets.faceit-cdn.net/avatars/19121622-cb18-482e-a120-dafb90be7b32_1591109448755.jpg",
+                "skill_level": 10,
+                "elo": 3269,
+                "steam_id": "76561198176501275",
+                "faceit_id": "19121622-cb18-482e-a120-dafb90be7b32"
+            },
+            {
+                "player_id": "43881fa5-9f2d-44a4-a67b-2d315b6cf46d",
+                "nickname": "CrePoW",
+                "avatar": "https://distribution.faceit-cdn.net/images/218f7eb1-e108-4168-96f6-dde6212b63dc.jpeg",
+                "skill_level": 10,
+                "elo": 3866,
+                "steam_id": "76561198196974277",
+                "faceit_id": "43881fa5-9f2d-44a4-a67b-2d315b6cf46d"
+            },
+            {
+                "player_id": "b9556255-f711-48af-9fa3-981d864f01f7",
+                "nickname": "FRIZZY",
+                "avatar": "https://distribution.faceit-cdn.net/images/6a8c6a03-2650-4b57-b464-29dd374b6e53.jpeg",
+                "skill_level": 10,
+                "elo": 3258,
+                "steam_id": "76561197982819923",
+                "faceit_id": "b9556255-f711-48af-9fa3-981d864f01f7"
+            },
+            {
+                "player_id": "ca322d93-c106-4cdd-9e08-7136e3b9cf9d",
+                "nickname": "nilsje",
+                "avatar": "https://distribution.faceit-cdn.net/images/1fc78981-c512-4da6-adca-c342e028b738.jpeg",
+                "skill_level": 10,
+                "elo": 3658,
+                "steam_id": "76561198298534255",
+                "faceit_id": "ca322d93-c106-4cdd-9e08-7136e3b9cf9d"
+            },
+            {
+                "player_id": "3385e2ca-e0fa-4762-a04b-ca77d054c0e0",
+                "nickname": "corn",
+                "avatar": "https://distribution.faceit-cdn.net/images/ef50428e-7dd4-4310-be86-5ba3159a4eb8.jpeg",
+                "skill_level": 10,
+                "elo": 2941,
+                "steam_id": "76561198087858058",
+                "faceit_id": "3385e2ca-e0fa-4762-a04b-ca77d054c0e0"
+            }
+        ],
+        "leader": "19121622-cb18-482e-a120-dafb90be7b32",
+        "avatar": null,
+        "team_id": "182174f6-9d14-4161-8abd-0ed642109f69",
+        "elo": 0,
+        "playfly_id": "93bd93ec-265e-4e9d-88e5-c8cfe40a537d",
+        "playfly_participant_id": "b9364b5e-ceff-4c52-95e1-1a4eb387b404"
+    },
+    {
+        "name": "VESPA CS2 A Team",
+        "roster": [
+            {
+                "player_id": "887b8aae-e320-4088-b8fc-f510b5dbf82d",
+                "nickname": "Omegza",
+                "avatar": "https://distribution.faceit-cdn.net/images/218f2e14-00b4-4e88-ab6e-fe463677830d.jpeg",
+                "skill_level": 10,
+                "elo": 2075,
+                "steam_id": "76561198310395697",
+                "faceit_id": "887b8aae-e320-4088-b8fc-f510b5dbf82d"
+            },
+            {
+                "player_id": "0ccf1d6d-342c-4473-b6bb-0149ce44ab40",
+                "nickname": "-Sack-",
+                "avatar": "https://distribution.faceit-cdn.net/images/656f715b-0a1d-4108-b3c3-75506229207c.jpeg",
+                "skill_level": 7,
+                "elo": 1412,
+                "steam_id": "76561198343998223",
+                "faceit_id": "0ccf1d6d-342c-4473-b6bb-0149ce44ab40"
+            },
+            {
+                "player_id": "2e75cc5b-1602-4f4b-84cc-1a75442efba9",
+                "nickname": "ryy___",
+                "avatar": "",
+                "skill_level": 7,
+                "elo": 1355,
+                "steam_id": "76561198968137197",
+                "faceit_id": "2e75cc5b-1602-4f4b-84cc-1a75442efba9"
+            },
+            {
+                "player_id": "2da138a1-3a22-4634-8df3-1f1ae1af7480",
+                "nickname": "DullPilot",
+                "avatar": "https://assets.faceit-cdn.net/avatars/2da138a1-3a22-4634-8df3-1f1ae1af7480_1608682052707.jpg",
+                "skill_level": 3,
+                "elo": 784,
+                "steam_id": "76561198355651442",
+                "faceit_id": "2da138a1-3a22-4634-8df3-1f1ae1af7480"
+            },
+            {
+                "player_id": "104dfcec-537f-4c91-abcc-3562de257f21",
+                "nickname": "MaddSadd",
+                "avatar": "",
+                "skill_level": 9,
+                "elo": 1765,
+                "steam_id": "76561198806710985",
+                "faceit_id": "104dfcec-537f-4c91-abcc-3562de257f21"
+            }
+        ],
+        "leader": "887b8aae-e320-4088-b8fc-f510b5dbf82d",
+        "avatar": null,
+        "team_id": "4bfcb158-4c6d-4d82-a7c5-c83d10d69503",
+        "elo": 0,
+        "playfly_id": "c1994fa4-161b-4a36-b61c-638bb08141ee",
+        "playfly_participant_id": "2ad14ee3-29f4-404e-9e39-de655b864f29"
+    },
+    {
+        "name": "UofT Varsity",
+        "roster": [
+            {
+                "player_id": "048c78c4-fadc-4b36-ac80-2df16bb05ac6",
+                "nickname": "Yuno24",
+                "avatar": "https://distribution.faceit-cdn.net/images/48554287-4380-4779-98dd-bec3f82e6070.jpeg",
+                "skill_level": 10,
+                "elo": 2914,
+                "steam_id": "76561199059713687",
+                "faceit_id": "048c78c4-fadc-4b36-ac80-2df16bb05ac6"
+            },
+            {
+                "player_id": "1c90a7a0-4003-4fb1-8b53-dfeb2c83eb6b",
+                "nickname": "absorbbb",
+                "avatar": "https://distribution.faceit-cdn.net/images/c8cc9e20-3088-46b5-9a0f-4cdb87ac87b9.jpeg",
+                "skill_level": 10,
+                "elo": 2243,
+                "steam_id": "76561199293344301",
+                "faceit_id": "1c90a7a0-4003-4fb1-8b53-dfeb2c83eb6b"
+            },
+            {
+                "player_id": "c65d14a9-1bed-4aa2-95bf-4bb89eb7f361",
+                "nickname": "Michael_Weki",
+                "avatar": "https://distribution.faceit-cdn.net/images/c75f3ca1-a78c-47e3-bc8d-da680a966e6c.jpeg",
+                "skill_level": 10,
+                "elo": 3281,
+                "steam_id": "76561198816178162",
+                "faceit_id": "c65d14a9-1bed-4aa2-95bf-4bb89eb7f361"
+            },
+            {
+                "player_id": "9673dafb-4e1f-4f9c-a955-4ed12034c598",
+                "nickname": "-zy-",
+                "avatar": "https://distribution.faceit-cdn.net/images/3f2f4010-16dc-43f4-a529-a17458291f96.jpeg",
+                "skill_level": 10,
+                "elo": 3665,
+                "steam_id": "76561198275036074",
+                "faceit_id": "9673dafb-4e1f-4f9c-a955-4ed12034c598"
+            },
+            {
+                "player_id": "4be2a323-873b-47d6-b56c-6211ee15eb00",
+                "nickname": "depend",
+                "avatar": "https://distribution.faceit-cdn.net/images/9a517d59-751f-4359-910b-9aa635e41d47.jpeg",
+                "skill_level": 10,
+                "elo": 2883,
+                "steam_id": "76561198135527603",
+                "faceit_id": "4be2a323-873b-47d6-b56c-6211ee15eb00"
+            }
+        ],
+        "leader": "048c78c4-fadc-4b36-ac80-2df16bb05ac6",
+        "avatar": null,
+        "team_id": "ac0c10a0-6bc9-42aa-b146-cb296ee0de9b",
+        "elo": 0,
+        "playfly_id": "9b7ca37b-4773-40b6-9712-ad8d86cf4630",
+        "playfly_participant_id": "6f976c77-018c-4b65-bdff-f958548d86a4"
+    },
+    {
+        "name": "UH Esports CS",
+        "roster": [
+            {
+                "player_id": "c36f8c08-1ccb-486a-b22f-0c0408e058f6",
+                "nickname": "bullzye",
+                "avatar": "https://assets.faceit-cdn.net/avatars/c36f8c08-1ccb-486a-b22f-0c0408e058f6_1550887155489.png",
+                "skill_level": 10,
+                "elo": 2028,
+                "steam_id": "76561198241070988",
+                "faceit_id": "c36f8c08-1ccb-486a-b22f-0c0408e058f6"
+            },
+            {
+                "player_id": "9542ac5d-666a-46cc-b6e1-c24f67263793",
+                "nickname": "Vu8O8",
+                "avatar": "https://distribution.faceit-cdn.net/images/e9757245-a0b0-42b7-a263-b2a4b9ef6f9c.jpeg",
+                "skill_level": 10,
+                "elo": 2202,
+                "steam_id": "76561198110475153",
+                "faceit_id": "9542ac5d-666a-46cc-b6e1-c24f67263793"
+            },
+            {
+                "player_id": "3db4fd37-47cd-439a-9d04-a9fbf85b22be",
+                "nickname": "Sova2024",
+                "avatar": "https://distribution.faceit-cdn.net/images/5626653f-9d9f-46ea-8a0b-235c3436f96c.jpeg",
+                "skill_level": 8,
+                "elo": 1597,
+                "steam_id": "76561198175001019",
+                "faceit_id": "3db4fd37-47cd-439a-9d04-a9fbf85b22be"
+            },
+            {
+                "player_id": "4a1395a0-3466-437d-bb8c-f845af67e8e8",
+                "nickname": "s1nk--",
+                "avatar": "https://distribution.faceit-cdn.net/images/30565ad7-500a-4eba-8126-83169b8366f4.jpeg",
+                "skill_level": 9,
+                "elo": 1887,
+                "steam_id": "76561198315189576",
+                "faceit_id": "4a1395a0-3466-437d-bb8c-f845af67e8e8"
+            },
+            {
+                "player_id": "2e33935b-e733-4661-8669-8f7dffcbe8d2",
+                "nickname": "xkLvren",
+                "avatar": "https://distribution.faceit-cdn.net/images/664c42ca-b376-4fff-a7a3-2bc218fac8c2.jpeg",
+                "skill_level": 10,
+                "elo": 2539,
+                "steam_id": "76561198844063335",
+                "faceit_id": "2e33935b-e733-4661-8669-8f7dffcbe8d2"
+            }
+        ],
+        "leader": "c36f8c08-1ccb-486a-b22f-0c0408e058f6",
+        "avatar": null,
+        "team_id": "e38926f7-78e2-4c70-967b-c45d8bd1434c",
+        "elo": 0,
+        "playfly_id": "21177a2f-6bd3-4a3f-afce-8cafaef96894",
+        "playfly_participant_id": "41ffe1f3-d2d5-43f9-8cae-94bfc4d966f1"
+    },
+    {
+        "name": "NAU CS2",
+        "roster": [
+            {
+                "player_id": "ed7b9686-4763-4609-9316-2fb45696e49d",
+                "nickname": "NinjqHunter",
+                "avatar": "https://distribution.faceit-cdn.net/images/e4eea8e1-6f29-442b-ab91-38785e12042e.jpeg",
+                "skill_level": 6,
+                "elo": 1226,
+                "steam_id": "76561198120544869",
+                "faceit_id": "ed7b9686-4763-4609-9316-2fb45696e49d"
+            },
+            {
+                "player_id": "ee2ba6fd-ffb5-429f-8f08-bb2301977120",
+                "nickname": "OskoFPS",
+                "avatar": "",
+                "skill_level": 5,
+                "elo": 1186,
+                "steam_id": "76561198890651099",
+                "faceit_id": "ee2ba6fd-ffb5-429f-8f08-bb2301977120"
+            },
+            {
+                "player_id": "cada7879-954d-40f9-8b27-7977bb63e1df",
+                "nickname": "Tanban_TV",
+                "avatar": "https://assets.faceit-cdn.net/avatars/cada7879-954d-40f9-8b27-7977bb63e1df_1550545669861.jpg",
+                "skill_level": 6,
+                "elo": 1256,
+                "steam_id": "76561198080202502",
+                "faceit_id": "cada7879-954d-40f9-8b27-7977bb63e1df"
+            },
+            {
+                "player_id": "aee327e4-b4fb-46dc-a0d8-588337b43c97",
+                "nickname": "tnead",
+                "avatar": "https://distribution.faceit-cdn.net/images/e98567ba-78a8-4f29-93f2-d90078b44190.jpeg",
+                "skill_level": 4,
+                "elo": 970,
+                "steam_id": "76561198212653584",
+                "faceit_id": "aee327e4-b4fb-46dc-a0d8-588337b43c97"
+            },
+            {
+                "player_id": "5c2f9966-bac8-4a16-a18e-db3ac1c84647",
+                "nickname": "NovacaineCS",
+                "avatar": "https://distribution.faceit-cdn.net/images/64f492eb-1955-41f5-b167-e18429bbb766.jpeg",
+                "skill_level": 4,
+                "elo": 930,
+                "steam_id": "76561199007992047",
+                "faceit_id": "5c2f9966-bac8-4a16-a18e-db3ac1c84647"
+            }
+        ],
+        "leader": "cada7879-954d-40f9-8b27-7977bb63e1df",
+        "avatar": null,
+        "team_id": "2c28d9a0-0688-4987-b145-c68e943c4eb0",
+        "elo": 0,
+        "playfly_id": "c155fc1a-db4e-4ea8-b7e2-0f9595bc2ae1",
+        "playfly_participant_id": "976f7586-91a1-45a0-990b-26b9826717e9"
+    },
+    {
+        "name": "RIT White",
+        "roster": [
+            {
+                "player_id": "2dd37fc6-2e61-47b0-861c-bc68eddb3d3d",
+                "nickname": "Omega_Weeb",
+                "avatar": "https://distribution.faceit-cdn.net/images/231ec333-024e-4495-bdf0-f27388f92d62.jpeg",
+                "skill_level": 8,
+                "elo": 1658,
+                "steam_id": "76561198813745882",
+                "faceit_id": "2dd37fc6-2e61-47b0-861c-bc68eddb3d3d"
+            },
+            {
+                "player_id": "26d2c760-6b4a-4358-8541-90fa404b119d",
+                "nickname": "C_Nug",
+                "avatar": "https://distribution.faceit-cdn.net/images/78d91954-8a74-4135-8a37-c1872f7d0285.jpeg",
+                "skill_level": 10,
+                "elo": 2023,
+                "steam_id": "76561198878726135",
+                "faceit_id": "26d2c760-6b4a-4358-8541-90fa404b119d"
+            },
+            {
+                "player_id": "2082c8b2-eea4-49f9-9d52-9fcb3e0f688e",
+                "nickname": "Chu_Tang",
+                "avatar": "",
+                "skill_level": 10,
+                "elo": 2345,
+                "steam_id": "76561198297040971",
+                "faceit_id": "2082c8b2-eea4-49f9-9d52-9fcb3e0f688e"
+            },
+            {
+                "player_id": "0e9d3bea-dac7-4681-a01c-aaf294db240f",
+                "nickname": "puppeht",
+                "avatar": "https://distribution.faceit-cdn.net/images/abcd84d0-acac-4b33-8370-00958c22d306.jpeg",
+                "skill_level": 6,
+                "elo": 1272,
+                "steam_id": "76561198054809228",
+                "faceit_id": "0e9d3bea-dac7-4681-a01c-aaf294db240f"
+            },
+            {
+                "player_id": "a01621a4-3f46-4daf-ad82-cc097293d1ae",
+                "nickname": "bgsml",
+                "avatar": "https://distribution.faceit-cdn.net/images/023fddcf-64b5-485e-9505-8aa144474af4.jpeg",
+                "skill_level": 9,
+                "elo": 1855,
+                "steam_id": "76561198060761438",
+                "faceit_id": "a01621a4-3f46-4daf-ad82-cc097293d1ae"
+            }
+        ],
+        "leader": "2082c8b2-eea4-49f9-9d52-9fcb3e0f688e",
+        "avatar": null,
+        "team_id": "1948df48-71fb-4cda-9c88-8a19ddfda828",
+        "elo": 0,
+        "playfly_id": "ee1e5c9d-ff62-4c5a-875f-47d8edeb31e4",
+        "playfly_participant_id": "a6a955d6-85f7-4e95-a382-771d37a24d4f"
+    },
+    {
+        "name": "RPI CS2",
+        "roster": [
+            {
+                "player_id": "28182dfb-e24a-437b-86e3-5651a1282bb4",
+                "nickname": "d1nk_",
+                "avatar": "https://assets.faceit-cdn.net/avatars/28182dfb-e24a-437b-86e3-5651a1282bb4_1631470797605.jpg",
+                "skill_level": 9,
+                "elo": 1813,
+                "steam_id": "76561198834278493",
+                "faceit_id": "28182dfb-e24a-437b-86e3-5651a1282bb4"
+            },
+            {
+                "player_id": "9fd1c023-d4c9-429a-b028-917ebffca0b5",
+                "nickname": "mal",
+                "avatar": "https://assets.faceit-cdn.net/avatars/9fd1c023-d4c9-429a-b028-917ebffca0b5_1630950816779.jpg",
+                "skill_level": 10,
+                "elo": 2146,
+                "steam_id": "76561198390688228",
+                "faceit_id": "9fd1c023-d4c9-429a-b028-917ebffca0b5"
+            },
+            {
+                "player_id": "1de5d17c-3390-4c02-90ef-b091731c02d5",
+                "nickname": "TheGrouch",
+                "avatar": "https://assets.faceit-cdn.net/avatars/1de5d17c-3390-4c02-90ef-b091731c02d5_1599185617232.jpg",
+                "skill_level": 9,
+                "elo": 1949,
+                "steam_id": "76561198161424511",
+                "faceit_id": "1de5d17c-3390-4c02-90ef-b091731c02d5"
+            },
+            {
+                "player_id": "6d1d70cf-ce24-46e0-8ddc-2bee55b44850",
+                "nickname": "icee--",
+                "avatar": "https://distribution.faceit-cdn.net/images/458ae300-c7a9-4840-8fcc-3daff827893c.jpeg",
+                "skill_level": 10,
+                "elo": 2050,
+                "steam_id": "76561198883667470",
+                "faceit_id": "6d1d70cf-ce24-46e0-8ddc-2bee55b44850"
+            },
+            {
+                "player_id": "d1e40d20-4b57-430c-af0b-d30a0ba2c7a2",
+                "nickname": "Johnny219",
+                "avatar": "https://distribution.faceit-cdn.net/images/10ab152b-f36f-4c81-839b-730fb30385bd.jpeg",
+                "skill_level": 10,
+                "elo": 2508,
+                "steam_id": "76561198124707333",
+                "faceit_id": "d1e40d20-4b57-430c-af0b-d30a0ba2c7a2"
+            }
+        ],
+        "leader": "6d1d70cf-ce24-46e0-8ddc-2bee55b44850",
+        "avatar": null,
+        "team_id": "b0caac8b-f429-4408-848c-bd6b1e47f97c",
+        "elo": 0,
+        "playfly_id": "5a6ec791-1054-43de-8a4e-98120bf3aef2",
+        "playfly_participant_id": "ac3a1434-865f-41bb-8f17-8270a0d9fb2f"
+    },
+    {
+        "name": "WPI GOATS",
+        "roster": [
+            {
+                "player_id": "b186ec7d-0fc6-4ff7-bf14-8107bfe9693d",
+                "nickname": "AsianWhale",
+                "avatar": "https://assets.faceit-cdn.net/avatars/b186ec7d-0fc6-4ff7-bf14-8107bfe9693d_1550848263463.jpg",
+                "skill_level": 10,
+                "elo": 2093,
+                "steam_id": "76561198135272877",
+                "faceit_id": "b186ec7d-0fc6-4ff7-bf14-8107bfe9693d"
+            },
+            {
+                "player_id": "270ffb4d-c836-46cd-ac4b-ad7b32f2f0cd",
+                "nickname": "Ak_An",
+                "avatar": "https://assets.faceit-cdn.net/avatars/270ffb4d-c836-46cd-ac4b-ad7b32f2f0cd_1588332677544.jpg",
+                "skill_level": 6,
+                "elo": 1217,
+                "steam_id": "76561197994647681",
+                "faceit_id": "270ffb4d-c836-46cd-ac4b-ad7b32f2f0cd"
+            },
+            {
+                "player_id": "8a5fbdbd-ebbe-4089-885f-adad5b49fad6",
+                "nickname": "ChuPa_Ajax",
+                "avatar": "https://assets.faceit-cdn.net/avatars/8a5fbdbd-ebbe-4089-885f-adad5b49fad6_1594234120448.jpg",
+                "skill_level": 10,
+                "elo": 2085,
+                "steam_id": "76561198324763607",
+                "faceit_id": "8a5fbdbd-ebbe-4089-885f-adad5b49fad6"
+            },
+            {
+                "player_id": "18affdd7-a80b-439d-815f-9bcfa4c981fb",
+                "nickname": "docilejustin",
+                "avatar": "https://distribution.faceit-cdn.net/images/2addbc26-92cd-415f-8ac1-fafbf5af268e.jpeg",
+                "skill_level": 6,
+                "elo": 1258,
+                "steam_id": "76561198321178315",
+                "faceit_id": "18affdd7-a80b-439d-815f-9bcfa4c981fb"
+            },
+            {
+                "player_id": "f8f5fb00-3f49-448b-a9ae-39c2beea9eed",
+                "nickname": "Ev3rZ",
+                "avatar": "",
+                "skill_level": 6,
+                "elo": 1337,
+                "steam_id": "76561198258547289",
+                "faceit_id": "f8f5fb00-3f49-448b-a9ae-39c2beea9eed"
+            }
+        ],
+        "leader": "b186ec7d-0fc6-4ff7-bf14-8107bfe9693d",
+        "avatar": null,
+        "team_id": "7b62d7d2-245a-4602-b609-9624caae14df",
+        "elo": 0,
+        "playfly_id": "8d5d534f-984b-47a3-958c-19bed019bf9a",
+        "playfly_participant_id": "20bb6973-4b48-4f2e-a402-aac5052c77a9"
+    },
+    {
+        "name": "RIT Orange",
+        "roster": [
+            {
+                "player_id": "cdcb07db-ccb7-4c00-933a-605b01094a79",
+                "nickname": "uni",
+                "avatar": "https://distribution.faceit-cdn.net/images/a5f3ebac-886a-48df-98fd-7207e5fd63a5.jpeg",
+                "skill_level": 10,
+                "elo": 2523,
+                "steam_id": "76561198989623289",
+                "faceit_id": "cdcb07db-ccb7-4c00-933a-605b01094a79"
+            },
+            {
+                "player_id": "b57b6387-747a-40ad-8136-963f10f53ddf",
+                "nickname": "Benjitora",
+                "avatar": "https://assets.faceit-cdn.net/avatars/b57b6387-747a-40ad-8136-963f10f53ddf_1555279248418.jpg",
+                "skill_level": 10,
+                "elo": 2965,
+                "steam_id": "76561198085229443",
+                "faceit_id": "b57b6387-747a-40ad-8136-963f10f53ddf"
+            },
+            {
+                "player_id": "361a8e98-6e59-4a71-9a33-29aca92a4626",
+                "nickname": "Sham",
+                "avatar": "https://assets.faceit-cdn.net/avatars/361a8e98-6e59-4a71-9a33-29aca92a4626_1550801173062.png",
+                "skill_level": 10,
+                "elo": 2321,
+                "steam_id": "76561198092338666",
+                "faceit_id": "361a8e98-6e59-4a71-9a33-29aca92a4626"
+            },
+            {
+                "player_id": "96b2d316-3289-4e38-9f58-7b6e5efff4a3",
+                "nickname": "hoax",
+                "avatar": "https://distribution.faceit-cdn.net/images/ba2becf6-b753-461c-aa22-de2492bd048b.jpeg",
+                "skill_level": 10,
+                "elo": 2569,
+                "steam_id": "76561198855633260",
+                "faceit_id": "96b2d316-3289-4e38-9f58-7b6e5efff4a3"
+            },
+            {
+                "player_id": "1f05ff73-d407-43bb-bb64-a6f33f9cc65d",
+                "nickname": "xCaptain",
+                "avatar": "https://distribution.faceit-cdn.net/images/2bd0d56e-8f84-44e6-ad75-d34fbf409e3d.jpeg",
+                "skill_level": 10,
+                "elo": 2010,
+                "steam_id": "76561198209992732",
+                "faceit_id": "1f05ff73-d407-43bb-bb64-a6f33f9cc65d"
+            }
+        ],
+        "leader": "cdcb07db-ccb7-4c00-933a-605b01094a79",
+        "avatar": null,
+        "team_id": "1e211b17-63f8-4996-8cf5-b73d33e90509",
+        "elo": 0,
+        "playfly_id": "4f0e0828-41d2-480e-869b-d274af8c13e6",
+        "playfly_participant_id": "9d6af788-d94c-4b20-9ceb-420185e04b68"
+    },
+    {
+        "name": "Penn State Esports",
+        "roster": [
+            {
+                "player_id": "d1d11ec3-e69c-4bea-8aad-657b1e7c688c",
+                "nickname": "fatdork15",
+                "avatar": "https://distribution.faceit-cdn.net/images/02e4b20f-57fa-4d91-804a-ebfd75b5b5e4.jpeg",
+                "skill_level": 10,
+                "elo": 2075,
+                "steam_id": "76561198168918434",
+                "faceit_id": "d1d11ec3-e69c-4bea-8aad-657b1e7c688c"
+            },
+            {
+                "player_id": "66798185-7f52-459a-a964-9fae7442a49c",
+                "nickname": "huyzz",
+                "avatar": "https://distribution.faceit-cdn.net/images/c48385c3-955e-4d42-9857-9f413a29cc50.jpeg",
+                "skill_level": 10,
+                "elo": 2639,
+                "steam_id": "76561198840326226",
+                "faceit_id": "66798185-7f52-459a-a964-9fae7442a49c"
+            },
+            {
+                "player_id": "44a4cd95-b6f0-4ffd-9fd1-03a762b1fe9c",
+                "nickname": "cns69",
+                "avatar": "",
+                "skill_level": 7,
+                "elo": 1435,
+                "steam_id": "76561197962879834",
+                "faceit_id": "44a4cd95-b6f0-4ffd-9fd1-03a762b1fe9c"
+            },
+            {
+                "player_id": "08685aa4-2b36-4b39-900e-ab8bea8b8879",
+                "nickname": "reapr",
+                "avatar": "https://distribution.faceit-cdn.net/images/912148f6-f063-442c-9447-012b63e5aad1.jpeg",
+                "skill_level": 10,
+                "elo": 2021,
+                "steam_id": "76561198191757062",
+                "faceit_id": "08685aa4-2b36-4b39-900e-ab8bea8b8879"
+            },
+            {
+                "player_id": "3137eb0b-7901-4783-9480-daced3aad07d",
+                "nickname": "-Adi--",
+                "avatar": "https://assets.faceit-cdn.net/avatars/3137eb0b-7901-4783-9480-daced3aad07d_1630993147753.jpg",
+                "skill_level": 10,
+                "elo": 2440,
+                "steam_id": "76561198852352494",
+                "faceit_id": "3137eb0b-7901-4783-9480-daced3aad07d"
+            }
+        ],
+        "leader": "08685aa4-2b36-4b39-900e-ab8bea8b8879",
+        "avatar": null,
+        "team_id": "f6ec5e0a-ae79-4e86-b7d8-d13bb5ed7177",
+        "elo": 0,
+        "playfly_id": "d34c902c-9d44-4dae-9f2d-704d84679fb6",
+        "playfly_participant_id": "dbbbdedf-a53a-4ca3-9238-0a30b82f47ca"
+    },
+    {
+        "name": "Ashland University Eagles",
+        "roster": [
+            {
+                "player_id": "ec93c868-d5bb-479e-b18b-1f12e267f6a2",
+                "nickname": "Spaz_z",
+                "avatar": "https://assets.faceit-cdn.net/avatars/ec93c868-d5bb-479e-b18b-1f12e267f6a2_1583705569430.jpg",
+                "skill_level": 8,
+                "elo": 1724,
+                "steam_id": "76561198263330087",
+                "faceit_id": "ec93c868-d5bb-479e-b18b-1f12e267f6a2"
+            },
+            {
+                "player_id": "b0b9c4ec-54d7-4458-8614-553191c9bf77",
+                "nickname": "boomm11",
+                "avatar": "https://distribution.faceit-cdn.net/images/06ba26e3-1392-4d69-91dd-e9b48ef3bdf0.jpeg",
+                "skill_level": 10,
+                "elo": 2104,
+                "steam_id": "76561198147266791",
+                "faceit_id": "b0b9c4ec-54d7-4458-8614-553191c9bf77"
+            },
+            {
+                "player_id": "4379f1da-05f7-4db9-9c39-e553abbeb1df",
+                "nickname": "l-zYon-l",
+                "avatar": "https://distribution.faceit-cdn.net/images/ebfb4e72-5c38-4bc4-8cc4-63574b450997.jpeg",
+                "skill_level": 9,
+                "elo": 1921,
+                "steam_id": "76561198306504497",
+                "faceit_id": "4379f1da-05f7-4db9-9c39-e553abbeb1df"
+            },
+            {
+                "player_id": "45503052-3df7-41e0-8a0c-6334cfd89aca",
+                "nickname": "Dafishman",
+                "avatar": "https://assets.faceit-cdn.net/avatars/45503052-3df7-41e0-8a0c-6334cfd89aca_1565229321464.jpg",
+                "skill_level": 10,
+                "elo": 2798,
+                "steam_id": "76561198840925826",
+                "faceit_id": "45503052-3df7-41e0-8a0c-6334cfd89aca"
+            },
+            {
+                "player_id": "0b8e4602-74d2-4267-987e-d8ff2e177170",
+                "nickname": "gTurrbo",
+                "avatar": "https://distribution.faceit-cdn.net/images/597b5dca-15c6-4b44-8e5d-46adffb2964f.jpeg",
+                "skill_level": 10,
+                "elo": 2408,
+                "steam_id": "76561198148480210",
+                "faceit_id": "0b8e4602-74d2-4267-987e-d8ff2e177170"
+            }
+        ],
+        "leader": "4379f1da-05f7-4db9-9c39-e553abbeb1df",
+        "avatar": null,
+        "team_id": "e46916b5-4adf-4f83-b5c8-e372609539b0",
+        "elo": 0,
+        "playfly_id": "1afc9cc9-05bf-4ca3-97a9-05836196b5b7",
+        "playfly_participant_id": "21e8632d-925e-4afb-99ca-b1c7384d8201"
+    },
+    {
+        "name": "CSM Varsity",
+        "roster": [
+            {
+                "player_id": "fa849613-a275-4542-b2b9-e74f042c2a28",
+                "nickname": "Aleusian",
+                "avatar": "https://assets.faceit-cdn.net/avatars/fa849613-a275-4542-b2b9-e74f042c2a28_1632535061719.jpg",
+                "skill_level": 7,
+                "elo": 1432,
+                "steam_id": "76561198261196791",
+                "faceit_id": "fa849613-a275-4542-b2b9-e74f042c2a28"
+            },
+            {
+                "player_id": "04fcd527-0f08-49fd-9e4d-e5059e1a1b2e",
+                "nickname": "Koesack",
+                "avatar": "",
+                "skill_level": 8,
+                "elo": 1597,
+                "steam_id": "76561199212099625",
+                "faceit_id": "04fcd527-0f08-49fd-9e4d-e5059e1a1b2e"
+            },
+            {
+                "player_id": "6fd277d4-903c-4b0e-88eb-30febcbdecd8",
+                "nickname": "tozosi",
+                "avatar": "https://distribution.faceit-cdn.net/images/b8c3a302-3ce0-4496-ade2-0397892b1258.jpeg",
+                "skill_level": 10,
+                "elo": 2024,
+                "steam_id": "76561198840314254",
+                "faceit_id": "6fd277d4-903c-4b0e-88eb-30febcbdecd8"
+            },
+            {
+                "player_id": "310ba089-9059-4911-8098-2c2aa2d7ba63",
+                "nickname": "WoodRanke",
+                "avatar": "",
+                "skill_level": 10,
+                "elo": 2100,
+                "steam_id": "76561198819488646",
+                "faceit_id": "310ba089-9059-4911-8098-2c2aa2d7ba63"
+            },
+            {
+                "player_id": "7c66adbf-c00d-4a70-aa0e-54df731df75e",
+                "nickname": "yag_",
+                "avatar": "https://assets.faceit-cdn.net/avatars/7c66adbf-c00d-4a70-aa0e-54df731df75e_1551154098209.jpg",
+                "skill_level": 8,
+                "elo": 1664,
+                "steam_id": "76561198189904771",
+                "faceit_id": "7c66adbf-c00d-4a70-aa0e-54df731df75e"
+            }
+        ],
+        "leader": "6fd277d4-903c-4b0e-88eb-30febcbdecd8",
+        "avatar": null,
+        "team_id": "ce5c4297-8537-4ac1-b9f7-36691b6b0e48",
+        "elo": 0,
+        "playfly_id": "2a41073a-102d-458a-a7bf-c9e5b80f7a86",
+        "playfly_participant_id": "399eb611-fc9a-4439-ae17-35a38ddeae35"
+    },
+    {
+        "name": "ASU CS2 Sun Devils",
+        "roster": [
+            {
+                "player_id": "a2cc3210-cac7-40fa-ac1f-2fb05723a36a",
+                "nickname": "-_Finesse_-",
+                "avatar": "https://distribution.faceit-cdn.net/images/1c16c588-b2b8-41cd-8705-90393b81d80d.jpeg",
+                "skill_level": 10,
+                "elo": 2068,
+                "steam_id": "76561198276721511",
+                "faceit_id": "a2cc3210-cac7-40fa-ac1f-2fb05723a36a"
+            },
+            {
+                "player_id": "cf563fab-46d4-4454-8a1e-dc43c4efe80c",
+                "nickname": "Hazama",
+                "avatar": "https://distribution.faceit-cdn.net/images/00150435-9b69-475d-b4c0-e366d7341b94.jpeg",
+                "skill_level": 3,
+                "elo": 818,
+                "steam_id": "76561198997943113",
+                "faceit_id": "cf563fab-46d4-4454-8a1e-dc43c4efe80c"
+            },
+            {
+                "player_id": "5b5104c0-ef32-4469-b33c-00bafd4a7e51",
+                "nickname": "wammed",
+                "avatar": "https://distribution.faceit-cdn.net/images/5a031c31-414b-4bf5-a2a5-20535c4b4a07.jpeg",
+                "skill_level": 8,
+                "elo": 1622,
+                "steam_id": "76561199022586546",
+                "faceit_id": "5b5104c0-ef32-4469-b33c-00bafd4a7e51"
+            },
+            {
+                "player_id": "dc299719-4175-440a-b5b7-c4f7b4541925",
+                "nickname": "stormicloud",
+                "avatar": "https://assets.faceit-cdn.net/avatars/dc299719-4175-440a-b5b7-c4f7b4541925_1560386218310.jpg",
+                "skill_level": 8,
+                "elo": 1590,
+                "steam_id": "76561198411974151",
+                "faceit_id": "dc299719-4175-440a-b5b7-c4f7b4541925"
+            },
+            {
+                "player_id": "cece74e5-26b7-4292-a059-9276ee6157d2",
+                "nickname": "NoogeyCS",
+                "avatar": "https://assets.faceit-cdn.net/avatars/cece74e5-26b7-4292-a059-9276ee6157d2_1589507032048.jpg",
+                "skill_level": 10,
+                "elo": 2255,
+                "steam_id": "76561198272083819",
+                "faceit_id": "cece74e5-26b7-4292-a059-9276ee6157d2"
+            }
+        ],
+        "leader": "cece74e5-26b7-4292-a059-9276ee6157d2",
+        "avatar": null,
+        "team_id": "a969619f-89ef-4dd5-b6b5-2c809b844636",
+        "elo": 0,
+        "playfly_id": "4b5994d8-c86a-491e-b9d7-375bf06ea656",
+        "playfly_participant_id": "2de23398-446a-4b69-893c-c6e0ba101d0a"
+    },
+    {
+        "name": "Fightin' Texas Aggies CS2",
+        "roster": [
+            {
+                "player_id": "975c936f-20a2-4922-971d-d29e3f2cc992",
+                "nickname": "EXIGGY",
+                "avatar": "https://distribution.faceit-cdn.net/images/3696a117-3d7b-4f67-951f-1229bf6821c1.jpeg",
+                "skill_level": 10,
+                "elo": 2217,
+                "steam_id": "76561198308867333",
+                "faceit_id": "975c936f-20a2-4922-971d-d29e3f2cc992"
+            },
+            {
+                "player_id": "44b46efc-6674-4813-824d-766527e7605f",
+                "nickname": "-Roman",
+                "avatar": "https://distribution.faceit-cdn.net/images/99089561-8e2c-4f15-8131-5f82bffe72b7.jpeg",
+                "skill_level": 10,
+                "elo": 2042,
+                "steam_id": "76561198796765545",
+                "faceit_id": "44b46efc-6674-4813-824d-766527e7605f"
+            },
+            {
+                "player_id": "7069d685-e8a5-464e-8baf-36150b69e835",
+                "nickname": "Eco_Lynx",
+                "avatar": "https://assets.faceit-cdn.net/avatars/7069d685-e8a5-464e-8baf-36150b69e835_1574202081818.jpg",
+                "skill_level": 9,
+                "elo": 1965,
+                "steam_id": "76561198865817200",
+                "faceit_id": "7069d685-e8a5-464e-8baf-36150b69e835"
+            },
+            {
+                "player_id": "89b4e16e-877a-4f1a-9601-e7832ca49d5f",
+                "nickname": "nass",
+                "avatar": "https://distribution.faceit-cdn.net/images/94498ae2-b562-4825-b448-c7da921dba69.jpeg",
+                "skill_level": 9,
+                "elo": 1892,
+                "steam_id": "76561198182298625",
+                "faceit_id": "89b4e16e-877a-4f1a-9601-e7832ca49d5f"
+            },
+            {
+                "player_id": "6fd42bff-910c-4535-a9fd-3a88873c5e5d",
+                "nickname": "shiesty_",
+                "avatar": "https://distribution.faceit-cdn.net/images/ec8e7989-09c9-4c51-8f1a-acebea2fa25d.jpeg",
+                "skill_level": 10,
+                "elo": 2209,
+                "steam_id": "76561198426441674",
+                "faceit_id": "6fd42bff-910c-4535-a9fd-3a88873c5e5d"
+            },
+            {
+                "player_id": "cf18bd30-9eb6-473e-b7ca-c46d35d79c02",
+                "nickname": "-craze",
+                "avatar": "https://distribution.faceit-cdn.net/images/382c103d-ef88-40df-b136-f496137024d1.jpeg",
+                "skill_level": 10,
+                "elo": 2302,
+                "steam_id": "76561198356704469",
+                "faceit_id": "cf18bd30-9eb6-473e-b7ca-c46d35d79c02"
+            },
+            {
+                "player_id": "8277135d-4f3b-498a-a1e7-b598ecd44bc5",
+                "nickname": "Char",
+                "avatar": "https://distribution.faceit-cdn.net/images/529ae36a-40b8-4dda-87f5-e9f31aa1d83d.jpeg",
+                "skill_level": 10,
+                "elo": 2298,
+                "steam_id": "76561198038475751",
+                "faceit_id": "8277135d-4f3b-498a-a1e7-b598ecd44bc5"
+            },
+            {
+                "player_id": "1079982d-d9d1-4707-a887-bc7df137780b",
+                "nickname": "n0xxy",
+                "avatar": "https://distribution.faceit-cdn.net/images/ec62d32f-04d0-4d25-b151-031242de1b2e.jpeg",
+                "skill_level": 10,
+                "elo": 2923,
+                "steam_id": "76561198283353084",
+                "faceit_id": "1079982d-d9d1-4707-a887-bc7df137780b"
+            }
+        ],
+        "leader": "89b4e16e-877a-4f1a-9601-e7832ca49d5f",
+        "avatar": null,
+        "team_id": "d019859e-8810-4754-a061-fe5fba311d3c",
+        "elo": 0,
+        "playfly_id": "3afbde1c-4b0a-4868-b443-02d3d0f1032b",
+        "playfly_participant_id": "e42adb8e-3228-4619-bcf7-4dbcf24a41f3"
+    },
+    {
+        "name": "CS@UW",
+        "roster": [
+            {
+                "player_id": "38cc9f7c-4c8f-47d8-902f-5a9e4ae7fecc",
+                "nickname": "Mjosael",
+                "avatar": "",
+                "skill_level": 9,
+                "elo": 1797,
+                "steam_id": "76561198850219509",
+                "faceit_id": "38cc9f7c-4c8f-47d8-902f-5a9e4ae7fecc"
+            },
+            {
+                "player_id": "517c9f41-6373-4b07-9590-2699f61aed54",
+                "nickname": "togenashi",
+                "avatar": "https://distribution.faceit-cdn.net/images/7a5f904b-8080-4410-9a10-eb229e70511a.jpeg",
+                "skill_level": 10,
+                "elo": 2068,
+                "steam_id": "76561198255994166",
+                "faceit_id": "517c9f41-6373-4b07-9590-2699f61aed54"
+            },
+            {
+                "player_id": "a4c8bb1f-4823-41ae-9f44-34715a84926a",
+                "nickname": "MasonKy",
+                "avatar": "https://assets.faceit-cdn.net/avatars/a4c8bb1f-4823-41ae-9f44-34715a84926a_1607150619435.jpg",
+                "skill_level": 9,
+                "elo": 1991,
+                "steam_id": "76561198212062628",
+                "faceit_id": "a4c8bb1f-4823-41ae-9f44-34715a84926a"
+            },
+            {
+                "player_id": "de24d482-a5be-406b-bdce-67ffaca8f75b",
+                "nickname": "melty-butter",
+                "avatar": "https://distribution.faceit-cdn.net/images/ce757a57-acd3-4fbd-9b8f-722500216e2b.jpeg",
+                "skill_level": 10,
+                "elo": 2347,
+                "steam_id": "76561198246691386",
+                "faceit_id": "de24d482-a5be-406b-bdce-67ffaca8f75b"
+            },
+            {
+                "player_id": "4ae1eefe-0308-4ce3-84d0-bb1c9f02a867",
+                "nickname": "sshrdl",
+                "avatar": "https://distribution.faceit-cdn.net/images/9c0e910a-0c46-446d-b7b5-bf8e493b1335.jpeg",
+                "skill_level": 8,
+                "elo": 1712,
+                "steam_id": "76561198181128805",
+                "faceit_id": "4ae1eefe-0308-4ce3-84d0-bb1c9f02a867"
+            }
+        ],
+        "leader": "de24d482-a5be-406b-bdce-67ffaca8f75b",
+        "avatar": null,
+        "team_id": "8863e3b3-ac85-47ec-96f8-0d2d234d9365",
+        "elo": 0,
+        "playfly_id": "40719088-c327-4a76-9f13-8177169915f8",
+        "playfly_participant_id": "8a3e23dc-091e-4052-a081-3a0d9a31fc34"
+    },
+    {
+        "name": "Cal Poly CS",
+        "roster": [
+            {
+                "player_id": "c6a4d922-5005-4513-a269-d16aba2534a5",
+                "nickname": "KSpooky",
+                "avatar": "https://distribution.faceit-cdn.net/images/c98d5b8c-90ba-47ca-94d4-0b0620a9fc50.jpeg",
+                "skill_level": 9,
+                "elo": 1790,
+                "steam_id": "76561198272310140",
+                "faceit_id": "c6a4d922-5005-4513-a269-d16aba2534a5"
+            },
+            {
+                "player_id": "c33c574f-8dc2-4c18-91dc-c55f8a7d0d54",
+                "nickname": "JaVale",
+                "avatar": "https://distribution.faceit-cdn.net/images/870c5ec9-5e28-4dc2-b058-2fcf22e3dca4.jpeg",
+                "skill_level": 10,
+                "elo": 2139,
+                "steam_id": "76561198813772287",
+                "faceit_id": "c33c574f-8dc2-4c18-91dc-c55f8a7d0d54"
+            },
+            {
+                "player_id": "618a509d-715c-4e81-b2ae-5bb8a64eaf5b",
+                "nickname": "Snooplez",
+                "avatar": "https://assets.faceit-cdn.net/avatars/618a509d-715c-4e81-b2ae-5bb8a64eaf5b_1592105214582.jpg",
+                "skill_level": 9,
+                "elo": 1779,
+                "steam_id": "76561198153767446",
+                "faceit_id": "618a509d-715c-4e81-b2ae-5bb8a64eaf5b"
+            },
+            {
+                "player_id": "4903702c-ce68-4edc-a650-1e981639e35f",
+                "nickname": "PandaWafer",
+                "avatar": "https://distribution.faceit-cdn.net/images/5a6efbff-f685-4a77-8afc-abaefa402f76.jpeg",
+                "skill_level": 8,
+                "elo": 1598,
+                "steam_id": "76561198277383913",
+                "faceit_id": "4903702c-ce68-4edc-a650-1e981639e35f"
+            },
+            {
+                "player_id": "5858e219-fa3e-4ff4-8615-f7cda5522fab",
+                "nickname": "7maj",
+                "avatar": "https://assets.faceit-cdn.net/avatars/5858e219-fa3e-4ff4-8615-f7cda5522fab_1608061626813.jpg",
+                "skill_level": 9,
+                "elo": 1833,
+                "steam_id": "76561198272626890",
+                "faceit_id": "5858e219-fa3e-4ff4-8615-f7cda5522fab"
+            }
+        ],
+        "leader": "4903702c-ce68-4edc-a650-1e981639e35f",
+        "avatar": null,
+        "team_id": "884879d5-1ed7-4ebc-8e2f-5f79d297a9ae",
+        "elo": 0,
+        "playfly_id": "0c417b5b-11fc-49da-b507-93fcdc2f6354",
+        "playfly_participant_id": "9eb69f37-283b-40b9-b0b9-3d1a12300f8e"
+    },
+    {
+        "name": "UABESA CS2",
+        "roster": [
+            {
+                "player_id": "2a04df3e-7ef7-424e-bd7c-ee75b6d7adfb",
+                "nickname": "2potato22",
+                "avatar": "",
+                "skill_level": 6,
+                "elo": 1289,
+                "steam_id": "76561198169854663",
+                "faceit_id": "2a04df3e-7ef7-424e-bd7c-ee75b6d7adfb"
+            },
+            {
+                "player_id": "35e8a7fd-4783-4d21-b24f-7272d5007a21",
+                "nickname": "WillWer",
+                "avatar": "",
+                "skill_level": 5,
+                "elo": 1163,
+                "steam_id": "76561198185620402",
+                "faceit_id": "35e8a7fd-4783-4d21-b24f-7272d5007a21"
+            },
+            {
+                "player_id": "65a6fb34-9573-4788-9359-bbc0578eebac",
+                "nickname": "yotgun",
+                "avatar": "",
+                "skill_level": 4,
+                "elo": 907,
+                "steam_id": "76561198312879179",
+                "faceit_id": "65a6fb34-9573-4788-9359-bbc0578eebac"
+            },
+            {
+                "player_id": "a5b18fd2-a8ea-4ea6-b71e-cd8eeae4b38d",
+                "nickname": "eyjafjalla",
+                "avatar": "https://distribution.faceit-cdn.net/images/55901bf3-150c-4b74-81c9-811b23b0f1d5.jpeg",
+                "skill_level": 4,
+                "elo": 921,
+                "steam_id": "76561198360788259",
+                "faceit_id": "a5b18fd2-a8ea-4ea6-b71e-cd8eeae4b38d"
+            },
+            {
+                "player_id": "f5016fe6-f446-40a8-bc77-6a239fae4cda",
+                "nickname": "ayazami_",
+                "avatar": "https://distribution.faceit-cdn.net/images/23e3ba57-34e2-4287-9d5f-e256b696e9aa.jpeg",
+                "skill_level": 9,
+                "elo": 1829,
+                "steam_id": "76561198437233281",
+                "faceit_id": "f5016fe6-f446-40a8-bc77-6a239fae4cda"
+            }
+        ],
+        "leader": "35e8a7fd-4783-4d21-b24f-7272d5007a21",
+        "avatar": null,
+        "team_id": "8a06d697-2cbb-4db0-9825-6b404baf1a60",
+        "elo": 0,
+        "playfly_id": "a174e7d0-c4f8-4c3c-a3bd-62b94eae77fa",
+        "playfly_participant_id": "afa474a0-9bd4-409e-ab06-ee84bac4fd4d"
+    },
+    {
+        "name": "CSUF Titans",
+        "roster": [
+            {
+                "player_id": "af15a620-6ec3-47fd-90d7-2d4a0fc22e7c",
+                "nickname": "ItachiVrsace",
+                "avatar": "https://distribution.faceit-cdn.net/images/040f5b69-7cad-499a-84c2-910bee0b681f.jpeg",
+                "skill_level": 10,
+                "elo": 2415,
+                "steam_id": "76561197972867879",
+                "faceit_id": "af15a620-6ec3-47fd-90d7-2d4a0fc22e7c"
+            },
+            {
+                "player_id": "56e0213a-6b01-45b0-b24f-0646c2ee043e",
+                "nickname": "MousePads",
+                "avatar": "https://distribution.faceit-cdn.net/images/300da38d-7e85-4a38-a563-a01657341afd.jpeg",
+                "skill_level": 9,
+                "elo": 1958,
+                "steam_id": "76561198354297286",
+                "faceit_id": "56e0213a-6b01-45b0-b24f-0646c2ee043e"
+            },
+            {
+                "player_id": "ed77066c-7d76-4b57-a766-24db03bb6144",
+                "nickname": "DUKES",
+                "avatar": "https://distribution.faceit-cdn.net/images/83d0a8cc-9c4f-46aa-9bf9-ea278d40736c.jpeg",
+                "skill_level": 10,
+                "elo": 2234,
+                "steam_id": "76561198085268593",
+                "faceit_id": "ed77066c-7d76-4b57-a766-24db03bb6144"
+            },
+            {
+                "player_id": "bdc0d1e6-55d3-4d47-bb1a-6d3d73c8c0f2",
+                "nickname": "RaZ3M",
+                "avatar": "https://distribution.faceit-cdn.net/images/a08329bc-b608-4b4d-b996-7b3f829a87b8.jpeg",
+                "skill_level": 10,
+                "elo": 2190,
+                "steam_id": "76561198158276079",
+                "faceit_id": "bdc0d1e6-55d3-4d47-bb1a-6d3d73c8c0f2"
+            },
+            {
+                "player_id": "bd4160af-e589-475d-a0d0-13433787eb6e",
+                "nickname": "_RedZone_",
+                "avatar": "https://distribution.faceit-cdn.net/images/20d13188-cbfc-40e7-a3ea-beeef412a63b.jpeg",
+                "skill_level": 10,
+                "elo": 2858,
+                "steam_id": "76561198106318835",
+                "faceit_id": "bd4160af-e589-475d-a0d0-13433787eb6e"
+            }
+        ],
+        "leader": "bd4160af-e589-475d-a0d0-13433787eb6e",
+        "avatar": null,
+        "team_id": "bde0945a-a285-4ee6-a07f-3e3550da6ccd",
+        "elo": 0,
+        "playfly_id": "40998870-ce42-48ad-af31-8415f79ef827",
+        "playfly_participant_id": "2e110766-4f3a-4564-a8a1-037ea7d989f6"
+    },
+    {
+        "name": "Pion33rs",
+        "roster": [
+            {
+                "player_id": "5628b18b-8c3e-4980-9be1-4de37ecb8047",
+                "nickname": "VyKe-",
+                "avatar": "https://distribution.faceit-cdn.net/images/87eed5a8-9f3d-4021-81ea-b5d899bb4dd9.jpeg",
+                "skill_level": 9,
+                "elo": 1994,
+                "steam_id": "76561198267757486",
+                "faceit_id": "5628b18b-8c3e-4980-9be1-4de37ecb8047"
+            },
+            {
+                "player_id": "fe9705ca-02fd-4d4e-a803-e426eba39021",
+                "nickname": "tanjie",
+                "avatar": "https://assets.faceit-cdn.net/avatars/fe9705ca-02fd-4d4e-a803-e426eba39021_1616532762934.jpg",
+                "skill_level": 9,
+                "elo": 1935,
+                "steam_id": "76561198145991286",
+                "faceit_id": "fe9705ca-02fd-4d4e-a803-e426eba39021"
+            },
+            {
+                "player_id": "9fb28347-56d5-4373-9c49-7e6f0b1c4c4e",
+                "nickname": "-abj-",
+                "avatar": "https://distribution.faceit-cdn.net/images/0374b1fe-4c30-4135-8cf4-a1e73dc461ef.jpeg",
+                "skill_level": 8,
+                "elo": 1641,
+                "steam_id": "76561198860149523",
+                "faceit_id": "9fb28347-56d5-4373-9c49-7e6f0b1c4c4e"
+            },
+            {
+                "player_id": "e645ec7a-0398-4431-be9f-14e0f331e10f",
+                "nickname": "Fish",
+                "avatar": "https://distribution.faceit-cdn.net/images/ce60b4ea-8317-4f35-af01-b99bce3cdb59.jpeg",
+                "skill_level": 7,
+                "elo": 1530,
+                "steam_id": "76561198195916905",
+                "faceit_id": "e645ec7a-0398-4431-be9f-14e0f331e10f"
+            },
+            {
+                "player_id": "6c2df73f-c760-45c0-918a-185c5175c63a",
+                "nickname": "Zephyr_nitRO",
+                "avatar": "https://distribution.faceit-cdn.net/images/6bcd7e27-aa7a-43b9-b923-ca4842bbc013.jpeg",
+                "skill_level": 6,
+                "elo": 1337,
+                "steam_id": "76561198404170307",
+                "faceit_id": "6c2df73f-c760-45c0-918a-185c5175c63a"
+            }
+        ],
+        "leader": "9fb28347-56d5-4373-9c49-7e6f0b1c4c4e",
+        "avatar": null,
+        "team_id": "26b43033-83f8-4276-a439-eeed75569edd",
+        "elo": 0,
+        "playfly_id": "757ee784-6d8d-4005-bc8c-58360d5014ce",
+        "playfly_participant_id": "b7cace03-4a06-4f5a-b2f0-adee82d8cd19"
+    },
+    {
+        "name": "NEU Red",
+        "roster": [
+            {
+                "player_id": "1128c94e-7c0c-4468-9053-cc85bccde510",
+                "nickname": "Pidoras1337",
+                "avatar": "https://assets.faceit-cdn.net/avatars/1128c94e-7c0c-4468-9053-cc85bccde510_1550725287921.jpg",
+                "skill_level": 9,
+                "elo": 1945,
+                "steam_id": "76561198151944594",
+                "faceit_id": "1128c94e-7c0c-4468-9053-cc85bccde510"
+            },
+            {
+                "player_id": "99818f85-b239-4f2e-a5d1-fa70d16082a1",
+                "nickname": "Duckachu",
+                "avatar": "https://assets.faceit-cdn.net/avatars/99818f85-b239-4f2e-a5d1-fa70d16082a1_1624874347936.jpg",
+                "skill_level": 10,
+                "elo": 2048,
+                "steam_id": "76561198119349885",
+                "faceit_id": "99818f85-b239-4f2e-a5d1-fa70d16082a1"
+            },
+            {
+                "player_id": "48dd15e5-b0a0-41ad-b7a2-a388fc48c65d",
+                "nickname": "superxiao007",
+                "avatar": "https://distribution.faceit-cdn.net/images/6c67c6fa-e4e9-40ca-ba12-c4084d2d2f20.jpeg",
+                "skill_level": 10,
+                "elo": 2001,
+                "steam_id": "76561198859951948",
+                "faceit_id": "48dd15e5-b0a0-41ad-b7a2-a388fc48c65d"
+            },
+            {
+                "player_id": "f8b37f9c-08cd-4042-82cc-3ed2fd8738b4",
+                "nickname": "min-",
+                "avatar": "https://assets.faceit-cdn.net/avatars/f8b37f9c-08cd-4042-82cc-3ed2fd8738b4_1551064171029.jpg",
+                "skill_level": 8,
+                "elo": 1720,
+                "steam_id": "76561198162463478",
+                "faceit_id": "f8b37f9c-08cd-4042-82cc-3ed2fd8738b4"
+            },
+            {
+                "player_id": "64b0a13e-96a1-4eaf-bb07-25289c5336ed",
+                "nickname": "TonySheng",
+                "avatar": "https://assets.faceit-cdn.net/avatars/64b0a13e-96a1-4eaf-bb07-25289c5336ed_1633553897051.jpg",
+                "skill_level": 10,
+                "elo": 2142,
+                "steam_id": "76561198313299053",
+                "faceit_id": "64b0a13e-96a1-4eaf-bb07-25289c5336ed"
+            }
+        ],
+        "leader": "64b0a13e-96a1-4eaf-bb07-25289c5336ed",
+        "avatar": null,
+        "team_id": "cde17d57-126a-470d-bd8d-c6046cd00f09",
+        "elo": 0,
+        "playfly_id": "43efd698-60c9-48cf-b1f4-514d0f389801",
+        "playfly_participant_id": "8600d82e-df33-4474-b842-31629c14b12a"
+    },
+    {
+        "name": "IE CS Orange",
+        "roster": [
+            {
+                "player_id": "2d3b5420-bd17-4e4e-bb9e-2ae18a449eaf",
+                "nickname": "Zeaufia",
+                "avatar": "",
+                "skill_level": 9,
+                "elo": 1832,
+                "steam_id": "76561198326477472",
+                "faceit_id": "2d3b5420-bd17-4e4e-bb9e-2ae18a449eaf"
+            },
+            {
+                "player_id": "d0404191-f609-4dd0-8dba-44d17988e1a9",
+                "nickname": "SlamBeast25",
+                "avatar": "https://distribution.faceit-cdn.net/images/c1b8ae8a-cbe0-42b9-a9d3-f98f3459a897.jpeg",
+                "skill_level": 4,
+                "elo": 1017,
+                "steam_id": "76561198853928123",
+                "faceit_id": "d0404191-f609-4dd0-8dba-44d17988e1a9"
+            },
+            {
+                "player_id": "5f3379ec-bbde-4f0f-9a65-11e60e32ef60",
+                "nickname": "SpoopG",
+                "avatar": "https://assets.faceit-cdn.net/avatars/5f3379ec-bbde-4f0f-9a65-11e60e32ef60_1572644035187.jpg",
+                "skill_level": 3,
+                "elo": 878,
+                "steam_id": "76561198296538101",
+                "faceit_id": "5f3379ec-bbde-4f0f-9a65-11e60e32ef60"
+            },
+            {
+                "player_id": "894be8b7-9184-4b73-957d-61f9f4886796",
+                "nickname": "--Chris",
+                "avatar": "https://distribution.faceit-cdn.net/images/83da0ff4-983e-4dc4-8749-570329aa7ec9.jpeg",
+                "skill_level": 10,
+                "elo": 3005,
+                "steam_id": "76561198106604547",
+                "faceit_id": "894be8b7-9184-4b73-957d-61f9f4886796"
+            },
+            {
+                "player_id": "0a3d0526-239a-4d91-883c-ffeedbef20da",
+                "nickname": "leae",
+                "avatar": "https://assets.faceit-cdn.net/avatars/0a3d0526-239a-4d91-883c-ffeedbef20da_1601499639096.jpg",
+                "skill_level": 10,
+                "elo": 2302,
+                "steam_id": "76561198037782050",
+                "faceit_id": "0a3d0526-239a-4d91-883c-ffeedbef20da"
+            },
+            {
+                "player_id": "d064c44f-b56d-4e18-bf8c-9c5fbd67fa90",
+                "nickname": "Sh0k3d1",
+                "avatar": "https://distribution.faceit-cdn.net/images/6890c70c-8970-460e-aff9-f302b7059b4b.jpeg",
+                "skill_level": 10,
+                "elo": 2214,
+                "steam_id": "76561198320719485",
+                "faceit_id": "d064c44f-b56d-4e18-bf8c-9c5fbd67fa90"
+            },
+            {
+                "player_id": "cbf8fe61-e652-4b6d-b247-2065baa8b65b",
+                "nickname": "Z0b",
+                "avatar": "https://distribution.faceit-cdn.net/images/48d53d07-e28f-4cc4-8147-735235b2baa8.jpeg",
+                "skill_level": 10,
+                "elo": 2283,
+                "steam_id": "76561198213439020",
+                "faceit_id": "cbf8fe61-e652-4b6d-b247-2065baa8b65b"
+            },
+            {
+                "player_id": "ed2e4a54-ee70-42db-841d-492b2021a613",
+                "nickname": "l3u0y4ncy",
+                "avatar": "",
+                "skill_level": 4,
+                "elo": 1030,
+                "steam_id": "76561198349998115",
+                "faceit_id": "ed2e4a54-ee70-42db-841d-492b2021a613"
+            }
+        ],
+        "leader": "2d3b5420-bd17-4e4e-bb9e-2ae18a449eaf",
+        "avatar": null,
+        "team_id": "453041b3-bc9b-4738-b5ec-ae2a6e84ef6e",
+        "elo": 0,
+        "playfly_id": "2357f333-c3bd-4954-bfc2-8769a85ad315",
+        "playfly_participant_id": "27cc8c34-cd7a-4033-b6a5-513e98cb8815"
+    },
+    {
+        "name": "UTSA CS2",
+        "roster": [
+            {
+                "player_id": "3841fa87-d5bf-4d68-9037-802a6007476f",
+                "nickname": "Jakob",
+                "avatar": "https://assets.faceit-cdn.net/avatars/3841fa87-d5bf-4d68-9037-802a6007476f_1614837046159.jpg",
+                "skill_level": 8,
+                "elo": 1714,
+                "steam_id": "76561198368247990",
+                "faceit_id": "3841fa87-d5bf-4d68-9037-802a6007476f"
+            },
+            {
+                "player_id": "904200fa-32fb-45f4-8972-708d552af07c",
+                "nickname": "Rise-",
+                "avatar": "https://distribution.faceit-cdn.net/images/f8083ee7-316c-4510-8126-afc332cb6722.jpeg",
+                "skill_level": 9,
+                "elo": 1953,
+                "steam_id": "76561198128995048",
+                "faceit_id": "904200fa-32fb-45f4-8972-708d552af07c"
+            },
+            {
+                "player_id": "aff1a0d2-f6fe-415a-91cd-34d8ba6d0afe",
+                "nickname": "Static_",
+                "avatar": "https://distribution.faceit-cdn.net/images/5903ae21-fab4-4d00-8af5-ad9a8bc0c1cf.jpeg",
+                "skill_level": 7,
+                "elo": 1523,
+                "steam_id": "76561198863046807",
+                "faceit_id": "aff1a0d2-f6fe-415a-91cd-34d8ba6d0afe"
+            },
+            {
+                "player_id": "1fb596aa-2788-44b3-aeb7-d60acb31b34d",
+                "nickname": "Botwright",
+                "avatar": "",
+                "skill_level": 10,
+                "elo": 2453,
+                "steam_id": "76561198386230628",
+                "faceit_id": "1fb596aa-2788-44b3-aeb7-d60acb31b34d"
+            },
+            {
+                "player_id": "ec75a3f5-f1b8-4bf3-807f-f39cc2c8cb2d",
+                "nickname": "7443chris",
+                "avatar": "https://distribution.faceit-cdn.net/images/9f683ee9-e986-474e-9431-ef5276225db7.jpeg",
+                "skill_level": 7,
+                "elo": 1471,
+                "steam_id": "76561198102789956",
+                "faceit_id": "ec75a3f5-f1b8-4bf3-807f-f39cc2c8cb2d"
+            },
+            {
+                "player_id": "02b1c395-5ec1-46c1-bb73-b37fc0910de6",
+                "nickname": "BudBudder",
+                "avatar": "https://assets.faceit-cdn.net/avatars/02b1c395-5ec1-46c1-bb73-b37fc0910de6_1589606430405.jpg",
+                "skill_level": 7,
+                "elo": 1400,
+                "steam_id": "76561198101321260",
+                "faceit_id": "02b1c395-5ec1-46c1-bb73-b37fc0910de6"
+            }
+        ],
+        "leader": "1fb596aa-2788-44b3-aeb7-d60acb31b34d",
+        "avatar": null,
+        "team_id": "3a8d473d-cf7c-4aab-93ef-916a06631b77",
+        "elo": 0,
+        "playfly_id": "1bb2b321-2af7-4bd6-86b3-a4b3c3dad043",
+        "playfly_participant_id": "60289ee9-d13a-46eb-9391-c2ab1290defd"
+    },
+    {
+        "name": "Northwood CS2",
+        "roster": [
+            {
+                "player_id": "385d3892-2a21-4fa2-92af-bff1ae820e99",
+                "nickname": "1EIIis",
+                "avatar": "https://distribution.faceit-cdn.net/images/5cabc236-c230-49ff-ac1d-10afbd3b0ce2.jpeg",
+                "skill_level": 10,
+                "elo": 3103,
+                "steam_id": "76561198078381858",
+                "faceit_id": "385d3892-2a21-4fa2-92af-bff1ae820e99"
+            },
+            {
+                "player_id": "eb7a6ec7-04c2-4606-9332-74619f4607ef",
+                "nickname": "MeIIow",
+                "avatar": "https://assets.faceit-cdn.net/avatars/eb7a6ec7-04c2-4606-9332-74619f4607ef_1555175854876.jpg",
+                "skill_level": 10,
+                "elo": 3102,
+                "steam_id": "76561198311033822",
+                "faceit_id": "eb7a6ec7-04c2-4606-9332-74619f4607ef"
+            },
+            {
+                "player_id": "92b30d58-227e-4e8c-8e33-3e97c02989f3",
+                "nickname": "TiCxara",
+                "avatar": "https://distribution.faceit-cdn.net/images/b7bab5f7-c852-4dc7-9951-186ac4d601cb.jpeg",
+                "skill_level": 10,
+                "elo": 2857,
+                "steam_id": "76561198166808748",
+                "faceit_id": "92b30d58-227e-4e8c-8e33-3e97c02989f3"
+            },
+            {
+                "player_id": "078b61c6-ebc2-471e-8f96-0e65df52f5e2",
+                "nickname": "Drakious",
+                "avatar": "",
+                "skill_level": 8,
+                "elo": 1709,
+                "steam_id": "76561198100211440",
+                "faceit_id": "078b61c6-ebc2-471e-8f96-0e65df52f5e2"
+            },
+            {
+                "player_id": "ad04bba1-7bf7-4840-8f26-f841d874343c",
+                "nickname": "SolGoat",
+                "avatar": "https://assets.faceit-cdn.net/avatars/ad04bba1-7bf7-4840-8f26-f841d874343c_1614818072062.jpg",
+                "skill_level": 10,
+                "elo": 2527,
+                "steam_id": "76561198076324571",
+                "faceit_id": "ad04bba1-7bf7-4840-8f26-f841d874343c"
+            }
+        ],
+        "leader": "ad04bba1-7bf7-4840-8f26-f841d874343c",
+        "avatar": null,
+        "team_id": "aac76f33-a94d-4fd5-a27a-7340401354c8",
+        "elo": 0,
+        "playfly_id": "2a45cead-4706-4e7d-96e8-a3eba35f8cc1",
+        "playfly_participant_id": "9f555ea1-9daf-4d6b-a9c9-1ba4d7e1dff5"
+    },
+    {
+        "name": "UC CS Red",
+        "roster": [
+            {
+                "player_id": "52e0f9f6-8629-4ceb-b7bb-57e7e6fd6f1a",
+                "nickname": "b0sef",
+                "avatar": "https://distribution.faceit-cdn.net/images/7da096b6-88ac-4193-9646-ea85643298c6.jpeg",
+                "skill_level": 7,
+                "elo": 1379,
+                "steam_id": "76561198341800652",
+                "faceit_id": "52e0f9f6-8629-4ceb-b7bb-57e7e6fd6f1a"
+            },
+            {
+                "player_id": "2f1bc109-8c39-42c5-9e4a-28e35efafde2",
+                "nickname": "F0urS1de",
+                "avatar": "https://assets.faceit-cdn.net/avatars/2f1bc109-8c39-42c5-9e4a-28e35efafde2_1568603998427.jpg",
+                "skill_level": 8,
+                "elo": 1697,
+                "steam_id": "76561198844433787",
+                "faceit_id": "2f1bc109-8c39-42c5-9e4a-28e35efafde2"
+            },
+            {
+                "player_id": "a098254b-7776-4ec8-bea2-847ee677000e",
+                "nickname": "Zoltych",
+                "avatar": "https://distribution.faceit-cdn.net/images/413f6bb0-efc9-49d8-8a92-5c055bc033e3.jpeg",
+                "skill_level": 7,
+                "elo": 1407,
+                "steam_id": "76561198133974059",
+                "faceit_id": "a098254b-7776-4ec8-bea2-847ee677000e"
+            },
+            {
+                "player_id": "76e58e8e-e032-4e25-b9d8-c00ec5f165d3",
+                "nickname": "Crazyhorse6",
+                "avatar": "https://assets.faceit-cdn.net/avatars/76e58e8e-e032-4e25-b9d8-c00ec5f165d3_1632445372897.jpg",
+                "skill_level": 5,
+                "elo": 1166,
+                "steam_id": "76561199079189172",
+                "faceit_id": "76e58e8e-e032-4e25-b9d8-c00ec5f165d3"
+            },
+            {
+                "player_id": "24a78d3e-4b2d-47df-8698-0694579a8425",
+                "nickname": "KingSaviir",
+                "avatar": "https://assets.faceit-cdn.net/avatars/24a78d3e-4b2d-47df-8698-0694579a8425_1589257801168.jpg",
+                "skill_level": 10,
+                "elo": 2247,
+                "steam_id": "76561198276012588",
+                "faceit_id": "24a78d3e-4b2d-47df-8698-0694579a8425"
+            }
+        ],
+        "leader": "a098254b-7776-4ec8-bea2-847ee677000e",
+        "avatar": null,
+        "team_id": "7a7aa1d3-45f0-4243-a243-1f5d126b97f6",
+        "elo": 0,
+        "playfly_id": "84b29ab2-4fac-443a-b7e9-dc6838450097",
+        "playfly_participant_id": "2a44ace5-28f1-45ae-8b1b-15b12a7131ad"
+    },
+    {
+        "name": "UOG Gryphons",
+        "roster": [
+            {
+                "player_id": "c289e7eb-7510-47ab-9176-a03c6116d10a",
+                "nickname": "Gramigna",
+                "avatar": "",
+                "skill_level": 8,
+                "elo": 1554,
+                "steam_id": "76561198170091069",
+                "faceit_id": "c289e7eb-7510-47ab-9176-a03c6116d10a"
+            },
+            {
+                "player_id": "b2cb80b3-8334-46ea-b8f9-7fb86737734d",
+                "nickname": "Gatorz145",
+                "avatar": "https://distribution.faceit-cdn.net/images/597fd635-8287-4dc5-a0fd-b8cb4304e8df.jpeg",
+                "skill_level": 8,
+                "elo": 1707,
+                "steam_id": "76561198185823615",
+                "faceit_id": "b2cb80b3-8334-46ea-b8f9-7fb86737734d"
+            },
+            {
+                "player_id": "80042b28-c335-43c8-ac2b-45d9b2b528a6",
+                "nickname": "TienX",
+                "avatar": "https://assets.faceit-cdn.net/avatars/80042b28-c335-43c8-ac2b-45d9b2b528a6_1550989167213.jpg",
+                "skill_level": 9,
+                "elo": 1948,
+                "steam_id": "76561198024071740",
+                "faceit_id": "80042b28-c335-43c8-ac2b-45d9b2b528a6"
+            },
+            {
+                "player_id": "c4494943-04bf-4b81-ace3-b3c0f5b43b69",
+                "nickname": "Sang3000",
+                "avatar": "https://distribution.faceit-cdn.net/images/c9a5a8f1-4c54-4b66-9711-ef57eabe40c7.jpeg",
+                "skill_level": 8,
+                "elo": 1631,
+                "steam_id": "76561198132115295",
+                "faceit_id": "c4494943-04bf-4b81-ace3-b3c0f5b43b69"
+            },
+            {
+                "player_id": "5879c191-4161-432f-b89f-e9a4fc29240d",
+                "nickname": "BanapleBerry",
+                "avatar": "https://assets.faceit-cdn.net/avatars/5879c191-4161-432f-b89f-e9a4fc29240d_1598485962394.jpg",
+                "skill_level": 8,
+                "elo": 1586,
+                "steam_id": "76561198864518067",
+                "faceit_id": "5879c191-4161-432f-b89f-e9a4fc29240d"
+            },
+            {
+                "player_id": "d674f38b-6243-492b-843b-7d328d311440",
+                "nickname": "mrshmlw-",
+                "avatar": "https://distribution.faceit-cdn.net/images/41dec11a-a267-4df3-9dc2-b32b967833a8.jpeg",
+                "skill_level": 10,
+                "elo": 2350,
+                "steam_id": "76561199414089298",
+                "faceit_id": "d674f38b-6243-492b-843b-7d328d311440"
+            },
+            {
+                "player_id": "c805825b-0ca3-443c-bf37-2703bd6f26e7",
+                "nickname": "TALHAFROST",
+                "avatar": "https://distribution.faceit-cdn.net/images/6fafb4d7-ed6c-4d81-8106-a6d1aa5af806.jpeg",
+                "skill_level": 10,
+                "elo": 2262,
+                "steam_id": "76561198180306607",
+                "faceit_id": "c805825b-0ca3-443c-bf37-2703bd6f26e7"
+            },
+            {
+                "player_id": "fc2f49c8-d0fa-424a-bc42-66e350ac4bad",
+                "nickname": "kirai",
+                "avatar": "",
+                "skill_level": 10,
+                "elo": 2782,
+                "steam_id": "76561198355323062",
+                "faceit_id": "fc2f49c8-d0fa-424a-bc42-66e350ac4bad"
+            }
+        ],
+        "leader": "80042b28-c335-43c8-ac2b-45d9b2b528a6",
+        "avatar": null,
+        "team_id": "6779ee69-3111-4ae4-88de-ec524391ea15",
+        "elo": 0,
+        "playfly_id": "226163f1-6786-4e04-a780-a26ea2997e34",
+        "playfly_participant_id": "a4f5f84e-00a1-4050-816c-aef68f4d97a6"
+    }
+]

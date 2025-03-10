@@ -1,4 +1,12 @@
-import { Image, Container, Col, Row, Spinner, Alert } from "react-bootstrap";
+import {
+  Image,
+  Container,
+  Col,
+  Row,
+  Spinner,
+  Alert,
+  Badge,
+} from "react-bootstrap";
 import { Link, useLocation } from "react-router-dom";
 import MatchCard from "../Matches/MatchCard";
 import ResultCard from "../Results/ResultCard";
@@ -189,7 +197,18 @@ const TeamPage = () => {
             {team?.name}
           </h1>
         </div>
-
+        <div className="d-flex justify-content-center align-items-center mt-2">
+          {team?.faceit_id ? (
+            <Badge bg="secondary" className="mx-1">
+              NECC
+            </Badge>
+          ) : null}
+          {team?.playfly_id ? (
+            <Badge bg="info" className="mx-1">
+              PlayFly
+            </Badge>
+          ) : null}
+        </div>
         <div className="d-flex justify-content-center align-items-center mt-2">
           <h3>
             Rank: <Link to="/rankings">#{rank}</Link>

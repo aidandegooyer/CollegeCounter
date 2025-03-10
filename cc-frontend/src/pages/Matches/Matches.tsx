@@ -57,6 +57,9 @@ const Matches = () => {
         const matchDate = new Date(match.scheduled_time * 1000); // Convert Unix timestamp to Date
         return matchDate > endOfWeek;
       });
+      todayMatches.sort((a, b) => a.scheduled_time - b.scheduled_time);
+      thisWeekMatches.sort((a, b) => a.scheduled_time - b.scheduled_time);
+      otherMatches.sort((a, b) => a.scheduled_time - b.scheduled_time);
 
       setTodayMatches(todayMatches);
       setThisWeekMatches(thisWeekMatches);

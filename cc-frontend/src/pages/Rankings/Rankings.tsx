@@ -1,4 +1,13 @@
-import { Alert, Badge, Card, Container, Form, Spinner } from "react-bootstrap";
+import {
+  Alert,
+  Badge,
+  Card,
+  Col,
+  Container,
+  Form,
+  Row,
+  Spinner,
+} from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import FlipMove from "react-flip-move";
@@ -22,6 +31,7 @@ interface RankingProps {
   rank: number;
   elo: number;
   rankChange: number;
+  filter: "all" | "necc" | "playfly";
 }
 
 const fetchTeam = async (teamId: string): Promise<Team> => {
@@ -30,7 +40,7 @@ const fetchTeam = async (teamId: string): Promise<Team> => {
 };
 
 const Ranking = forwardRef<HTMLDivElement, RankingProps>(
-  ({ team_id, rank, elo, rankChange }, ref) => {
+  ({ team_id, rank, elo, rankChange, filter }, ref) => {
     const {
       data: team,
       isPending: teamPending,
@@ -42,12 +52,31 @@ const Ranking = forwardRef<HTMLDivElement, RankingProps>(
       staleTime: 1000 * 60 * 10,
     });
 
+    const matchesFilter = (team: Team) => {
+      if (filter === "all") {
+        return true;
+      } else if (filter === "necc") {
+        return !!team.faceit_id;
+      } else if (filter === "playfly") {
+        return !!team.playfly_id;
+      }
+    };
+
+    if (!team || !matchesFilter(team)) {
+      return null;
+    }
     if (teamPending) {
       return (
         <Card className="mb-2" ref={ref}>
           <div className="d-flex justify-content-between align-items-center p-2">
             <div className="d-flex align-items-center">
-              <h1 style={{ position: "absolute", left: "1rem" }}>
+              <h1
+                style={{
+                  position: "absolute",
+                  left: "1rem",
+                  marginRight: "1.5rem",
+                }}
+              >
                 {rank + 1}.{" "}
               </h1>
               <Spinner />
@@ -68,85 +97,110 @@ const Ranking = forwardRef<HTMLDivElement, RankingProps>(
     }
 
     return (
-      <Card className="mb-2" ref={ref}>
-        <div className="d-flex justify-content-between align-items-center p-2">
-          <div className="d-flex align-items-center">
-            <h1 style={{ position: "absolute", left: "1rem" }}>{rank + 1}. </h1>
-            <img
-              className="d-none d-sm-block"
-              src={team.avatar}
-              alt={team.name}
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = errorImage;
-              }}
-              style={{
-                width: "50px",
-                height: "50px",
-                marginLeft: "5rem",
-              }}
-            />
+      <Row ref={ref}>
+        <Col lg={11} md={12} sm={12}>
+          <Card className="mb-2" style={{ height: "68px" }}>
+            <div className="d-flex justify-content-between align-items-center p-2">
+              <div className="d-flex align-items-center">
+                <h1 style={{ marginLeft: "1rem", marginRight: "1.5rem" }}>
+                  {rank + 1}.{" "}
+                </h1>
+                <img
+                  className="d-none d-sm-block"
+                  src={team.avatar}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = errorImage;
+                  }}
+                  style={{
+                    width: "50px",
+                    height: "50px",
+                    marginRight: "1.5rem",
+                  }}
+                />
 
-            <h3 className="ml-2 text-truncate">
-              <Link
-                style={{
-                  marginLeft: "3rem",
-                  color: "var(--bs-body-color)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  display: "block",
-                  textDecoration: "none",
-                }}
-                to={`/team?id=${team.team_id}`}
+                <h3 className="ml-2 text-truncate">
+                  <Link
+                    style={{
+                      color: "var(--bs-body-color)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      display: "block",
+                      textDecoration: "none",
+                      maxWidth: "calc(65vw - 7rem)",
+                    }}
+                    to={`/team?id=${team.team_id}`}
+                  >
+                    {team.name}
+                  </Link>
+                </h3>
+              </div>
+              <div
+                className="d-flex flex-column align-items-center"
+                style={{ position: "absolute", right: "6rem" }}
               >
-                {team.name}
-              </Link>
-            </h3>
+                {team.faceit_id ? (
+                  <Badge bg="secondary" className="mb-1">
+                    NECC
+                  </Badge>
+                ) : null}
+                {team.playfly_id ? <Badge bg="info">PlayFly</Badge> : null}
+              </div>
+              <Badge
+                style={{ position: "absolute", right: "1rem" }}
+                bg="primary"
+              >
+                <h5 className="mb-0">{elo.toPrecision(4)}</h5>
+              </Badge>
+            </div>
+          </Card>
+        </Col>
+        <Col className="d-none d-lg-block" lg={1}>
+          <div
+            className="d-flex flex-column justify-content-center"
+            style={{ height: "68px" }}
+          >
+            {rankChange != 0 ? (
+              <Badge
+                className="d-none d-sm-block"
+                bg={
+                  rankChange > 0
+                    ? "success"
+                    : rankChange < 0
+                    ? "danger"
+                    : "secondary"
+                }
+                style={{
+                  fontSize: "1.2rem",
+                }}
+              >
+                {rankChange > 0 ? (
+                  <i className="bi bi-caret-up-fill" />
+                ) : rankChange < 0 ? (
+                  <i className="bi bi-caret-down-fill" />
+                ) : (
+                  <i className="bi bi-dash" />
+                )}
+                {Math.abs(rankChange)}
+              </Badge>
+            ) : (
+              <div style={{ marginRight: "5rem" }}></div>
+            )}
           </div>
-          {rankChange != 0 ? (
-            <Badge
-              className="d-none d-sm-block"
-              bg={
-                rankChange > 0
-                  ? "success"
-                  : rankChange < 0
-                  ? "danger"
-                  : "secondary"
-              }
-              style={{
-                marginRight: "5rem",
-                fontSize: "1.2rem",
-                position: "absolute",
-                right: "0.5rem",
-              }}
-            >
-              {rankChange > 0 ? (
-                <i className="bi bi-caret-up-fill" />
-              ) : rankChange < 0 ? (
-                <i className="bi bi-caret-down-fill" />
-              ) : (
-                <i className="bi bi-dash" />
-              )}
-              {Math.abs(rankChange)}
-            </Badge>
-          ) : (
-            <div style={{ marginRight: "5rem" }}></div>
-          )}
-          <Badge style={{ position: "absolute", right: "1rem" }} bg="primary">
-            <h5 className="mb-0">{elo.toPrecision(4)}</h5>
-          </Badge>
-        </div>
-      </Card>
+        </Col>
+      </Row>
     );
   }
 );
 
 const Rankings = () => {
-  const totalMatchDays = 5;
+  // TODO: Do the logic on the backend. Just send a list of matchdays objects that contain teams, elos, ranks, and elo change.
+  const totalMatchDays = 10;
   const [matchDay, setMatchDay] = useState(totalMatchDays);
   const [sliderPosition, setSliderPosition] = useState(100);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [filter, setFilter] = useState<"all" | "necc" | "playfly">("all");
 
   // Groups a flat array of EloHistory into an object keyed by team_id
   function groupEloHistories(histories: EloHistory[]): GroupedEloHistory {
@@ -273,7 +327,7 @@ const Rankings = () => {
     <>
       <Container
         ref={containerRef}
-        style={{ marginTop: "0.5rem", maxWidth: "800px", padding: "0 1rem" }}
+        style={{ marginTop: "0.5rem", maxWidth: "1000px", padding: "0 1rem" }}
       >
         <h1 className="text-center">Rankings</h1>
         <div
@@ -297,6 +351,18 @@ const Rankings = () => {
               onChange={handleSliderChange}
             />
           </div>
+          <div className="d-flex justify-content-center">
+            <Form.Select
+              style={{ maxWidth: "30%", marginBottom: "1rem" }}
+              onChange={(e) =>
+                setFilter(e.target.value as "all" | "necc" | "playfly")
+              }
+            >
+              <option value="all">All Leagues</option>
+              <option value="necc">NECC</option>
+              <option value="playfly">PlayFly</option>
+            </Form.Select>
+          </div>
         </div>
 
         {
@@ -315,6 +381,7 @@ const Rankings = () => {
                     elo={getEloForMatchDay({ team_id: team_id }, matchDay)}
                     rank={index}
                     rankChange={getRankChange({ team_id: team_id }, matchDay)}
+                    filter={filter}
                   />
                 ))}
           </FlipMove>

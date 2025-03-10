@@ -136,9 +136,23 @@ const ResultCard: React.FC<ResultCardProps> = ({ match }) => {
               {match.scheduled_time
                 ? format(new Date(match.scheduled_time * 1000), "MMM do, yyyy")
                 : "Date not available"}
-              <Badge bg="secondary" style={{ marginLeft: "0.5rem" }}>
-                {match.competition.toUpperCase()}
-              </Badge>
+              {match.competition === "necc" ? (
+                <Badge
+                  bg="secondary"
+                  className="mb-1"
+                  style={{ maxWidth: "75px", marginLeft: "0.5rem" }}
+                >
+                  NECC
+                </Badge>
+              ) : null}
+              {match.competition === "playfly" ? (
+                <Badge
+                  bg="info"
+                  style={{ maxWidth: "75px", marginLeft: "0.5rem" }}
+                >
+                  PlayFly
+                </Badge>
+              ) : null}
             </Col>
             <Col>
               <Button

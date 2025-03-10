@@ -4,6 +4,8 @@ interface Player {
     avatar: string;
     skill_level: number;
     elo: number;
+    steam_id?: string;
+    faceit_id?: string;
 }
 
 interface Team {
@@ -14,6 +16,9 @@ interface Team {
     avatar: string;
     elo: number;
     matches?: Match[];
+    playfly_id?: string;
+    playfly_participant_id?: string;
+    faceit_id?: string;
   }
   
 interface Match {
@@ -32,6 +37,7 @@ interface Match {
     results_winner?: string;
     results_score_team1?: number;
     results_score_team2?: number;
+    platform: string;
     };
 
 interface EloHistory {
@@ -42,5 +48,16 @@ interface EloHistory {
     match_id: string;
 }
 
+interface RankingItem {
+    team_id: string;
+    rank: number;
+    change: number;
+}
 
-export type { Player, Team, Match, EloHistory };
+interface MatchWeekRanking {
+    week: number;
+    rankings: RankingItem[];
+}
+
+
+export type { Player, Team, Match, EloHistory, MatchWeekRanking };
