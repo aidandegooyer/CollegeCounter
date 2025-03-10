@@ -1,3 +1,4 @@
 .python-version
 .DS_Store
 deploy_instructions.txt
+deploy.sh

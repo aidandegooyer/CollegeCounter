@@ -1,5 +1,5 @@
 import React from "react";
-import { Badge, Button, Container, ListGroup } from "react-bootstrap";
+import { Button, Container, ListGroup } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Team } from "../../types";

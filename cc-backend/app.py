@@ -26,13 +26,32 @@ app.config["BUCKET_NAME"] = "cc-static"
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 # Read the .env file and set environment variables
-
+# TODO: FIX THIS MESS
 FACEIT_API_KEY = os.getenv("FACEIT_API_KEY")
 SECRET_TOKEN = os.environ.get("MY_SECRET_TOKEN")
 app.config["SECRET_TOKEN"] = SECRET_TOKEN
 app.config["FACEIT_API_KEY"] = FACEIT_API_KEY
 if FACEIT_API_KEY is None:
     raise ValueError("FACEIT_API_KEY not found in the environment variables.")
+
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_URI")
+CORS(
+    app,
+    resources={
+        r"/*": {
+            "origins": [
+                "https://collegecounter.org",
+                "https://api.collegecounter.org",
+                "https://www.collegecounter.org",
+            ]
+        }
+    },
+)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+with app.app_context():
+    db.init_app(app)
+    db.create_all()
 
 
 if __name__ == "__main__":
@@ -75,5 +94,5 @@ if __name__ == "__main__":
             },
         )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    db.init_app(app)
+
     app.run(host="0.0.0.0", port=8889, debug=args.dev)

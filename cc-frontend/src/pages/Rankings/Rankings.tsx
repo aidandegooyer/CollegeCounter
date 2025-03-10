@@ -164,7 +164,7 @@ const Ranking = forwardRef<HTMLDivElement, RankingProps>(
             className="d-flex flex-column justify-content-center"
             style={{ height: "68px" }}
           >
-            {rankChange != 0 ? (
+            {rankChange != 0 && filter === "all" ? (
               <Badge
                 className="d-none d-sm-block"
                 bg={

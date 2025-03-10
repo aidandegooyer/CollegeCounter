@@ -14,4 +14,4 @@ COPY . .
 EXPOSE 8889
 
 # Define the command to run the app
-CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:8889", "app:app"]
+CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:8889", "--timeout", "180", "app:app"]

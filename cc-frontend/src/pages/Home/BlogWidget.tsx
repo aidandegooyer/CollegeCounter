@@ -114,39 +114,45 @@ const BlogPosts = () => {
   return (
     <Container>
       <h1>News</h1>
-      {posts.map((post, key) => (
-        <Card className="mb-4" key={key}>
-          {post.image && (
-            <Card.Img
-              variant="top"
-              src={urlFor(post.image).width(540).height(540).url()}
-              alt={post.title}
-              style={{ maxHeight: "300px", objectFit: "cover" }}
-            />
-          )}
-          <Card.Body>
-            <Card.Title style={{ fontSize: "2rem" }}>{post.title}</Card.Title>
-            <Card.Subtitle className="mb-2 text-muted">
-              {new Date(post.publishedAt).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}{" "}
-              |{" "}
-              {post.authorLink ? (
-                <a href={post.authorLink}>{post.author}</a>
-              ) : (
-                post.author
-              )}
-            </Card.Subtitle>
+      {posts
+        .sort(
+          (a, b) =>
+            new Date(b.publishedAt).getTime() -
+            new Date(a.publishedAt).getTime()
+        )
+        .map((post, key) => (
+          <Card className="mb-4" key={key}>
+            {post.image && (
+              <Card.Img
+                variant="top"
+                src={urlFor(post.image).width(540).height(300).url()}
+                alt={post.title}
+                style={{ maxHeight: "300px", objectFit: "cover" }}
+              />
+            )}
+            <Card.Body>
+              <Card.Title style={{ fontSize: "2rem" }}>{post.title}</Card.Title>
+              <Card.Subtitle className="mb-2 text-muted">
+                {new Date(post.publishedAt).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}{" "}
+                |{" "}
+                {post.authorLink ? (
+                  <a href={post.authorLink}>{post.author}</a>
+                ) : (
+                  post.author
+                )}
+              </Card.Subtitle>
 
-            <PortableText
-              value={post.body}
-              components={portableTextComponents}
-            />
-          </Card.Body>
-        </Card>
-      ))}
+              <PortableText
+                value={post.body}
+                components={portableTextComponents}
+              />
+            </Card.Body>
+          </Card>
+        ))}
     </Container>
   );
 };
