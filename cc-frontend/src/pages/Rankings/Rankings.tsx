@@ -15,6 +15,7 @@ import { forwardRef } from "react";
 import { Team, EloHistory } from "../../types";
 import { useQuery } from "@tanstack/react-query";
 import errorImage from "../../assets/error-profile-pic.png";
+import logo from "../../assets/0.5x/C Logo@0.5x.png";
 
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org";
@@ -107,7 +108,7 @@ const Ranking = forwardRef<HTMLDivElement, RankingProps>(
                 </h1>
                 <img
                   className="d-none d-sm-block"
-                  src={team.avatar}
+                  src={team.avatar ? team.avatar : logo}
                   onError={(e) => {
                     e.currentTarget.onerror = null;
                     e.currentTarget.src = errorImage;
@@ -116,6 +117,8 @@ const Ranking = forwardRef<HTMLDivElement, RankingProps>(
                     width: "50px",
                     height: "50px",
                     marginRight: "1.5rem",
+                    borderRadius: "5px",
+                    backgroundColor: "white",
                   }}
                 />
 

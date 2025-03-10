@@ -38,7 +38,7 @@ const Navigation = () => {
 
           <input
             type="text"
-            placeholder="Search"
+            placeholder="Search is disabled"
             className="form-control d-none d-md-flex justify-content-end"
             style={{ maxWidth: "200px" }}
             disabled
@@ -51,7 +51,7 @@ const Navigation = () => {
         <Container>
           <input
             type="text"
-            placeholder="Search"
+            placeholder="Search is disabled"
             className="form-control"
             disabled
           />

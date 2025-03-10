@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { Match, Team } from "../../types";
 import errorImage from "../../assets/error-profile-pic.png";
 import React from "react";
+import logo from "../../assets/0.5x/C Logo@0.5x.png";
 
 interface ResultCardProps {
   match: Match;
@@ -53,7 +54,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ match }) => {
           <Row className="text-center">
             <Col md={2}>
               <Image
-                src={match.teams.team1.avatar}
+                src={match.teams.team1.avatar ? match.teams.team1.avatar : logo}
                 style={{ maxWidth: "100px", width: "100%" }}
                 onError={(e) => {
                   e.currentTarget.onerror = null;
@@ -119,7 +120,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ match }) => {
             </Col>
             <Col md={2}>
               <Image
-                src={match.teams.team2.avatar}
+                src={match.teams.team2.avatar ? match.teams.team2.avatar : logo}
                 style={{ maxWidth: "100px", width: "100%" }}
                 onError={(e) => {
                   e.currentTarget.onerror = null;
@@ -160,7 +161,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ match }) => {
                 onClick={() => openMatchPage(match)}
                 style={{ width: "100%" }}
               >
-                View Matchroom <i className="bi bi-arrow-right" />
+                Details <i className="bi bi-arrow-right" />
               </Button>
             </Col>
           </Row>

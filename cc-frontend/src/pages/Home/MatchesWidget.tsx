@@ -4,6 +4,7 @@ import { Button, Card, Col, Container, Row } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { Team, Match } from "../../types";
 import { format } from "date-fns";
+import logo from "../../assets/0.5x/C Logo@0.5x.png";
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org";
 
@@ -20,10 +21,17 @@ const MatchCard = ({ match }: { match: Match }) => (
           <Row>
             <div className="d-flex align-items-center">
               <img
-                src={match.teams?.team1?.avatar}
+                src={
+                  match.teams?.team1?.avatar ? match.teams.team1.avatar : logo
+                }
                 style={{ height: "30px", width: "30px", marginRight: "10px" }}
               />
-              <Card.Title>
+              <Card.Title
+                style={{
+                  whiteSpace: "nowrap", // Ensures all items stay inline
+                  overflow: "hidden", // Prevents content from overflowing
+                }}
+              >
                 <Link
                   to={`/team?id=${match.teams?.team1?.team_id}`}
                   style={{
@@ -43,10 +51,17 @@ const MatchCard = ({ match }: { match: Match }) => (
           <Row>
             <div className="d-flex align-items-center">
               <img
-                src={match.teams?.team2?.avatar}
+                src={
+                  match.teams?.team2?.avatar ? match.teams.team2.avatar : logo
+                }
                 style={{ height: "30px", width: "30px", marginRight: "10px" }}
               />
-              <Card.Title>
+              <Card.Title
+                style={{
+                  whiteSpace: "nowrap", // Ensures all items stay inline
+                  overflow: "hidden", // Prevents content from overflowing
+                }}
+              >
                 <Link
                   to={`/team?id=${match.teams?.team2?.team_id}`}
                   style={{
@@ -138,7 +153,7 @@ const MatchesWidget: React.FC = () => {
               borderLeft: "1px dotted #dee2e6",
             }}
           >
-            <h3 style={{ fontSize: "1.5rem" }}>Upcoming Matches</h3>
+            <h3>Upcoming Matches</h3>
             {matches.map((match) => (
               <MatchCard match={match} key={match.match_id} />
             ))}

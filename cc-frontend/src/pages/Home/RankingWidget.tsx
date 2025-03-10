@@ -3,6 +3,7 @@ import { Badge, Button, Container, ListGroup } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Team } from "../../types";
+import logo from "../../assets/0.5x/C Logo@0.5x.png";
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org";
 
@@ -15,37 +16,47 @@ const fetchTopTeams = async () => {
 const RankingItem = ({ team, index }: { team: Team; index: number }) => (
   <ListGroup.Item
     style={{
-      marginBottom: "10px",
-      fontSize: "16px",
       display: "flex",
-      justifyContent: "space-between",
       alignItems: "center",
-      marginRight: "0",
+      justifyContent: "space-between",
+      textOverflow: "ellipsis",
+      fontSize: "16px",
+      padding: "10px 15px",
+      whiteSpace: "nowrap", // Ensures all items stay inline
+      overflow: "hidden", // Prevents content from overflowing
     }}
   >
-    <span>
+    {/* Left side: Index + Avatar + Name */}
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        flexGrow: 1,
+      }}
+    >
       <strong>{index + 1}.</strong>
+      <img
+        src={team.avatar ? team.avatar : logo}
+        alt={`logo`}
+        style={{
+          height: "40px",
+          borderRadius: "5px",
+          backgroundColor: "white",
+        }}
+      />
       <Link
         to={`/team?id=${team.team_id}`}
         style={{
+          flexGrow: 1, // Allows the link to take up available space
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
-          display: "inline",
-          marginLeft: "5px",
           color: "var(--bs-body-color)",
         }}
       >
         {team.name}
       </Link>
-    </span>
-    <div>
-      <img
-        src={team.avatar}
-        alt={`logo`}
-        style={{ height: "30px", marginRight: "10px" }}
-      />
-      <Badge bg="primary">{team.elo.toPrecision(4)}</Badge>
     </div>
   </ListGroup.Item>
 );
@@ -75,7 +86,7 @@ const RankingWidget: React.FC = () => {
         zIndex: 1000,
       }}
     >
-      <h3 style={{ fontSize: "1.5rem" }}>Team Rankings</h3>
+      <h3>Team Rankings</h3>
       <ListGroup variant="flush">
         {teams.map((team: Team, index: number) => (
           <RankingItem key={team.name} team={team} index={index} />

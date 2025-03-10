@@ -382,6 +382,44 @@ def serve_static(filename):
     return send_from_directory("static", filename)
 
 
+@bp.route("/alert")
+def alert():
+    return """
+Welcome to College Counter!
+        <br />
+        <br />
+        We have some updates to share:
+        <ul>
+
+          <li>
+            The blog system is now live! We will be posting updates and articles
+            about the collegiate scene. If you would like to contribute please
+            reach out to us on Discord!
+          </li>
+          <li>
+            Playfly scores and matches from the open premier division are now
+            available on the site! The rankings will combine both competitions
+            to give a more accurate representation of the top teams in the
+            scene.
+          </li>
+          <li>
+            Team names are taken directly from NECC/Playfly. If you would like
+            to change your team name please reach out to us on Discord.
+          </li>
+        </ul>
+        <strong>
+          If you are a team captain please email us your team's
+          headshots/logo/background at: collegiatecounter@gmail.com, or reach
+          out to us on Discord.
+        </strong>
+        <br />
+        <br />
+        Please also go join our
+        <a href="https://discord.gg/yzNMNDFTT6">Discord</a> and follow us on
+        <a href="https://x.com/College_Counter">Twitter</a>
+    """
+
+
 ### EDIT ROUTES #################################################################################
 
 

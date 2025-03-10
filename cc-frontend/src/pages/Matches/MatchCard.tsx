@@ -4,6 +4,7 @@ import { Card, Row, Col, Badge, Button, ProgressBar } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { Match, Team } from "../../types";
 import errorImage from "../../assets/error-profile-pic.png";
+import logo from "../../assets/0.5x/C Logo@0.5x.png";
 
 import { useQuery } from "@tanstack/react-query";
 const apiBaseUrl =
@@ -119,7 +120,7 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
             <Row style={{ marginBottom: "1rem" }}>
               <div style={{ display: "flex", alignItems: "center" }}>
                 <img
-                  src={team1.avatar}
+                  src={team1.avatar ? team1.avatar : logo}
                   style={{ width: "50px", height: "50px" }}
                   onError={(e) => {
                     e.currentTarget.onerror = null;
@@ -143,7 +144,7 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
             <Row>
               <div style={{ display: "flex", alignItems: "center" }}>
                 <img
-                  src={team2.avatar}
+                  src={team2.avatar ? team2.avatar : logo}
                   style={{ width: "50px", height: "50px" }}
                   onError={(e) => {
                     e.currentTarget.onerror = null;
@@ -168,12 +169,12 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
           <Col style={{ marginRight: "1rem" }} className="text-end">
             <Row className="justify-content-end">
               {timeLeft.includes("d") ? (
-                <h3>
+                <h5>
                   {format(
                     new Date(match.scheduled_time * 1000),
                     "MMM do, h:mm aaa"
                   )}
-                </h3>
+                </h5>
               ) : (
                 <h3>
                   {format(new Date(match.scheduled_time * 1000), "h:mm aaa")}
@@ -193,7 +194,7 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
                   Live
                 </Badge>
               ) : (
-                <h3>{timeLeft}</h3>
+                <h6 className="d-none d-md-block">{timeLeft}</h6>
               )}
             </Row>
             <Row className="justify-content-end">
@@ -276,11 +277,11 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
     return (
       <Card style={{ marginBottom: "1rem" }}>
         <Row style={{ padding: "1rem" }}>
-          <Col md={8}>
+          <Col>
             <Row style={{ marginBottom: "1rem" }}>
               <div style={{ display: "flex", alignItems: "center" }}>
                 <img
-                  src={team1.avatar}
+                  src={team1.avatar ? team1.avatar : logo}
                   style={{ width: "50px", height: "50px" }}
                   onError={(e) => {
                     e.currentTarget.onerror = null;
@@ -304,7 +305,7 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
             <Row>
               <div style={{ display: "flex", alignItems: "center" }}>
                 <img
-                  src={team2.avatar}
+                  src={team2.avatar ? team2.avatar : logo}
                   style={{ width: "50px", height: "50px" }}
                   onError={(e) => {
                     e.currentTarget.onerror = null;
@@ -326,7 +327,7 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
               </div>
             </Row>
           </Col>
-          <Col style={{ marginRight: "1rem" }}>
+          <Col style={{ marginRight: "1rem" }} className="text-end">
             <Row className="justify-content-end">
               {format(
                 new Date(match.scheduled_time * 1000),
@@ -338,13 +339,13 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
                 <Badge
                   bg="secondary"
                   className="mb-1"
-                  style={{ maxWidth: "75px" }}
+                  style={{ maxWidth: "75px", fontSize: "1rem" }}
                 >
                   NECC
                 </Badge>
               ) : null}
               {match.competition === "playfly" ? (
-                <Badge bg="info" style={{ maxWidth: "75px" }}>
+                <Badge bg="info" style={{ maxWidth: "75px", fontSize: "1rem" }}>
                   PlayFly
                 </Badge>
               ) : null}
@@ -414,7 +415,7 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
           <Row>
             <div style={{ display: "flex", alignItems: "center" }}>
               <img
-                src={team1.avatar}
+                src={team1.avatar ? team1.avatar : logo}
                 style={{ width: "30px", height: "30px" }}
                 onError={(e) => {
                   e.currentTarget.onerror = null;
@@ -430,7 +431,7 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
           <Row>
             <div style={{ display: "flex", alignItems: "center" }}>
               <img
-                src={team2.avatar}
+                src={team2.avatar ? team2.avatar : logo}
                 style={{ width: "30px", height: "30px" }}
                 onError={(e) => {
                   e.currentTarget.onerror = null;
