@@ -10,6 +10,7 @@ class Player(db.Model):
     avatar = db.Column(db.String, nullable=True)
     skill_level = db.Column(db.Integer, nullable=False)
     steam_id = db.Column(db.String, nullable=True)
+    faceit_id = db.Column(db.String, nullable=True)
     elo = db.Column(db.Integer, nullable=False)
     team_id = db.Column(
         db.String, db.ForeignKey("team.team_id"), nullable=False
@@ -25,6 +26,9 @@ class Team(db.Model):
     leader = db.Column(db.String, nullable=False)
     avatar = db.Column(db.String, nullable=True)
     elo = db.Column(db.Integer, nullable=False)
+    playfly_id = db.Column(db.String, nullable=True)
+    playfly_participant_id = db.Column(db.String, nullable=True)
+    faceit_id = db.Column(db.String, nullable=True)
     roster = db.relationship(
         "Player", backref="team"
     )  # Remove secondary and use backref
@@ -46,6 +50,7 @@ class Match(db.Model):
     results_winner = db.Column(db.String, nullable=True)
     results_score_team1 = db.Column(db.Integer, nullable=True)
     results_score_team2 = db.Column(db.Integer, nullable=True)
+    platform = db.Column(db.String, nullable=False)
     teams = db.relationship("Team", secondary="team_match", back_populates="matches")
 
 

@@ -1,7 +1,5 @@
 from flask import Blueprint, abort, send_from_directory, request, current_app
-import json
 from cc_backend import logger
-import time
 import requests
 from cc_backend.db import db
 from cc_backend.models import EloHistory, Player, Team, Match
@@ -10,166 +8,14 @@ import statistics
 from PIL import Image
 from google.cloud import storage
 from io import BytesIO
+import cc_backend.necc as necc
+import cc_backend.playfly as playfly
 
 
 bp = Blueprint("main", __name__)
 
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
-
-
-# Configure logging
-
-
-def get_faceit_tournament(
-    championship_id: str, match_type: str, competition: str, api_key: str
-):
-    try:
-        match_list = []
-        offset = 0
-        limit = 10
-        while True:
-            url = f"https://open.faceit.com/data/v4/championships/{championship_id}/matches"
-            params = {"type": match_type, "offset": offset, "limit": limit}
-            headers = {"Authorization": "Bearer " + api_key}
-            response = requests.get(
-                url,
-                headers=headers,
-                params=params,
-            )
-
-            if response.status_code == 200:
-                batch = response.json()
-                print(f"Retrieved {len(batch['items'])} championships")
-                if not batch["items"]:
-                    break
-                match_list.extend(batch["items"])
-                offset += 10
-            else:
-                response.raise_for_status()
-    except json.JSONDecodeError:
-        print("Error decoding JSON from past.json.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-    # Get all teams from the JSON
-    teams_json = {}
-    for match in match_list:
-        faction1 = match["teams"]["faction1"]
-        faction2 = match["teams"]["faction2"]
-        teams_json[faction1["faction_id"]] = faction1
-        teams_json[faction2["faction_id"]] = faction2
-
-        # Create teams and attach the players using the dictionary
-    teams_dict = {}
-    for team in teams_json.values():
-        team_id = team["faction_id"]
-        # Use no_autoflush when querying for an existing team
-
-        existing_team = Team.query.get(team_id)
-        if not existing_team and team_id not in teams_dict:
-            db_team = Team(
-                team_id=team_id,
-                name=team["name"],
-                leader=team["leader"],
-                avatar=team["avatar"],
-                elo=0,
-            )
-
-            db.session.add(db_team)
-            db.session.flush()
-
-            teams_dict[team_id] = db_team
-        else:
-            # Use the already persisted team
-            teams_dict[team_id] = (
-                existing_team if existing_team else teams_dict[team_id]
-            )
-
-    # Create players and store them in a dictionary for quick lookup
-    #    load players into database
-    players_dict = {}
-    for team in teams_json.values():
-        for player in team["roster"]:
-            with db.session.no_autoflush:
-                existing_player = Player.query.get(player["player_id"])
-            if existing_player is None:
-                db_player = Player(
-                    player_id=player["player_id"],
-                    nickname=player["nickname"],
-                    avatar=player["avatar"],
-                    skill_level=player["game_skill_level"],
-                    steam_id=player["game_player_id"],
-                    elo=0,
-                    team_id=team["faction_id"],
-                )
-                db.session.add(db_player)
-                db.session.flush()
-                players_dict[player["player_id"]] = db_player
-            else:
-                players_dict[player["player_id"]] = existing_player
-
-    # Create matches and set up team relationships using the teams_dict
-    for match in match_list:
-        match_id = match["match_id"]
-        if not Match.query.get(match_id):
-            db_match = Match(
-                match_id=match_id,
-                game=match["game"],
-                competition=competition,
-                team1_id=match["teams"]["faction1"]["faction_id"],
-                team2_id=match["teams"]["faction2"]["faction_id"],
-                scheduled_time=match.get("scheduled_at")
-                or match.get("finished_at")
-                or 0,
-                status=match["status"],
-                match_url=match["faceit_url"],
-                results_winner=match.get("results", {}).get("winner"),
-                results_score_team1=match.get("results", {})
-                .get("score", {})
-                .get("faction1"),
-                results_score_team2=match.get("results", {})
-                .get("score", {})
-                .get("faction2"),
-            )
-            # Append the teams using our stored references
-            team1_id = match["teams"]["faction1"]["faction_id"]
-            team2_id = match["teams"]["faction2"]["faction_id"]
-            if team1_id in teams_dict:
-                db_match.teams.append(teams_dict[team1_id])
-            if team2_id in teams_dict:
-                db_match.teams.append(teams_dict[team2_id])
-            db.session.add(db_match)
-            db.session.flush()
-
-    db.session.commit()
-
-
-def get_updated_schedule(api_key: str):
-    count = 0
-    one_week_from_now = int(time.time()) + 7 * 24 * 60 * 60
-    matches = Match.query.filter(
-        Match.scheduled_time <= one_week_from_now,
-        Match.status == "SCHEDULED",
-    ).all()
-    logger.debug(f"Found {len(matches)} matches to update")
-    for match in matches:
-        url = f"https://open.faceit.com/data/v4/matches/{match.match_id}"
-        headers = {"Authorization": "Bearer " + api_key}
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            match_data = response.json()
-            if match_data.get("scheduled_at") != match.scheduled_time:
-                match.scheduled_time = match_data.get("scheduled_at")
-                logger.info(f"Updated match {match.match_id}")
-                count += 1
-                db.session.commit()
-            else:
-                logger.debug(f"Match {match.match_id} already up to date")
-
-        else:
-            logger.error(f"Error updating match {match.match_id}")
-    return count
 
 
 def require_token(f):
@@ -187,6 +33,45 @@ def require_token(f):
     return decorated_function
 
 
+### UTILS ###################################################################################
+
+
+@bp.route("/steal_playfly_pics")
+@require_token
+def steal_playfly_pics():
+    teams = Team.query.filter_by(avatar=None).all()
+    for team in teams:
+        # Assuming you have a function to get the image URL from Playfly
+        image_url = playfly.get_team_image_url(team.playfly_id)
+        if image_url:
+            # download the image and save it to google cloud storage
+            response = requests.get(image_url, stream=True)
+            if response.status_code == 200:
+                bucket_name = current_app.config["BUCKET_NAME"]
+                client = storage.Client()
+                bucket = client.get_bucket(bucket_name)
+                blob_path = f"static/uploads/{team.team_id}/logo.png"
+                blob = bucket.blob(blob_path)
+                image = Image.open(BytesIO(response.content))
+                image = image.convert("RGBA")
+                buffer = BytesIO()
+                image.save(buffer, format="PNG")
+                buffer.seek(0)
+                blob.upload_from_file(buffer, content_type="image/png")
+                public_url = f"https://storage.googleapis.com/{bucket_name}/{blob_path}"
+                team.avatar = public_url
+                db.session.commit()
+                logger.info(f"Downloaded and saved image for team {team.name}")
+            else:
+                logger.error(
+                    f"Error downloading image for team {team.name} - {response.status_code} "
+                )
+        else:
+            logger.error(f"No image found for team {team.name}")
+
+    return "Team avatars updated!"
+
+
 @bp.route("/create_tables")
 @require_token
 def create_tables():
@@ -196,7 +81,7 @@ def create_tables():
 
 @bp.route("/get_all_matches")
 def get_all_matches():
-    get_faceit_tournament(
+    necc.get_faceit_tournament(
         championship_id="62554deb-7401-4e35-ae05-8ee04e1bf9e2",
         match_type="all",
         competition="necc",
@@ -205,46 +90,25 @@ def get_all_matches():
     return "Matches updated!"
 
 
-@bp.route("/update_matches")
+@bp.route("/add_playfly_teams")
 @require_token
-def update_matches():
-    logger.debug("Updating matches")
-    count = 0
-    # get all matches that are scheduled with a time before now
-    matches = Match.query.filter(
-        Match.scheduled_time < int(time.time()), Match.status == "SCHEDULED"
-    ).all()
-    for match in matches:
-        url = f"https://open.faceit.com/data/v4/matches/{match.match_id}"
-        headers = {
-            "Authorization": "Bearer " + current_app.config.get("FACEIT_API_KEY")
-        }
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            match_data = response.json()
-            match.status = match_data["status"]
-            match.results_winner = match_data.get("results", {}).get("winner")
-            match.results_score_team1 = (
-                match_data.get("results", {}).get("score", {}).get("faction1")
-            )
-            match.results_score_team2 = (
-                match_data.get("results", {}).get("score", {}).get("faction2")
-            )
-            db.session.commit()
-            logger.info(f"Updated match {match.match_id}")
-            count += 1
-        else:
-            logger.error(f"Error updating match {match.match_id}")
-    return f"Results for {count} matches updated!"
+def add_playfly_teams():
+    playfly.add_playfly_teams_to_db("pf-all-teams.json")
+    return "Teams added!"
 
 
-@bp.route("/update_schedule")
+@bp.route("/add_playfly_matches")
 @require_token
-def update_schedule():
-    logger.debug("Updating schedule")
+def add_playfly_matches():
+    playfly.add_playfly_matches_to_db("pf-all-matches.json")
+    return "Matches added!"
 
-    count = get_updated_schedule(api_key=current_app.config.get("FACEIT_API_KEY"))
-    return f"Schedule for {count} matches updated! "
+
+@bp.route("/add_playfly_players")
+@require_token
+def add_playfly_players():
+    playfly.add_playfly_players_to_db("pf-all-teams.json")
+    return "Players added!"
 
 
 @bp.route("/inspect_db")
@@ -262,30 +126,6 @@ def inspect_db():
     }
 
 
-@bp.route("/update_all_players_elo")
-@require_token
-def update_all_players_elo():
-    players = Player.query.all()
-    for player in players:
-        user_id = player.player_id
-        # get the elo number from faceit api at https://open.faceit.com/data/v4/players/{player_id}/games/{game_id}/stats
-        headers = {
-            "Authorization": "Bearer " + current_app.config.get("FACEIT_API_KEY")
-        }
-        response = requests.get(
-            f"https://open.faceit.com/data/v4/players/{user_id}", headers=headers
-        )
-        if response.status_code == 200:
-            elo = response.json()["games"]["cs2"]["faceit_elo"]
-            player.elo = elo
-            logger.debug(f"Got elo {elo} for user {player.nickname}")
-        else:
-            logger.warning(f"Error getting elo for user {player.nickname}")
-
-    db.session.commit()
-    return "All players' ELO updated!"
-
-
 @bp.route("/clear_elo_history")
 @require_token
 def clear_elo_history():
@@ -297,7 +137,8 @@ def clear_elo_history():
 @bp.route("/calculate_initial_elo")
 @require_token
 def calculate_initial_elo():
-    teams = Team.query.all()
+    # query teams that have an elo of 0
+    teams = Team.query.filter_by(elo=0).all()
     for team in teams:
         player_elos = [player.elo for player in team.roster]
         # take the highest 5 elos for this average
@@ -322,6 +163,44 @@ def calculate_initial_elo():
     return "Initial ELO calculated!"
 
 
+### UPDATE ROUTES ################################################################################
+@bp.route("/update_schedule")
+@require_token
+def update_schedule():
+    logger.debug("Updating schedule")
+
+    count = necc.get_updated_faceit_schedule(
+        api_key=current_app.config.get("FACEIT_API_KEY")
+    )
+    return f"Schedule for {count} matches updated! "
+
+
+# !! SCARY!!! MAKES 300 api calls
+@bp.route("/update_all_players_elo")
+@require_token
+def update_all_players_elo():
+    players = Player.query.all()
+    for player in players:
+        user_id = player.player_id
+        # get the elo number from faceit api at https://open.faceit.com/data/v4/players/{player_id}/games/{game_id}/stats
+        headers = {
+            "Authorization": "Bearer " + current_app.config.get("FACEIT_API_KEY")
+        }
+        response = requests.get(
+            f"https://open.faceit.com/data/v4/players/{user_id}", headers=headers
+        )
+        if response.status_code == 200:
+            elo = response.json()["games"]["cs2"]["faceit_elo"]
+            player.elo = elo
+            logger.debug(f"Got elo {elo} for user {player.nickname}")
+        else:
+            logger.warning(f"Error getting elo for user {player.nickname}")
+
+    db.session.commit()
+    return "All players' ELO updated!"
+
+
+# Updates all ELOs for all matches that are finished and not in the elo history table
 @bp.route("/update_all_elo")
 @require_token
 def update_all_elo():
@@ -379,6 +258,17 @@ def calculate_new_elo(current_elo, opponent_elo, result):
     return new_elo
 
 
+@bp.route("/update_matches")
+@require_token
+def update_matches():
+    count = necc.update_faceit_matches()
+    count2 = playfly.update_playfly_matches()
+    return f"Results for {count + count2} matches updated!"
+
+
+# update all matches, schedule, and elo
+
+
 @bp.route("/update")
 @require_token
 def update():
@@ -386,6 +276,9 @@ def update():
     schedule = update_schedule()
     elo = update_all_elo()
     return f"{matches} | {schedule} | {elo}"
+
+
+### GET ROUTES #################################################################################
 
 
 @bp.route("/get_elo_history")
@@ -397,7 +290,10 @@ def get_elo_history():
 @bp.route("/player/<player_id>")
 def get_player(player_id):
     player = Player.query.get(player_id)
-    return player.as_dict() if player else "Player not found"
+    if player:
+        return player.as_dict()
+    else:
+        return {"error": "Player not found"}, 404
 
 
 @bp.route("/team/<team_id>")
@@ -484,6 +380,9 @@ def get_top10():
 @bp.route("/static/<path:filename>")
 def serve_static(filename):
     return send_from_directory("static", filename)
+
+
+### EDIT ROUTES #################################################################################
 
 
 @bp.route("/upload_profile_pic", methods=["POST"])

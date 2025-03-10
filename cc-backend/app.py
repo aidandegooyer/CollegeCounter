@@ -8,9 +8,6 @@ import argparse
 from cc_backend.views import bp
 
 
-is_dev = False
-
-
 app = Flask(__name__)
 
 
@@ -19,32 +16,6 @@ app.register_blueprint(bp)
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 
 # For local development, you can start with SQLite:
-
-if is_dev:
-    logger.info("Running in development mode. Using SQLite local DB.")
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///test.db"
-    CORS(app)
-else:
-    logger.warning(
-        "Running in production mode. THIS IS NOT RECOMMENDED FOR DEVELOPMENT."
-    )
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_URI")
-    CORS(
-        app,
-        resources={
-            r"/*": {
-                "origins": [
-                    "https://collegecounter.org",
-                    "https://api.collegecounter.org",
-                    "https://www.collegecounter.org",
-                ]
-            }
-        },
-    )
-
-
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-db.init_app(app)
 
 
 UPLOAD_FOLDER = "static/uploads"
@@ -78,19 +49,31 @@ if __name__ == "__main__":
     is_dev = args.dev
     app.config["DEV"] = args.dev
     LOG_LEVEL = args.log
+    load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 
-    # CORS(app)  # Enable CORS for all routes
-
-    CORS(
-        app,
-        resources={
-            r"/*": {
-                "origins": [
-                    "https://collegecounter.org",
-                    "https://api.collegecounter.org",
-                    "https://www.collegecounter.org",
-                ]
-            }
-        },
-    )
+    if is_dev:
+        logger.info("Running in development mode. Using local DB.")
+        app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DEV_DATABASE_URI")
+        CORS(app)
+    else:
+        logger.warning(
+            "Running in production mode. THIS IS NOT RECOMMENDED FOR DEVELOPMENT."
+        )
+        app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
+            "SQLALCHEMY_DATABASE_URI"
+        )
+        CORS(
+            app,
+            resources={
+                r"/*": {
+                    "origins": [
+                        "https://collegecounter.org",
+                        "https://api.collegecounter.org",
+                        "https://www.collegecounter.org",
+                    ]
+                }
+            },
+        )
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    db.init_app(app)
     app.run(host="0.0.0.0", port=8889, debug=args.dev)
