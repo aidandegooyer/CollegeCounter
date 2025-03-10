@@ -30,9 +30,11 @@ const Home = () => {
     <Container
       style={{ marginTop: "0.5rem", maxWidth: "1500px", padding: "0 1rem" }}
     >
-      <Alert variant="primary" dismissible>
-        {alertText && <div dangerouslySetInnerHTML={{ __html: alertText }} />}
-      </Alert>
+      {alertText ? (
+        <Alert variant="primary" dismissible>
+          {alertText && <div dangerouslySetInnerHTML={{ __html: alertText }} />}
+        </Alert>
+      ) : null}
       <Row style={{ marginTop: "2rem" }}>
         <Col lg={3} md={4} className="d-none d-md-block">
           <RankingWidget />
@@ -44,25 +46,6 @@ const Home = () => {
           <MatchesWidget />
         </Col>
       </Row>
-      <footer
-        style={{
-          marginTop: "2rem",
-          padding: "1rem 0",
-          textAlign: "center",
-        }}
-      >
-        <Container>
-          <Row>
-            <Col>
-              <span style={{ fontSize: "0.8rem", color: "var(--bs-gray)" }}>
-                Created by <a href="https://x.com/aidan_xi">aidanxi</a> and{" "}
-                <a href="https://x.com/senshi_cs">senshi</a>{" "}
-                <i className="bi bi-emoji-smile-fill"></i>
-              </span>
-            </Col>
-          </Row>
-        </Container>
-      </footer>{" "}
     </Container>
   );
 };

@@ -10,6 +10,7 @@ import Results from "./pages/Results/Results";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import UserPicture from "./pages/admin/UserPicture";
 import TeamPictures from "./pages/admin/TeamPictures";
+import Footer from "./Footer";
 
 function App() {
   useEffect(() => {
@@ -32,6 +33,7 @@ function App() {
           <Route path="/admin/team" element={<TeamPictures />} />
         </Routes>
       </Router>
+      <Footer />
     </QueryClientProvider>
   );
 }
