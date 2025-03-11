@@ -209,6 +209,9 @@ def update_playfly_matches():
             team1participantid=team1_participant_id,
             team2participantid=team2_participant_id,
         )
+        if results["team1score"] == results["team2score"] == 0:
+            logger.error(f"Match {match.match_id} results not found")
+            continue
         if results:
             match.status = "FINISHED"
             match.results_winner = results["winner"]
