@@ -94,5 +94,5 @@ if __name__ == "__main__":
             },
         )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
+    # db.init_app(app)
     app.run(host="0.0.0.0", port=8889, debug=args.dev)

@@ -29,6 +29,7 @@ class Team(db.Model):
     playfly_id = db.Column(db.String, nullable=True)
     playfly_participant_id = db.Column(db.String, nullable=True)
     faceit_id = db.Column(db.String, nullable=True)
+    school_name = db.Column(db.String, nullable=True)
     roster = db.relationship(
         "Player", backref="team"
     )  # Remove secondary and use backref

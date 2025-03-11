@@ -19,6 +19,7 @@ interface Team {
     playfly_id?: string;
     playfly_participant_id?: string;
     faceit_id?: string;
+    school_name?: string;
   }
   
 interface Match {

@@ -456,6 +456,19 @@ def upload_profile_pic():
     return {"error": "File type not allowed"}, 400
 
 
+@bp.route("/set_school_name", methods=["POST"])
+@require_token
+def set_school_name():
+    team_id = request.form.get("team_id")
+    school_name = request.form.get("school_name")
+    team = Team.query.get(team_id)
+    if not team:
+        return {"error": "Team not found"}, 404
+    team.school_name = school_name
+    db.session.commit()
+    return {"message": "School name set successfully"}, 200
+
+
 @bp.route("/upload_team_photo", methods=["POST"])
 @require_token
 def upload_team_photo():

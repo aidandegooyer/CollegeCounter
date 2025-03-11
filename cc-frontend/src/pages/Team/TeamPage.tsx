@@ -197,6 +197,11 @@ const TeamPage = () => {
             {team?.name}
           </h1>
         </div>
+        {team?.school_name ? (
+          <div className="d-flex justify-content-center align-items-center mt-2">
+            <h3 style={{ color: "var(--bs-gray)" }}>{team.school_name}</h3>
+          </div>
+        ) : null}
         <div className="d-flex justify-content-center align-items-center mt-2">
           {team?.faceit_id ? (
             <Badge bg="secondary" className="mx-1">
