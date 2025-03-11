@@ -38,7 +38,24 @@ export const postType = defineType({
     defineField({
       name: 'body',
       type: 'array',
-      of: [{type: 'block'}],
+      of: [{type: 'block'},
+        {
+          type: 'image',
+          options: {hotspot: true},
+          // Optionally, you can add additional fields for captions, alt text, etc.
+          fields: [
+            {
+              name: 'caption',
+              type: 'string',
+              options: {isHighlighted: true}, // makes this field easily accessible
+            },
+            {
+              name: 'alt',
+              type: 'string',
+            },
+          ],
+        },
+      ],
     }),
   ],
 })
