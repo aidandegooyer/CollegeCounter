@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Container, ListGroup } from "react-bootstrap";
+import { Alert, Button, Container, ListGroup, Spinner } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Team } from "../../types";
@@ -66,14 +66,45 @@ const RankingWidget: React.FC = () => {
     data: teams = [],
     isLoading,
     isError,
+    error,
   } = useQuery({ queryKey: ["topTeams"], queryFn: fetchTopTeams });
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <Container
+        style={{
+          borderLeft: "1px solid #dee2e6",
+          borderRight: "1px dotted #dee2e6",
+          position: "sticky",
+          top: "60px",
+          zIndex: 1000,
+        }}
+      >
+        <h3>Team Rankings</h3>
+        <div className="d-flex justify-content-center mt-4">
+          <Spinner />
+        </div>
+      </Container>
+    );
   }
 
   if (isError) {
-    return <div>Error loading teams</div>;
+    return (
+      <Container
+        style={{
+          borderLeft: "1px solid #dee2e6",
+          borderRight: "1px dotted #dee2e6",
+          position: "sticky",
+          top: "60px",
+          zIndex: 1000,
+        }}
+      >
+        <h3>Team Rankings</h3>
+        <div className="d-flex justify-content-center mt-4">
+          <Alert variant="danger">Error loading matches: {error.message}</Alert>
+        </div>
+      </Container>
+    );
   }
 
   return (

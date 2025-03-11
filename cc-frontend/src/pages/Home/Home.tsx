@@ -1,7 +1,7 @@
 import { Col, Container, Row, Alert } from "react-bootstrap";
 import RankingWidget from "./RankingWidget";
 import MatchesWidget from "./MatchesWidget";
-import Blog from "./BlogWidget";
+import BlogWidget from "./BlogWidget";
 import { useEffect } from "react";
 import { useState } from "react";
 const apiBaseUrl =
@@ -40,7 +40,7 @@ const Home = () => {
           <RankingWidget />
         </Col>
         <Col lg={6} md={8}>
-          <Blog />
+          <BlogWidget />
         </Col>
         <Col lg={3} className="d-none d-lg-block">
           <MatchesWidget />

@@ -1,6 +1,14 @@
-import { useQueryClient } from "@tanstack/react-query";
-import React, { useEffect, useState } from "react";
-import { Button, Card, Col, Container, Row } from "react-bootstrap";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import React from "react";
+import {
+  Alert,
+  Button,
+  Card,
+  Col,
+  Container,
+  Row,
+  Spinner,
+} from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { Team, Match } from "../../types";
 import { format } from "date-fns";
@@ -104,7 +112,6 @@ const MatchCard = ({ match }: { match: Match }) => (
 );
 
 const MatchesWidget: React.FC = () => {
-  const [matches, setMatches] = useState<Match[]>([]);
   const queryClient = useQueryClient();
 
   const fetchMatches = async () => {
@@ -113,6 +120,7 @@ const MatchesWidget: React.FC = () => {
 
     const matchesWithTeams = await Promise.all(
       matches.map(async (match) => {
+        // Fetch team details for team1 and team2
         const team1 = await queryClient.fetchQuery({
           queryKey: ["team", match.team1_id],
           queryFn: () => fetchTeam(match.team1_id),
@@ -129,13 +137,52 @@ const MatchesWidget: React.FC = () => {
     return matchesWithTeams;
   };
 
-  useEffect(() => {
-    const fetchAndSetMatches = async () => {
-      const matches = await fetchMatches();
-      setMatches(matches);
-    };
-    fetchAndSetMatches();
-  }, []);
+  const {
+    isLoading,
+    isError,
+    data: matches,
+    error,
+  } = useQuery({ queryKey: ["matches"], queryFn: fetchMatches });
+
+  if (isLoading) {
+    return (
+      <Container
+        style={{
+          position: "sticky",
+          top: "60px",
+          zIndex: 1000,
+          borderRight: "1px solid #dee2e6",
+          borderLeft: "1px dotted #dee2e6",
+        }}
+      >
+        <h3>Upcoming Matches</h3>
+
+        <div className="d-flex justify-content-center mt-4">
+          <Spinner />
+        </div>
+      </Container>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Container
+        style={{
+          position: "sticky",
+          top: "60px",
+          zIndex: 1000,
+          borderRight: "1px solid #dee2e6",
+          borderLeft: "1px dotted #dee2e6",
+        }}
+      >
+        <h3>Upcoming Matches</h3>
+
+        <div className="d-flex justify-content-center mt-4">
+          <Alert variant="danger">Error loading matches: {error.message}</Alert>
+        </div>
+      </Container>
+    );
+  }
 
   return (
     <>
@@ -144,41 +191,34 @@ const MatchesWidget: React.FC = () => {
           position: "sticky",
           top: "60px",
           zIndex: 1000,
+          borderRight: "1px solid #dee2e6",
+          borderLeft: "1px dotted #dee2e6",
         }}
       >
-        <Row>
-          <Col
-            style={{
-              borderRight: "1px solid #dee2e6",
-              borderLeft: "1px dotted #dee2e6",
-            }}
-          >
-            <h3>Upcoming Matches</h3>
-            {matches.map((match) => (
-              <MatchCard match={match} key={match.match_id} />
-            ))}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                marginTop: "10px",
-              }}
+        <h3>Upcoming Matches</h3>
+        {matches?.map((match) => (
+          <MatchCard match={match} key={match.match_id} />
+        ))}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginTop: "10px",
+          }}
+        >
+          <Button variant="info">
+            <Link
+              to="/matches"
+              style={{ color: "white", textDecoration: "none" }}
             >
-              <Button variant="info">
-                <Link
-                  to="/matches"
-                  style={{ color: "white", textDecoration: "none" }}
-                >
-                  View More
-                  <i
-                    className="bi bi-arrow-right"
-                    style={{ marginLeft: "5px" }}
-                  ></i>
-                </Link>
-              </Button>
-            </div>
-          </Col>
-        </Row>
+              View More
+              <i
+                className="bi bi-arrow-right"
+                style={{ marginLeft: "5px" }}
+              ></i>
+            </Link>
+          </Button>
+        </div>
       </Container>
     </>
   );

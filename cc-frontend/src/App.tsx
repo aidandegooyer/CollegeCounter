@@ -12,6 +12,7 @@ import UserPicture from "./pages/admin/UserPicture";
 import TeamPictures from "./pages/admin/TeamPictures";
 import Footer from "./Footer";
 import TeamName from "./pages/admin/TeamName";
+import Blog from "./pages/Blog/Blog";
 
 function App() {
   useEffect(() => {
@@ -26,6 +27,7 @@ function App() {
         <Navigation />
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/blog" element={<Blog />} />
           <Route path="/rankings" element={<Rankings />} />
           <Route path="/matches" element={<Matches />} />
           <Route path="/team" element={<TeamPage />} />

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, Container, Spinner } from "react-bootstrap";
 import client from "../../sanityClient";
 import imageUrlBuilder from "@sanity/image-url";
+import { PortableText, PortableTextComponents } from "@portabletext/react";
 
 // Configure Sanity image builder
 const builder = imageUrlBuilder(client);
@@ -38,7 +39,47 @@ interface SanityPost {
   publishedAt: string;
 }
 
-const BlogWidget = () => {
+// ✅ Fix: Correctly define the PortableText components
+const portableTextComponents: PortableTextComponents = {
+  types: {
+    image: ({ value }: { value: SanityImage }) => (
+      <img
+        src={urlFor(value).width(600).url()}
+        alt="Sanity Image"
+        style={{ maxWidth: "100%", height: "auto", borderRadius: "8px" }}
+      />
+    ),
+  },
+  marks: {
+    strong: ({ children }) => <strong>{children}</strong>,
+    em: ({ children }) => <em>{children}</em>,
+    link: ({ value, children }) => (
+      <a href={value.href} target="_blank" rel="noopener noreferrer">
+        {children}
+      </a>
+    ),
+  },
+  block: {
+    normal: ({ children }) => <p>{children}</p>,
+    h1: ({ children }) => <h1>{children}</h1>,
+    h2: ({ children }) => <h2>{children}</h2>,
+    blockquote: ({ children }) => (
+      <blockquote style={{ borderLeft: "4px solid #ccc", paddingLeft: "10px" }}>
+        {children}
+      </blockquote>
+    ),
+  },
+  list: {
+    bullet: ({ children }) => <ul>{children}</ul>,
+    number: ({ children }) => <ol>{children}</ol>,
+  },
+  listItem: {
+    bullet: ({ children }) => <li>{children}</li>,
+    number: ({ children }) => <li>{children}</li>,
+  },
+};
+
+const BlogPosts = () => {
   const [posts, setPosts] = useState<SanityPost[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -104,6 +145,11 @@ const BlogWidget = () => {
                   post.author
                 )}
               </Card.Subtitle>
+
+              <PortableText
+                value={post.body}
+                components={portableTextComponents}
+              />
             </Card.Body>
           </Card>
         ))}
@@ -111,4 +157,4 @@ const BlogWidget = () => {
   );
 };
 
-export default BlogWidget;
+export default BlogPosts;
