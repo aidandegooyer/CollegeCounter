@@ -273,8 +273,8 @@ def update_matches():
 @bp.route("/update")
 @require_token
 def update():
-    matches = update_matches()
     schedule = update_schedule()
+    matches = update_matches()
     elo = update_all_elo()
     return f"{matches} | {schedule} | {elo}"
 
