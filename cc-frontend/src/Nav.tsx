@@ -1,8 +1,15 @@
-import { Navbar, Container, Nav, Image } from "react-bootstrap";
+import { Navbar, Container, Nav, Image, Button } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import logo from "./assets/0.1x/C Logo@0.1x.png"; // Adjust the path to your logo image
 
 const Navigation = () => {
+  function handleSearch(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const search = new FormData(e.currentTarget).get("search") as string;
+    if (!search || search === "") return;
+    window.location.href = `/search?query=${encodeURIComponent(search)}`;
+  }
+
   return (
     <>
       <Navbar bg="dark" variant="dark" sticky="top">
@@ -39,25 +46,38 @@ const Navigation = () => {
             </Nav.Link>
           </Nav>
 
-          <input
-            type="text"
-            placeholder="Search is disabled"
-            className="form-control d-none d-md-flex justify-content-end"
-            style={{ maxWidth: "200px" }}
-            disabled
-          />
+          <form onSubmit={handleSearch} className="d-flex d-none d-md-block">
+            <div className="input-group">
+              <input
+                type="text"
+                name="search"
+                placeholder="Search"
+                className="form-control"
+              />
+              <Button variant="outline-secondary" type="submit">
+                <i className="bi bi-search"></i>
+              </Button>
+            </div>
+          </form>
         </Container>
       </Navbar>
 
       {/* Search bar for smaller screens (below the navbar) */}
       <div className="d-block d-md-none bg-dark py-2">
         <Container>
-          <input
-            type="text"
-            placeholder="Search is disabled"
-            className="form-control"
-            disabled
-          />
+          <form onSubmit={handleSearch} className="d-flex">
+            <div className="input-group">
+              <input
+                type="text"
+                name="search"
+                placeholder="Search"
+                className="form-control"
+              />
+              <Button variant="outline-secondary" type="submit">
+                <i className="bi bi-search"></i>
+              </Button>
+            </div>
+          </form>
         </Container>
       </div>
     </>
