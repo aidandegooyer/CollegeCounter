@@ -4,7 +4,7 @@ import BlogList from "./BlogList";
 const Blog = () => {
   return (
     <Container
-      style={{ marginTop: "0.5rem", maxWidth: "1000px", padding: "0 1rem" }}
+      style={{ marginTop: "0.5rem", maxWidth: "800px", padding: "0 1rem" }}
     >
       <BlogList />
     </Container>

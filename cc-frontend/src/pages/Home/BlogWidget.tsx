@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Card, Container, Spinner } from "react-bootstrap";
+import { Container, Spinner } from "react-bootstrap";
+import BlogPost from "../Blog/BlogPost";
 import client from "../../sanityClient";
 import imageUrlBuilder from "@sanity/image-url";
 
@@ -41,11 +42,17 @@ interface SanityPost {
 const BlogWidget = () => {
   const [posts, setPosts] = useState<SanityPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const offset = 0;
+  const limit = 5;
 
   useEffect(() => {
     setLoading(true);
     client
-      .fetch<SanityPost[]>('*[_type == "post"]')
+      .fetch<SanityPost[]>(
+        `*[_type == "post"] | order(_createdAt desc) [${offset}...${
+          offset + limit
+        }]`
+      )
       .then((data) => {
         setPosts(data);
         setLoading(false);
@@ -80,32 +87,7 @@ const BlogWidget = () => {
             new Date(a.publishedAt).getTime()
         )
         .map((post, key) => (
-          <Card className="mb-4" key={key}>
-            {post.image && (
-              <Card.Img
-                variant="top"
-                src={urlFor(post.image).width(540).height(300).url()}
-                alt={post.title}
-                style={{ maxHeight: "300px", objectFit: "cover" }}
-              />
-            )}
-            <Card.Body>
-              <Card.Title style={{ fontSize: "2rem" }}>{post.title}</Card.Title>
-              <Card.Subtitle className="mb-2 text-muted">
-                {new Date(post.publishedAt).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}{" "}
-                |{" "}
-                {post.authorLink ? (
-                  <a href={post.authorLink}>{post.author}</a>
-                ) : (
-                  post.author
-                )}
-              </Card.Subtitle>
-            </Card.Body>
-          </Card>
+          <BlogPost post={post} key={key} small={key !== 0} medium={key == 0} />
         ))}
     </Container>
   );
