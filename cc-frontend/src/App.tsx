@@ -1,20 +1,22 @@
+import React, { useEffect, lazy, Suspense } from "react";
 import "./custom.scss";
-import Home from "./pages/Home/Home";
 import Navigation from "./Nav";
-import { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Rankings from "./pages/Rankings/Rankings";
-import Matches from "./pages/Matches/Matches";
-import TeamPage from "./pages/Team/TeamPage";
-import Results from "./pages/Results/Results";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import UserPicture from "./pages/admin/UserPicture";
-import TeamPictures from "./pages/admin/TeamPictures";
 import Footer from "./Footer";
-import TeamName from "./pages/admin/TeamName";
-import Blog from "./pages/Blog/Blog";
-import BlogPage from "./pages/Blog/BlogPage";
 import ScrollToTop from "./ScrollToTop";
+
+// Lazy load route components
+const Home = lazy(() => import("./pages/Home/Home"));
+const Rankings = lazy(() => import("./pages/Rankings/Rankings"));
+const Matches = lazy(() => import("./pages/Matches/Matches"));
+const TeamPage = lazy(() => import("./pages/Team/TeamPage"));
+const Results = lazy(() => import("./pages/Results/Results"));
+const Blog = lazy(() => import("./pages/Blog/Blog"));
+const BlogPage = lazy(() => import("./pages/Blog/BlogPage"));
+const Search = lazy(() => import("./pages/Search/Search"));
+const Admin = lazy(() => import("./pages/Admin/Admin"));
+const NotFoundPage = lazy(() => import("./pages/utils/NotFoundPage"));
 
 function App() {
   useEffect(() => {
@@ -28,18 +30,21 @@ function App() {
       <Router>
         <Navigation />
         <ScrollToTop />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/blog/:slug" element={<BlogPage />} />
-          <Route path="/rankings" element={<Rankings />} />
-          <Route path="/matches" element={<Matches />} />
-          <Route path="/team" element={<TeamPage />} />
-          <Route path="/results" element={<Results />} />
-          <Route path="/admin/player" element={<UserPicture />} />
-          <Route path="/admin/team" element={<TeamPictures />} />
-          <Route path="/admin/team/name" element={<TeamName />} />
-        </Routes>
+        {/* Suspense wrapper for lazy loaded routes */}
+        <Suspense fallback={<div>Loading...</div>}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:slug" element={<BlogPage />} />
+            <Route path="/rankings" element={<Rankings />} />
+            <Route path="/matches" element={<Matches />} />
+            <Route path="/team" element={<TeamPage />} />
+            <Route path="/results" element={<Results />} />
+            <Route path="/search" element={<Search />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/*" element={<NotFoundPage />} />
+          </Routes>
+        </Suspense>
       </Router>
       <Footer />
     </QueryClientProvider>
