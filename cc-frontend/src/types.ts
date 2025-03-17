@@ -6,6 +6,7 @@ interface Player {
     elo: number;
     steam_id?: string;
     faceit_id?: string;
+    visible?: boolean;
 }
 
 interface Team {

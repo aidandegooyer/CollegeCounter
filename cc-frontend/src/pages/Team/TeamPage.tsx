@@ -225,6 +225,7 @@ const TeamPage = () => {
             <div className="d-flex flex-wrap justify-content-center">
               {players ? (
                 players
+                  .filter((player) => player.visible)
                   .sort((a, b) => {
                     if (team?.leader === a.player_id) return -1;
                     if (team?.leader === b.player_id) return 1;

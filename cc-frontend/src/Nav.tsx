@@ -1,13 +1,15 @@
 import { Navbar, Container, Nav, Image, Button } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import logo from "./assets/0.1x/C Logo@0.1x.png"; // Adjust the path to your logo image
 
 const Navigation = () => {
+  const navigate = useNavigate();
+
   function handleSearch(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const search = new FormData(e.currentTarget).get("search") as string;
     if (!search || search === "") return;
-    window.location.href = `/search?query=${encodeURIComponent(search)}`;
+    navigate(`/search?query=${encodeURIComponent(search)}`);
   }
 
   return (
@@ -29,9 +31,6 @@ const Navigation = () => {
             </div>
           </Navbar.Brand>
           <Nav className="">
-            <Nav.Link as={Link} to="/">
-              Home
-            </Nav.Link>
             <Nav.Link as={Link} to="/blog">
               Blog
             </Nav.Link>

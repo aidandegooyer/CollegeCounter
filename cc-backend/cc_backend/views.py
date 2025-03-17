@@ -378,6 +378,17 @@ def get_top10():
     return [team.as_dict() for team in teams]
 
 
+@bp.route("/search/<query>")
+def search(query):
+    players = Player.query.filter(Player.nickname.ilike(f"%{query}%")).all()
+    teams = Team.query.filter(Team.name.ilike(f"%{query}%")).limit(10).all()
+    players = players[:10]
+    return {
+        "players": [player.as_dict() for player in players],
+        "teams": [team.as_dict() for team in teams],
+    }
+
+
 @bp.route("/static/<path:filename>")
 def serve_static(filename):
     return send_from_directory("static", filename)
@@ -520,6 +531,53 @@ def upload_team_photo():
         return {"message": "File uploaded successfully"}, 200
 
     return {"error": "File type not allowed"}, 400
+
+
+@bp.route("/player/<player_id>", methods=["PUT"])
+@require_token
+def player_put(player_id):
+    player: Player = Player.query.get(player_id)
+    if not player:
+        return {"error": "Player not found"}, 404
+    data = request.form
+    if player_id != data.get("player_id"):
+        return {"error": "Request Player ID Mismatch"}, 400
+
+    player.nickname = data.get("nickname", player.nickname)
+    player.skill_level = data.get("skill_level", player.skill_level)
+    player.steam_id = data.get("steam_id", player.steam_id)
+    player.faceit_id = data.get("faceit_id", player.faceit_id)
+    player.elo = data.get("elo", player.elo)
+    visible = data.get("visible", player.visible)
+    player.visible = not visible == "0"
+    db.session.commit()
+    return {"message": "Player updated successfully"}, 200
+
+
+@bp.route("/team/<team_id>", methods=["PUT"])
+@require_token
+def team_put(team_id):
+    # TODO: ADD PROFILE PICTURE CHANGES
+    team = Team.query.get(team_id)
+    if not team:
+        return {"error": "Team not found"}, 404
+
+    data = request.form
+    if team_id != data.get("team_id"):
+        return {"error": "Request Team ID Mismatch"}, 400
+
+    team.name = data.get("name", team.name)
+    team.leader = data.get("leader", team.leader)
+    team.elo = data.get("elo", team.elo)
+    team.playfly_id = data.get("playfly_id", team.playfly_id)
+    team.playfly_participant_id = data.get(
+        "playfly_participant_id", team.playfly_participant_id
+    )
+    team.faceit_id = data.get("faceit_id", team.faceit_id)
+    team.school_name = data.get("school_name", team.school_name)
+
+    db.session.commit()
+    return {"message": "Team updated successfully"}, 200
 
 
 def allowed_file(filename):
