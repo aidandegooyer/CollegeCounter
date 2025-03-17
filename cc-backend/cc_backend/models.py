@@ -12,6 +12,7 @@ class Player(db.Model):
     steam_id = db.Column(db.String, nullable=True)
     faceit_id = db.Column(db.String, nullable=True)
     elo = db.Column(db.Integer, nullable=False)
+    visible = db.Column(db.Boolean, nullable=False)
     team_id = db.Column(
         db.String, db.ForeignKey("team.team_id"), nullable=False
     )  # Add foreign key to enforce one-to-many relationship
