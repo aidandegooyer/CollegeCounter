@@ -26,7 +26,7 @@ const Matches = () => {
     isError: matchesError,
     error: matchesErrorObj,
   } = useQuery({
-    queryKey: ["matches"],
+    queryKey: ["matches", "all"],
     queryFn: fetchMatches,
     staleTime: 1000 * 60,
     refetchOnMount: true,

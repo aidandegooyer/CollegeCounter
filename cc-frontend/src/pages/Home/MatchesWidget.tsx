@@ -142,7 +142,7 @@ const MatchesWidget: React.FC = () => {
     isError,
     data: matches,
     error,
-  } = useQuery({ queryKey: ["matches"], queryFn: fetchMatches });
+  } = useQuery({ queryKey: ["matches", "4"], queryFn: fetchMatches });
 
   if (isLoading) {
     return (
