@@ -125,9 +125,6 @@ const PlayerSettings: React.FC = () => {
     // Append visibility as "1" for true or "0" for false.
     formData.append("visible", playerDetails.visible ? "1" : "0");
     formData.append("player_id", playerDetails.player_id);
-    if (selectedFile) {
-      formData.append("avatar", selectedFile);
-    }
 
     try {
       const response = await fetch(
@@ -139,6 +136,18 @@ const PlayerSettings: React.FC = () => {
       );
       const data = await response.json();
       alert("Player updated:" + data.toString());
+
+      if (selectedFile) {
+        const avatarFormData = new FormData();
+        avatarFormData.append("file", selectedFile);
+        avatarFormData.append("player_id", playerDetails.player_id);
+        const avatarResponse = await fetch(`${apiBaseUrl}/upload_profile_pic`, {
+          method: "POST",
+          body: avatarFormData,
+        });
+        const avatarData = await avatarResponse.json();
+        alert("Avatar updated:" + avatarData.toString());
+      }
     } catch (error) {
       alert("Error updating player:" + error);
     }
