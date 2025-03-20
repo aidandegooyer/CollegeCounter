@@ -2,7 +2,7 @@ import { Container, Spinner } from "react-bootstrap";
 import BlogPost from "./BlogPost";
 import client from "../../sanityClient";
 import { SanityPost } from "./BlogTypes";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 const BlogPage = () => {

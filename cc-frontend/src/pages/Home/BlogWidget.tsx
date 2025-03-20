@@ -2,14 +2,6 @@ import { useEffect, useState } from "react";
 import { Container, Spinner } from "react-bootstrap";
 import BlogPost from "../Blog/BlogPost";
 import client from "../../sanityClient";
-import imageUrlBuilder from "@sanity/image-url";
-
-// Configure Sanity image builder
-const builder = imageUrlBuilder(client);
-
-function urlFor(source: any) {
-  return builder.image(source);
-}
 
 // Define TypeScript types for Sanity Blog Posts
 interface SanityImage {

@@ -1,10 +1,11 @@
-import React, { useEffect, lazy, Suspense } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import "./custom.scss";
 import Navigation from "./Nav";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Footer from "./Footer";
 import ScrollToTop from "./ScrollToTop";
+import Player from "./pages/Player/PlayerPage";
 
 // Lazy load route components
 const Home = lazy(() => import("./pages/Home/Home"));
@@ -39,6 +40,7 @@ function App() {
             <Route path="/rankings" element={<Rankings />} />
             <Route path="/matches" element={<Matches />} />
             <Route path="/team" element={<TeamPage />} />
+            <Route path="/player" element={<Player />} />
             <Route path="/results" element={<Results />} />
             <Route path="/search" element={<Search />} />
             <Route path="/admin" element={<Admin />} />

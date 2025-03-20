@@ -11,6 +11,8 @@ const BlogList = () => {
   const offset = (page - 1) * 5;
   const limit = 5;
 
+  if (page < 1) setPage(1);
+
   useEffect(() => {
     setLoading(true);
     client
