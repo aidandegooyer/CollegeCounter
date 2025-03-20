@@ -147,7 +147,8 @@ def get_updated_faceit_schedule(api_key: str):
         if response.status_code == 200:
             match_data = response.json()
             if match_data.get("scheduled_at") != match.scheduled_time:
-                match.scheduled_time = match_data.get("scheduled_at")
+                if match_data.get("scheduled_at"):
+                    match.scheduled_time = match_data.get("scheduled_at")
                 logger.info(f"Updated match {match.match_id}")
                 count += 1
                 db.session.commit()

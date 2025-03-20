@@ -351,14 +351,14 @@ def get_match(match_id):
 
 @bp.route("/upcoming")
 def get_upcoming():
-    matches = Match.query.filter_by(status="SCHEDULED").all()
+    matches = Match.query.filter_by(Match.status != "FINISHED").all()
     return [match.as_dict() for match in matches]
 
 
 @bp.route("/upcoming/<num>")
 def get_upcoming_num(num):
     matches = (
-        Match.query.filter_by(status="SCHEDULED")
+        Match.query.filter_by(Match.status != "FINISHED")
         .order_by(Match.scheduled_time)
         .limit(4)
         .all()
