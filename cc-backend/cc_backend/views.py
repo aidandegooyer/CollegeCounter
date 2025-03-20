@@ -164,6 +164,39 @@ def calculate_initial_elo():
     return "Initial ELO calculated!"
 
 
+@bp.route("/add_player/<team_id>/<player_name>")
+@require_token
+def add_player(team_id, player_name):
+    headers = {"Authorization": "Bearer " + current_app.config.get("FACEIT_API_KEY")}
+    response = requests.get(
+        f"https://open.faceit.com/data/v4/players?nickname={player_name}",
+        headers=headers,
+    )
+    if response.status_code == 200:
+        player = response.json()
+        with db.session.no_autoflush:
+            existing_player = Player.query.get(player["player_id"])
+            if existing_player is None:
+                db_player = Player(
+                    player_id=player["player_id"],
+                    nickname=player["nickname"],
+                    avatar=player["avatar"],
+                    skill_level=player["games"]["cs2"]["skill_level"],
+                    steam_id=player["games"]["cs2"]["game_player_id"],
+                    elo=player["games"]["cs2"]["faceit_elo"],
+                    team_id=team_id,
+                    visible=True,
+                )
+                db.session.add(db_player)
+                db.session.flush()
+                db.session.commit()
+                return f"Player {player_name} added to team {team_id}!"
+            else:
+                return f"Player {player_name} already exists!"
+    else:
+        return f"Error adding player {player_name}", 400
+
+
 ### UPDATE ROUTES ################################################################################
 @bp.route("/update_schedule")
 @require_token
@@ -193,6 +226,8 @@ def update_all_players_elo():
         if response.status_code == 200:
             elo = response.json()["games"]["cs2"]["faceit_elo"]
             player.elo = elo
+            level = response.json()["games"]["cs2"]["skill_level"]
+            player.skill_level = level
             logger.debug(f"Got elo {elo} for user {player.nickname}")
         else:
             logger.warning(f"Error getting elo for user {player.nickname}")

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Container, Form, Button, Image } from "react-bootstrap";
+import { Container, Form, Button, Image, FormGroup } from "react-bootstrap";
 import { Player, Team } from "../../types";
 
 const PlayerSettings: React.FC = () => {
@@ -50,11 +50,11 @@ const PlayerSettings: React.FC = () => {
       //TODO: IMPLEMENT NEW PLAYER ADDITIONS TO TEAMS. maybe paste faceit link or smth
       console.log("Add Player Selected");
       const newPlayer: Player = {
-        player_id: "", // No ID yet since it's a new player
+        player_id: "null", // No ID yet since it's a new player
         nickname: "New Player",
         avatar: "",
         skill_level: 1, // Default skill level
-        elo: 1000, // Default ELO, adjust as needed
+        elo: -1, // Default ELO, adjust as needed
         steam_id: "",
         faceit_id: "",
         visible: true, // Default to visible
@@ -144,6 +144,18 @@ const PlayerSettings: React.FC = () => {
     }
   };
 
+  async function handleNewPlayer() {
+    try {
+      const response = await fetch(
+        `${apiBaseUrl}/add_player/${selectedTeam?.team_id}/${playerDetails?.nickname}?token=${privateKey}`
+      );
+      const data = await response.json();
+      alert("Player added:" + data.toString());
+    } catch (error) {
+      alert("Error updating player:" + error);
+    }
+  }
+
   return (
     <Container style={{ maxWidth: "600px", padding: "0 1rem" }}>
       <h1>Edit Player Details</h1>
@@ -197,7 +209,7 @@ const PlayerSettings: React.FC = () => {
           </Form.Group>
         )}
 
-        {playerDetails && (
+        {playerDetails?.player_id != "null" && playerDetails && (
           <>
             <Form.Group controlId="playerId" className="mb-3">
               <Form.Label>Player ID (cannot be edited)</Form.Label>
@@ -279,6 +291,24 @@ const PlayerSettings: React.FC = () => {
           </>
         )}
 
+        {playerDetails?.player_id === "null" && (
+          <>
+            <p>
+              New player details will be added to the selected team. Please fill
+              in the details below.
+            </p>
+            <FormGroup controlId="nickname" className="mb-3">
+              <Form.Label>Faceit Nickname</Form.Label>
+              <Form.Control
+                type="text"
+                name="nickname"
+                value={playerDetails?.nickname}
+                onChange={handleInputChange}
+              />
+            </FormGroup>
+          </>
+        )}
+
         <Form.Group controlId="privateKey" className="mb-3">
           <Form.Label>Enter Private Key</Form.Label>
           <Form.Control
@@ -288,9 +318,15 @@ const PlayerSettings: React.FC = () => {
           />
         </Form.Group>
 
-        <Button variant="primary" type="submit">
-          Update Player
-        </Button>
+        {playerDetails?.player_id != "null" ? (
+          <Button variant="primary" type="submit">
+            Update Player
+          </Button>
+        ) : (
+          <Button variant="primary" onClick={handleNewPlayer}>
+            Add Player
+          </Button>
+        )}
       </Form>
     </Container>
   );

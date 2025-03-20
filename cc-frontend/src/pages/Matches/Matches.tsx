@@ -22,13 +22,14 @@ const Matches = () => {
 
   const {
     data: matches,
-    isPending: matchesLoading,
+    isLoading: matchesLoading,
     isError: matchesError,
     error: matchesErrorObj,
   } = useQuery({
     queryKey: ["matches"],
     queryFn: fetchMatches,
-    staleTime: 1000 * 60 * 10,
+    staleTime: 1000 * 60,
+    refetchOnMount: true,
   });
 
   useEffect(() => {
@@ -65,7 +66,7 @@ const Matches = () => {
       setThisWeekMatches(thisWeekMatches);
       setOtherMatches(otherMatches);
     }
-  }, [matches, matchesLoading]);
+  }, [matches]);
 
   if (matchesLoading) {
     return (
