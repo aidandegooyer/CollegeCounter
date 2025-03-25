@@ -216,6 +216,15 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
                   PlayFly
                 </Badge>
               ) : null}
+              {match.competition == "playfly (playoff)" ? (
+                <Badge
+                  className="mt-2"
+                  bg="primary"
+                  style={{ maxWidth: "75px", fontSize: "1rem" }}
+                >
+                  PlayFly (Playoff)
+                </Badge>
+              ) : null}
             </Row>
           </Col>
         </Row>

@@ -399,7 +399,7 @@ def add_playfly_playoff_match_to_db(data, event_id):
             db_match = Match(
                 match_id=match["id"],
                 game="cs2",
-                competition="playfly",
+                competition="playfly (playoff)",
                 team1_id=team1id,
                 team2_id=team2id,
                 scheduled_time=time,
