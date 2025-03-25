@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Footer from "./Footer";
 import ScrollToTop from "./ScrollToTop";
 import Player from "./pages/Player/PlayerPage";
+import Events from "./pages/Events/Events";
+import EventPage from "./pages/Events/EventPage";
 
 // Lazy load route components
 const Home = lazy(() => import("./pages/Home/Home"));
@@ -35,15 +37,27 @@ function App() {
         <Suspense fallback={<div>Loading...</div>}>
           <Routes>
             <Route path="/" element={<Home />} />
+            {/*  */}
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:slug" element={<BlogPage />} />
+            {/*  */}
             <Route path="/rankings" element={<Rankings />} />
+            {/*  */}
             <Route path="/matches" element={<Matches />} />
+            {/*  */}
+            <Route path="/events" element={<Events />} />
+            <Route path="/events/:event_id" element={<EventPage />} />
+            {/*  */}
             <Route path="/team" element={<TeamPage />} />
+            {/*  */}
             <Route path="/player" element={<Player />} />
+            {/*  */}
             <Route path="/results" element={<Results />} />
+            {/*  */}
             <Route path="/search" element={<Search />} />
+            {/*  */}
             <Route path="/admin" element={<Admin />} />
+            {/*  */}
             <Route path="/*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
