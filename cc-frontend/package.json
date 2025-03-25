@@ -21,6 +21,7 @@
     "holderjs": "^2.9.9",
     "react": "^19.0.0",
     "react-bootstrap": "^2.10.9",
+    "react-brackets": "^0.4.7",
     "react-dom": "^19.0.0",
     "react-flip-move": "^3.0.5",
     "react-router-dom": "^7.2.0"
