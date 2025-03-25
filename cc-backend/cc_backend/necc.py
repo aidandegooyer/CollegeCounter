@@ -136,7 +136,7 @@ def get_updated_faceit_schedule(api_key: str):
     one_week_from_now = int(time.time()) + 7 * 24 * 60 * 60
     matches = Match.query.filter(
         Match.scheduled_time <= one_week_from_now,
-        Match.status == "SCHEDULED",
+        Match.status != "FINISHED",
         Match.competition == "necc",
     ).all()
     logger.debug(f"Found {len(matches)} matches to update")
@@ -166,7 +166,7 @@ def update_faceit_matches():
     # get all matches that are scheduled with a time before now
     matches = Match.query.filter(
         Match.scheduled_time < int(time.time()),
-        Match.status == "SCHEDULED",
+        Match.status != "FINISHED",
         Match.competition == "necc",
     ).all()
     for match in matches:

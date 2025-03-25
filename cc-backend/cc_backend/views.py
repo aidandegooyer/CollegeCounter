@@ -2,7 +2,7 @@ from flask import Blueprint, abort, send_from_directory, request, current_app
 from cc_backend import logger
 import requests
 from cc_backend.db import db
-from cc_backend.models import EloHistory, Player, Team, Match
+from cc_backend.models import EloHistory, Event, EventMatch, Player, Team, Match
 from functools import wraps
 import statistics
 from PIL import Image
@@ -197,6 +197,12 @@ def add_player(team_id, player_name):
         return f"Error adding player {player_name}", 400
 
 
+@bp.route("/create_playfly_bracket/<tournament_id>")
+@require_token
+def create_playfly_bracket(tournament_id):
+    playfly.create_playfly_bracket(tournament_id)
+
+
 ### UPDATE ROUTES ################################################################################
 @bp.route("/update_schedule")
 @require_token
@@ -338,6 +344,12 @@ def get_team(team_id):
     return team.as_dict() if team else "Team not found"
 
 
+@bp.route("/team_by_pfid/<team_id>")
+def get_pfid_team(team_id):
+    team = Team.query.filter_by(playfly_participant_id=team_id).first()
+    return team.as_dict() if team else "Team not found"
+
+
 @bp.route("/teams")
 def get_teams():
     teams = Team.query.all()
@@ -401,6 +413,24 @@ def get_upcoming_num(num):
     return [match.as_dict() for match in matches]
 
 
+@bp.route("/events")
+def get_events():
+    events = Event.query.all()
+    return [event.as_dict() for event in events]
+
+
+@bp.route("/event/<event_id>")
+def get_event(event_id):
+    event = Event.query.get(event_id)
+    return event.as_dict() if event else "Event not found"
+
+
+@bp.route("/event/<event_id>/matches")
+def get_event_matches(event_id):
+    eventmatches = EventMatch.query.filter_by(event_id=event_id).all()
+    return [eventmatch.as_dict() for eventmatch in eventmatches]
+
+
 @bp.route("/results")
 def get_results():
     matches = Match.query.filter_by(status="FINISHED").all()
@@ -417,10 +447,12 @@ def get_top10():
 def search(query):
     players = Player.query.filter(Player.nickname.ilike(f"%{query}%")).all()
     teams = Team.query.filter(Team.name.ilike(f"%{query}%")).limit(10).all()
+    events = Event.query.filter(Event.name.ilike(f"%{query}%")).limit(10).all()
     players = players[:10]
     return {
         "players": [player.as_dict() for player in players],
         "teams": [team.as_dict() for team in teams],
+        "events": [event.as_dict() for event in events],
     }
 
 

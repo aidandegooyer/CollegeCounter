@@ -3,7 +3,7 @@ import json
 import requests
 from cc_backend import logger
 from cc_backend.db import db
-from cc_backend.models import Player, Team, Match
+from cc_backend.models import Event, EventMatch, Player, Team, Match
 
 
 def add_playfly_teams_to_db(json_file):
@@ -316,3 +316,141 @@ def get_results(match_id, team1, team2, team1participantid, team2participantid):
         )
 
     return None  # Return None if there was an error
+
+
+def add_playfly_playoff_match_to_db(data, event_id):
+    for match in data[0]["matches"]:
+        if match["matchParticipants"][0]["participantId"] is None:
+            logger.debug(f"Match {match['id']} is empty")
+            continue
+
+        if (
+            len(match["matchParticipants"]) < 2
+            or match["matchParticipants"][1]["participantId"] is None
+        ):
+            logger.debug(
+                f"Match {match['id']} has less than 2 participants (likely a bye week)"
+            )
+            existing_team = Team.query.get("0")
+            if not existing_team:
+                db_team = Team(
+                    team_id="0",
+                    name="BYE",
+                    leader="BYE",
+                    avatar="",
+                    elo=0,
+                    playfly_id="0",
+                    playfly_participant_id="0",
+                )
+                db.session.add(db_team)
+                logger.debug("Team with id 0 created")
+            existing_match = Match.query.get("0")
+            if not existing_match:
+                db_match = Match(
+                    match_id="0",
+                    game="cs2",
+                    competition="BYE",
+                    team1_id="0",
+                    team2_id="0",
+                    scheduled_time=0,
+                    status="BYE",
+                    match_url="",
+                    platform="BYE",
+                )
+                db.session.add(db_match)
+                logger.debug("Match with id 0 created")
+            existing_match = EventMatch.query.get(match["id"])
+            if existing_match:
+                logger.info(f"EventMatch {match['id']} already exists")
+            else:
+                db_event_match = EventMatch(
+                    id=match["id"],
+                    match_id=0,
+                    round=match["round"]["name"],
+                    number_in_bracket=0,
+                    event_id=event_id,
+                    isbye=True,
+                    bye_team_id=match["matchParticipants"][0]["participantId"],
+                )
+                db.session.add(db_event_match)
+            continue
+        team1_participant_id = match["matchParticipants"][0]["participantId"]
+        team2_participant_id = match["matchParticipants"][1]["participantId"]
+
+        # get team ids by querying database for team id
+        team1id = db.session.query(Team.team_id).filter_by(
+            playfly_participant_id=team1_participant_id
+        )
+        team2id = db.session.query(Team.team_id).filter_by(
+            playfly_participant_id=team2_participant_id
+        )
+
+        # convert "2025-02-01T02:00:00Z" to unix timestamp
+        time = int(
+            datetime.datetime.strptime(match["startTimeUtc"], "%Y-%m-%dT%H:%M:%SZ")
+            .replace(tzinfo=datetime.timezone.utc)  # Explicitly set timezone to UTC
+            .timestamp()
+        )
+        playflyurl = f"https://esports.playflycollege.gg/matches/{match['id']}"
+        existing_match = Match.query.get(match["id"])
+        if existing_match:
+            logger.info(f"Match {match['id']} already exists")
+        else:
+            db_match = Match(
+                match_id=match["id"],
+                game="cs2",
+                competition="playfly",
+                team1_id=team1id,
+                team2_id=team2id,
+                scheduled_time=time,
+                status="SCHEDULED",
+                match_url=playflyurl,
+                platform="playfly",
+            )
+            logger.debug(f"Match {match['id']} added to database")
+            db.session.add(db_match)
+        existing_match = EventMatch.query.get(match["id"])
+        if existing_match:
+            logger.info(f"EventMatch {match['id']} already exists")
+        else:
+            db_event_match = EventMatch(
+                id=match["id"],
+                match_id=match["id"],
+                round=match["round"]["name"],
+                number_in_bracket=match["numberInBracket"],
+                event_id=event_id,
+                isbye=False,
+            )
+            db.session.add(db_event_match)
+    db.session.commit()
+
+
+def create_playfly_bracket(tournament_id):
+    url = f"https://api.leaguespot.gg//api/v1/stages/{tournament_id}/groupsWithMatches"
+    headers = {
+        "X-League-Id": "53015f28-5b33-4882-9f8b-16dcbb13deee",
+        "X-App": "web",
+        "X-Version": "20240912.2",
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        data = response.json()
+        existing_event = Event.query.get(tournament_id)
+        if existing_event:
+            logger.info(f"Event {tournament_id} already exists")
+        else:
+            db_event = Event(
+                event_id=tournament_id,
+                title=data[0]["name"],
+                start_date=0,
+                end_date=1000000,
+            )
+            db.session.add(db_event)
+            db.session.commit()
+        add_playfly_playoff_match_to_db(data, tournament_id)
+
+    else:
+        logger.error(
+            f"Failed to fetch bracket. Status code: {response.status_code} - {response.text}"
+        )
+        return None

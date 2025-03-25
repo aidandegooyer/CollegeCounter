@@ -56,6 +56,38 @@ class Match(db.Model):
     teams = db.relationship("Team", secondary="team_match", back_populates="matches")
 
 
+class Event(db.Model):
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+    __tablename__ = "event"
+    event_id = db.Column(db.String, primary_key=True)
+    title = db.Column(db.String, nullable=False)
+    description = db.Column(db.String, nullable=True)
+    start_date = db.Column(db.Integer, nullable=False)
+    end_date = db.Column(db.Integer, nullable=False)
+    # Assuming each event has one winner
+    winner_id = db.Column(db.String, db.ForeignKey("team.team_id"), nullable=True)
+    winner = db.relationship("Team", backref="won_events", uselist=False)
+    bracket = db.relationship("EventMatch", backref="event", lazy=True)
+
+
+class EventMatch(db.Model):
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+    __tablename__ = "eventmatch"
+    id = db.Column(db.String, primary_key=True)
+    # Assuming each match is linked to a Match table with an id column
+    match_id = db.Column(db.String, db.ForeignKey("match.match_id"), nullable=True)
+    match = db.relationship("Match", backref="event_match", lazy=True)
+    round = db.Column(db.String, nullable=False)
+    number_in_bracket = db.Column(db.Integer, nullable=False)
+    event_id = db.Column(db.String, db.ForeignKey("event.event_id"), nullable=False)
+    isbye = db.Column(db.Boolean, nullable=False)
+    bye_team_id = db.Column(db.String, nullable=True)
+
+
 class EloHistory(db.Model):
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
