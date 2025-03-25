@@ -52,6 +52,7 @@ const RankingItem = ({ team, index }: { team: Team; index: number }) => (
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
+          textDecoration: "none",
           color: "var(--bs-body-color)",
         }}
       >

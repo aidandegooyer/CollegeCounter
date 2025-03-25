@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Container, Spinner } from "react-bootstrap";
 import BlogPost from "../Blog/BlogPost";
 import client from "../../sanityClient";
+import { Link } from "react-router-dom";
 
 // Define TypeScript types for Sanity Blog Posts
 interface SanityImage {
@@ -71,7 +72,9 @@ const BlogWidget = () => {
 
   return (
     <Container>
-      <h1>News</h1>
+      <Link to="/blog" style={{ color: "var(--bs-body-color)" }}>
+        <h1>News</h1>
+      </Link>
       {posts
         .sort(
           (a, b) =>
