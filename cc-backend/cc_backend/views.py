@@ -1,3 +1,4 @@
+from datetime import time
 from flask import Blueprint, abort, send_from_directory, request, current_app
 from cc_backend import logger
 import requests
@@ -8,6 +9,7 @@ import statistics
 from PIL import Image
 from google.cloud import storage
 from io import BytesIO
+from datetime import datetime, timedelta
 import cc_backend.necc as necc
 import cc_backend.playfly as playfly
 
@@ -398,16 +400,23 @@ def get_match(match_id):
 
 @bp.route("/upcoming")
 def get_upcoming():
-    matches = Match.query.filter(Match.status != "FINISHED").all()
+    matches = Match.query.filter(
+        Match.status != "FINISHED", Match.status != "BYE"
+    ).all()
     return [match.as_dict() for match in matches]
 
 
 @bp.route("/upcoming/<num>")
 def get_upcoming_num(num):
+    three_hours_ago = int((datetime.now() - timedelta(hours=3)).timestamp())
     matches = (
-        Match.query.filter(Match.status != "FINISHED")
+        Match.query.filter(
+            Match.status != "FINISHED",
+            Match.status != "BYE",
+            Match.scheduled_time > three_hours_ago,
+        )
         .order_by(Match.scheduled_time)
-        .limit(4)
+        .limit(num)
         .all()
     )
     return [match.as_dict() for match in matches]
