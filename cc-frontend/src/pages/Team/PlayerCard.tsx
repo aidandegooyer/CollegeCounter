@@ -5,9 +5,10 @@ import errorImage from "../../assets/error-profile-pic.png";
 interface PlayerCardProps {
   player: Player;
   leader: boolean;
+  image?: boolean;
 }
 
-const PlayerCard: React.FC<PlayerCardProps> = ({ player, leader }) => {
+const PlayerCard: React.FC<PlayerCardProps> = ({ player, leader, image }) => {
   const handlePlayerClick = () => {
     // open new tab with player profile
     window.open(`https://www.faceit.com/en/players/${player.nickname}`);
@@ -29,17 +30,21 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, leader }) => {
 
   return (
     <>
-      {player.avatar ? (
-        <img
-          src={player.avatar}
-          style={{ width: "200px" }}
-          onError={(e) => {
-            e.currentTarget.onerror = null;
-            e.currentTarget.src = errorImage;
-          }}
-        />
-      ) : (
-        <img src={errorImage} style={{ width: "200px" }} />
+      {image && (
+        <>
+          {player.avatar ? (
+            <img
+              src={player.avatar}
+              style={{ width: "200px" }}
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = errorImage;
+              }}
+            />
+          ) : (
+            <img src={errorImage} style={{ width: "200px" }} />
+          )}
+        </>
       )}
 
       <Card style={{ width: "200px" }}>

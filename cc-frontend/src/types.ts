@@ -7,6 +7,7 @@ interface Player {
     steam_id?: string;
     faceit_id?: string;
     visible?: boolean;
+    bench?: boolean;
 }
 
 interface Team {

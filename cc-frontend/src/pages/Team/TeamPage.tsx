@@ -221,11 +221,47 @@ const TeamPage = () => {
         </div>
 
         <Container style={{ marginTop: "1rem" }}>
+          <h1 className="text-center">Roster</h1>
           <div className="d-flex justify-content-center">
             <div className="d-flex flex-wrap justify-content-center">
               {players ? (
                 players
-                  .filter((player) => player.visible)
+                  .filter((player) => player.visible && !player.bench)
+                  .sort((a, b) => {
+                    if (team?.leader === a.player_id) return -1;
+                    if (team?.leader === b.player_id) return 1;
+                    return a.nickname.localeCompare(b.nickname);
+                  })
+                  .map((player) => (
+                    <div
+                      key={player.player_id}
+                      className="p-2"
+                      style={{
+                        flex: "1 0 200px",
+                        maxWidth: "200px",
+                        margin: "0 1rem",
+                      }}
+                    >
+                      <PlayerCard
+                        player={player}
+                        leader={team?.leader === player.player_id}
+                        image
+                      />
+                    </div>
+                  ))
+              ) : (
+                <p>No players found</p>
+              )}
+            </div>
+          </div>
+          {players?.some((player) => player.bench) && (
+            <h1 className="text-center">Substitutes</h1>
+          )}
+          <div className="d-flex justify-content-center">
+            <div className="d-flex flex-wrap justify-content-center">
+              {players ? (
+                players
+                  .filter((player) => player.visible && player.bench)
                   .sort((a, b) => {
                     if (team?.leader === a.player_id) return -1;
                     if (team?.leader === b.player_id) return 1;

@@ -58,6 +58,7 @@ const PlayerSettings: React.FC = () => {
         steam_id: "",
         faceit_id: "",
         visible: true, // Default to visible
+        bench: false, // Default to not benched
       };
       setSelectedPlayer(newPlayer);
       setPlayerDetails(newPlayer);
@@ -124,6 +125,7 @@ const PlayerSettings: React.FC = () => {
       formData.append("faceit_id", playerDetails.faceit_id);
     // Append visibility as "1" for true or "0" for false.
     formData.append("visible", playerDetails.visible ? "1" : "0");
+    formData.append("bench", playerDetails.bench ? "1" : "0");
     formData.append("player_id", playerDetails.player_id);
 
     try {
@@ -279,6 +281,15 @@ const PlayerSettings: React.FC = () => {
                 name="visible"
                 label="Visible"
                 checked={playerDetails.visible ?? true}
+                onChange={handleInputChange}
+              />
+            </Form.Group>
+            <Form.Group controlId="bench" className="mb-3">
+              <Form.Check
+                type="checkbox"
+                name="bench"
+                label="Benched"
+                checked={playerDetails.bench ?? true}
                 onChange={handleInputChange}
               />
             </Form.Group>

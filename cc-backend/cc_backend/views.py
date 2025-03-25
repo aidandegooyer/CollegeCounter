@@ -361,10 +361,11 @@ def get_teams():
 @bp.route("/team/<team_id>/matches")
 def get_team_matches(team_id):
     team = Team.query.get(team_id)
+    matches = Match.query.filter(
+        (Match.team1_id == team_id) | (Match.team2_id == team_id)
+    ).all()
     return (
-        [match.as_dict() for match in team.matches]
-        if team
-        else {"error": "Team not found"}
+        [match.as_dict() for match in matches] if team else {"error": "Team not found"}
     )
 
 
@@ -626,6 +627,8 @@ def player_put(player_id):
     player.elo = data.get("elo", player.elo)
     visible = data.get("visible", player.visible)
     player.visible = not visible == "0"
+    bench = data.get("bench", player.bench)
+    player.bench = not bench == "0"
     db.session.commit()
     return {"message": "Player updated successfully"}, 200
 
