@@ -32,8 +32,8 @@ app.config["FACEIT_API_KEY"] = FACEIT_API_KEY
 if FACEIT_API_KEY is None:
     raise ValueError("FACEIT_API_KEY not found in the environment variables.")
 
-# app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_URI")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DEV_DATABASE_URI")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_URI")
+# app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DEV_DATABASE_URI")
 
 CORS(
     app,
