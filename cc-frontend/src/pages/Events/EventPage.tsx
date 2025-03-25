@@ -75,8 +75,8 @@ const EventPage: React.FC = () => {
       <h1 className="text-center">{event_obj?.title}</h1>
       <h3 className="text-center">{event_obj?.description}</h3>
       <h5 className="text-center" style={{ color: "grey" }}>
-        {new Date(event_obj?.start_date!).toLocaleDateString()} -{" "}
-        {new Date(event_obj?.end_date!).toLocaleDateString()}
+        {new Date(event_obj?.start_date! * 1000).toLocaleDateString()} -{" "}
+        {new Date(event_obj?.end_date! * 1000).toLocaleDateString()}
       </h5>
       {eventMatches && (
         <div

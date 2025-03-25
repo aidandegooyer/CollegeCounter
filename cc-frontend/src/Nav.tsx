@@ -31,9 +31,6 @@ const Navigation = () => {
             </div>
           </Navbar.Brand>
           <Nav className="">
-            <Nav.Link as={Link} to="/events">
-              Events
-            </Nav.Link>
             <Nav.Link as={Link} to="/rankings">
               Rankings
             </Nav.Link>
@@ -42,6 +39,9 @@ const Navigation = () => {
             </Nav.Link>
             <Nav.Link as={Link} to="/results">
               Results
+            </Nav.Link>
+            <Nav.Link as={Link} to="/events">
+              Events
             </Nav.Link>
           </Nav>
 

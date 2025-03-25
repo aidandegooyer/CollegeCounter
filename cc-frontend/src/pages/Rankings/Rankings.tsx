@@ -199,7 +199,7 @@ const Ranking = forwardRef<HTMLDivElement, RankingProps>(
 
 const Rankings = () => {
   // TODO: Do the logic on the backend. Just send a list of matchdays objects that contain teams, elos, ranks, and elo change.
-  const totalMatchDays = 10;
+  const totalMatchDays = 15;
   const [matchDay, setMatchDay] = useState(totalMatchDays);
   const [sliderPosition, setSliderPosition] = useState(100);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -352,8 +352,10 @@ const Rankings = () => {
               className="justify-content-center"
               style={{ maxWidth: "50%", marginBottom: "1rem" }}
               onChange={handleSliderChange}
+              disabled
             />
           </div>
+
           <div className="d-flex justify-content-center">
             <Form.Select
               style={{ maxWidth: "30%", marginBottom: "1rem" }}
@@ -366,6 +368,16 @@ const Rankings = () => {
               <option value="playfly">PlayFly</option>
             </Form.Select>
           </div>
+        </div>
+
+        <div className="d-flex justify-content-center">
+          <Alert
+            variant="warning"
+            style={{ maxWidth: "50%", marginBottom: "1rem" }}
+          >
+            The matchday slider is temporarily disabled as it was causing issues
+            and showing inaccurate rankings.
+          </Alert>
         </div>
 
         {

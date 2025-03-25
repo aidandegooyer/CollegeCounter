@@ -61,5 +61,27 @@ interface MatchWeekRanking {
     rankings: RankingItem[];
 }
 
+interface Event {
+    event_id: string;
+    title: string;
+    description: string;
+    start_date: number;
+    end_date: number;
+    winner: Team;
+    bracket: EventMatch[];
+}
 
-export type { Player, Team, Match, EloHistory, MatchWeekRanking };
+interface EventMatch {
+    id: string;
+    match_id?: string;
+    match: Match;
+    round: number;
+    number_in_bracket: number;
+    event_id: string;
+    isbye: boolean;
+    bye_team_id: string;
+}
+
+
+
+export type { Player, Team, Match, EloHistory, MatchWeekRanking, Event, EventMatch, };

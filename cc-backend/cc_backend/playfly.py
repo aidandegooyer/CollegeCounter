@@ -441,9 +441,9 @@ def create_playfly_bracket(tournament_id):
         else:
             db_event = Event(
                 event_id=tournament_id,
-                title=data[0]["name"],
-                start_date=0,
-                end_date=1000000,
+                title="Playfly - Open Premium Playoffs",
+                start_date=1743189605,
+                end_date=1744399205,
             )
             db.session.add(db_event)
             db.session.commit()
