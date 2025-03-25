@@ -220,9 +220,9 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
                 <Badge
                   className="mt-2"
                   bg="primary"
-                  style={{ maxWidth: "75px", fontSize: "1rem" }}
+                  style={{ maxWidth: "150px", fontSize: "1rem" }}
                 >
-                  PlayFly (Playoff)
+                  PlayFly Playoff
                 </Badge>
               ) : null}
             </Row>
@@ -356,6 +356,15 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
               {match.competition === "playfly" ? (
                 <Badge bg="info" style={{ maxWidth: "75px", fontSize: "1rem" }}>
                   PlayFly
+                </Badge>
+              ) : null}
+              {match.competition == "playfly (playoff)" ? (
+                <Badge
+                  className="mt-2"
+                  bg="primary"
+                  style={{ maxWidth: "150px", fontSize: "1rem" }}
+                >
+                  PlayFly Playoff
                 </Badge>
               ) : null}
             </Row>
