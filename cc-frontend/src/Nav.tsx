@@ -18,19 +18,15 @@ const Navigation = () => {
         <Container fluid>
           <Navbar.Brand as={Link} to="/">
             <div className="d-none d-md-flex" style={{ width: "200px" }}>
-              <Image
-                src={logo}
-                alt="logo"
-                style={{ height: "30px", marginRight: "5px" }}
-                fluid
-              />
+              <Image src={logo} alt="logo" style={{ height: "30px" }} fluid />
               College Counter
             </div>
             <div className="d-block d-md-none">
               <Image src={logo} alt="logo" style={{ height: "30px" }} fluid />
             </div>
           </Navbar.Brand>
-          <Nav className="">
+
+          <Nav className="justify-content-center">
             <Nav.Link as={Link} to="/rankings">
               Rankings
             </Nav.Link>
@@ -52,6 +48,7 @@ const Navigation = () => {
                 name="search"
                 placeholder="Search"
                 className="form-control"
+                style={{ maxWidth: "200px" }}
               />
               <Button variant="outline-secondary" type="submit">
                 <i className="bi bi-search"></i>
