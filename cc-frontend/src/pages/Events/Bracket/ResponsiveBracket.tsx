@@ -33,12 +33,7 @@ const fetchByeTeam = async (team_id: string): Promise<Team> => {
 };
 
 // A custom seed renderer to display team names and scores
-const CustomSeed = ({
-  seed,
-  breakpoint,
-  roundIndex,
-  seedIndex,
-}: IRenderSeedProps) => {
+const CustomSeed = ({ seed, breakpoint }: IRenderSeedProps) => {
   const team1_id = seed.teams[0]?.name;
   const team2_id = seed.teams[1]?.name;
 
@@ -88,7 +83,10 @@ const CustomSeed = ({
   if (team1Error || team2Error) {
     return (
       <Seed mobileBreakpoint={breakpoint} style={{ fontSize: 12 }}>
-        <SeedItem>Error loading team details.</SeedItem>{" "}
+        <SeedItem>
+          Error loading team details.{" "}
+          {team1ErrorObj?.message || team2ErrorObj?.message || ""}
+        </SeedItem>{" "}
       </Seed>
     );
   }

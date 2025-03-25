@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Container, Spinner } from "react-bootstrap";
 import { Event } from "../../types";
-import { Link } from "react-router";
 import EventCard from "./EventCard";
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org";
