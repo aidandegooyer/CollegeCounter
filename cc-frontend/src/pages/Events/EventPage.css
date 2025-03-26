@@ -1,6 +1,7 @@
 /* For Firefox */
 .scrollable-container {
     overflow-x: auto;
+    overflow-y: hidden;
     scrollbar-color: #888 transparent; /* thumb, track */
     scrollbar-width: thin;
   }

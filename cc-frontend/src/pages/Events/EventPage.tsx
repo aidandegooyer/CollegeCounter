@@ -80,15 +80,14 @@ const EventPage: React.FC = () => {
       </h5>
       {eventMatches && (
         <div
+          className="scrollable-container"
           style={{
             overflowX: "auto",
             overflowY: "hidden",
-            width: "100%",
+            textAlign: "center", // centers inline or inline-block children
           }}
         >
-          <div style={{ display: "inline-block" }}>
-            <ResponsiveBracket matches={eventMatches} />
-          </div>
+          <ResponsiveBracket matches={eventMatches} />
         </div>
       )}
     </Container>
