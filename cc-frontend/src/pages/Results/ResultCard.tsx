@@ -154,6 +154,24 @@ const ResultCard: React.FC<ResultCardProps> = ({ match }) => {
                   PlayFly
                 </Badge>
               ) : null}
+              {match.competition == "playfly (playoff)" ? (
+                <Badge
+                  className="mt-2"
+                  bg="primary"
+                  style={{ maxWidth: "150px", fontSize: "1rem" }}
+                >
+                  PlayFly Playoff
+                </Badge>
+              ) : null}
+              {match.competition == "necc (playoff)" ? (
+                <Badge
+                  className="mt-2"
+                  bg="primary"
+                  style={{ maxWidth: "150px", fontSize: "1rem" }}
+                >
+                  NECC Playoff
+                </Badge>
+              ) : null}
             </Col>
             <Col>
               <Button

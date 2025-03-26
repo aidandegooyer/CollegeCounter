@@ -10,7 +10,7 @@ type EventCardProps = {
 
 const EventCard: React.FC<EventCardProps> = ({ event }) => {
   return (
-    <Card>
+    <Card style={{ marginBottom: "2rem" }}>
       <Card.Body>
         <h1>{event.title}</h1>
         <h3>{event.description}</h3>

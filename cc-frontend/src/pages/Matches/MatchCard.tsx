@@ -225,6 +225,15 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
                   PlayFly Playoff
                 </Badge>
               ) : null}
+              {match.competition == "necc (playoff)" ? (
+                <Badge
+                  className="mt-2"
+                  bg="primary"
+                  style={{ maxWidth: "150px", fontSize: "1rem" }}
+                >
+                  NECC Playoff
+                </Badge>
+              ) : null}
             </Row>
           </Col>
         </Row>
@@ -365,6 +374,15 @@ const MatchCard = ({ match, today, thisweek }: MatchCardProps) => {
                   style={{ maxWidth: "150px", fontSize: "1rem" }}
                 >
                   PlayFly Playoff
+                </Badge>
+              ) : null}
+              {match.competition == "necc (playoff)" ? (
+                <Badge
+                  className="mt-2"
+                  bg="primary"
+                  style={{ maxWidth: "150px", fontSize: "1rem" }}
+                >
+                  NECC Playoff
                 </Badge>
               ) : null}
             </Row>
