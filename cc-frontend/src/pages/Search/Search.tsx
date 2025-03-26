@@ -3,6 +3,7 @@ import { Player, Team, Event } from "../../types";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import logo from "../../assets/0.5x/C Logo@0.5x.png";
+import { useEffect } from "react";
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org";
 
@@ -24,6 +25,10 @@ const fetchSearchResults = async (
 const Search = () => {
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get("query") || "";
+
+  useEffect(() => {
+    document.title = "Search - College Counter";
+  }, []);
 
   const {
     data: searchResults,
