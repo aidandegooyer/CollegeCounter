@@ -4,6 +4,7 @@ interface Player {
     avatar: string;
     skill_level: number;
     elo: number;
+    team_id?: string;
     steam_id?: string;
     faceit_id?: string;
     visible?: boolean;
