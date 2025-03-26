@@ -4,7 +4,7 @@ from cc_backend import logger
 import time
 import requests
 from cc_backend.db import db
-from cc_backend.models import Player, Team, Match
+from cc_backend.models import Event, EventMatch, Player, Team, Match
 
 
 def get_faceit_tournament(
@@ -191,3 +191,63 @@ def update_faceit_matches():
         else:
             logger.error(f"Error updating match {match.match_id}")
     return count
+
+
+def create_necc_bracket(tournament_id):
+    url = f"https://open.faceit.com/data/v4/championships/{tournament_id}/matches"
+    params = {"type": "all", "offset": "0", "limit": "100"}
+    headers = {"Authorization": "Bearer " + current_app.config.get("FACEIT_API_KEY")}
+    response = requests.get(url, headers=headers, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        if not Event.query.get(tournament_id):
+            db_event = Event(
+                event_id=tournament_id,
+                title="NECC D1 Playoffs",
+                description="",
+                start_date=0,
+                end_date=0,
+            )
+            db.session.add(db_event)
+            db.session.flush()
+        for match in data["items"]:
+            match_id = match["match_id"]
+            if not Match.query.get(match_id):
+                db_match = Match(
+                    match_id=match_id,
+                    game=match["game"],
+                    competition="necc",
+                    team1_id=match["teams"]["faction1"]["faction_id"],
+                    team2_id=match["teams"]["faction2"]["faction_id"],
+                    scheduled_time=match.get("scheduled_at")
+                    or match.get("finished_at")
+                    or 0,
+                    status=match["status"],
+                    match_url=match["faceit_url"],
+                    results_winner=match.get("results", {}).get("winner"),
+                    results_score_team1=match.get("results", {})
+                    .get("score", {})
+                    .get("faction1"),
+                    results_score_team2=match.get("results", {})
+                    .get("score", {})
+                    .get("faction2"),
+                )
+                db.session.add(db_match)
+                db.session.flush()
+            if not EventMatch.query.get(match_id):
+                db_event_match = EventMatch(
+                    id=match_id,
+                    event_id=tournament_id,
+                    match_id=match_id,
+                    round="Round " + str(match["round"]),
+                    number_in_bracket=1,
+                    isbye=False,
+                    bye_team_id=None,
+                )
+                db.session.add(db_event_match)
+                db.session.flush()
+            logger.info(f"Created match/EventMatch: {match_id}")
+        db.session.commit()
+
+    else:
+        response.raise_for_status()

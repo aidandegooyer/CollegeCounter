@@ -1,4 +1,3 @@
-from datetime import time
 from flask import Blueprint, abort, send_from_directory, request, current_app
 from cc_backend import logger
 import requests
@@ -203,6 +202,12 @@ def add_player(team_id, player_name):
 @require_token
 def create_playfly_bracket(tournament_id):
     playfly.create_playfly_bracket(tournament_id)
+
+
+@bp.route("/create_necc_bracket/<tournament_id>")
+@require_token
+def create_necc_bracket(tournament_id):
+    necc.create_necc_bracket(tournament_id)
 
 
 ### UPDATE ROUTES ################################################################################
