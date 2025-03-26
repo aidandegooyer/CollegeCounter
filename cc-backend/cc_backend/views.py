@@ -462,7 +462,7 @@ def get_top10():
 def search(query):
     players = Player.query.filter(Player.nickname.ilike(f"%{query}%")).all()
     teams = Team.query.filter(Team.name.ilike(f"%{query}%")).limit(10).all()
-    events = Event.query.filter(Event.name.ilike(f"%{query}%")).limit(10).all()
+    events = Event.query.filter(Event.title.ilike(f"%{query}%")).limit(10).all()
     players = players[:10]
     return {
         "players": [player.as_dict() for player in players],

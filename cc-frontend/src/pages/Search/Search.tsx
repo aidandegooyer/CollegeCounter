@@ -1,5 +1,5 @@
 import { Container, ListGroup, Badge, Spinner, Alert } from "react-bootstrap";
-import { Player, Team } from "../../types";
+import { Player, Team, Event } from "../../types";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import logo from "../../assets/0.5x/C Logo@0.5x.png";
@@ -9,12 +9,14 @@ const apiBaseUrl =
 interface SearchResults {
   players: Player[];
   teams: Team[];
+  events: Event[];
 }
 
 const fetchSearchResults = async (
   searchQuery: string
 ): Promise<SearchResults> => {
-  if (!searchQuery || searchQuery === "") return { players: [], teams: [] };
+  if (!searchQuery || searchQuery === "")
+    return { players: [], teams: [], events: [] };
   const response = await fetch(`${apiBaseUrl}/search/${searchQuery}`);
   return response.json();
 };
@@ -105,6 +107,22 @@ const Search = () => {
         ) : (
           <ListGroup.Item style={{ fontStyle: "italic" }}>
             No players found
+          </ListGroup.Item>
+        )}
+      </ListGroup>
+      <ListGroup style={{ marginBottom: "20px", padding: "20px" }}>
+        <ListGroup.Item>
+          <h1>Events</h1>
+        </ListGroup.Item>
+        {searchResults?.events && searchResults.events.length > 0 ? (
+          searchResults?.events.map((event) => (
+            <ListGroup.Item key={event.event_id}>
+              <Link to={`/event/${event.event_id}`}>{event.title}</Link>
+            </ListGroup.Item>
+          ))
+        ) : (
+          <ListGroup.Item style={{ fontStyle: "italic" }}>
+            No events found
           </ListGroup.Item>
         )}
       </ListGroup>
