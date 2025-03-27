@@ -114,7 +114,7 @@ const CustomSeed = ({ seed, breakpoint }: IRenderSeedProps) => {
               )}
             </SeedTeam>
             <span style={{ marginTop: "5px", marginRight: "10px" }}>
-              {seed.teams[0]?.score || "-"}
+              {seed.teams[0]?.score ?? "-"}
             </span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -136,7 +136,7 @@ const CustomSeed = ({ seed, breakpoint }: IRenderSeedProps) => {
               )}
             </SeedTeam>
             <span style={{ marginTop: "5px", marginRight: "10px" }}>
-              {seed.teams[1]?.score || "-"}
+              {seed.teams[1]?.score ?? "-"}
             </span>
           </div>
         </div>
@@ -193,8 +193,14 @@ const convertMatchesToBracketData = (
         id: detail.match_id,
         date: convertTimestampToDate(detail.scheduled_time),
         teams: [
-          { name: detail.team1_id || "", score: null },
-          { name: detail.team2_id || "", score: null },
+          {
+            name: detail.team1_id || "",
+            score: detail.results_score_team1 ?? null,
+          },
+          {
+            name: detail.team2_id || "",
+            score: detail.results_score_team2 ?? null,
+          },
         ],
       };
     }
