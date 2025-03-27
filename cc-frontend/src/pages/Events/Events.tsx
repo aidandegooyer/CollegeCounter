@@ -27,6 +27,20 @@ const Events = () => {
     document.title = "CC - Events";
   }, []);
 
+  const now = new Date();
+
+  const ongoingEvents = events?.filter(
+    (event) =>
+      new Date(event.start_date * 1000) <= now &&
+      new Date(event.end_date * 1000) >= now
+  );
+  const upcomingEvents = events?.filter(
+    (event) => new Date(event.start_date * 1000) > now
+  );
+  const pastEvents = events?.filter(
+    (event) => new Date(event.end_date * 1000) < now
+  );
+
   if (eventLoading) {
     return (
       <div
@@ -58,12 +72,17 @@ const Events = () => {
       <Container style={{ maxWidth: "800px" }}>
         <h1 className="text-center">Events</h1>
         <h3 style={{ marginTop: "2rem" }}>Ongoing Events</h3>
-        {events?.map((event) => (
+        {ongoingEvents?.map((event) => (
           <EventCard key={event.event_id} event={event} />
         ))}
         <h3 style={{ marginTop: "2rem" }}>Upcoming Events</h3>
-
+        {upcomingEvents?.map((event) => (
+          <EventCard key={event.event_id} event={event} />
+        ))}
         <h3 style={{ marginTop: "2rem" }}>Past Events</h3>
+        {pastEvents?.map((event) => (
+          <EventCard key={event.event_id} event={event} />
+        ))}
       </Container>
     </Container>
   );
