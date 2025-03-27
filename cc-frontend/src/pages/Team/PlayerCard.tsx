@@ -1,4 +1,4 @@
-import { Card, Badge, Button } from "react-bootstrap";
+import { Card, Badge } from "react-bootstrap";
 import { Player } from "../../types";
 import errorImage from "../../assets/error-profile-pic.png";
 import { Link } from "react-router-dom";
