@@ -122,7 +122,7 @@ def update_playfly_match_schedule():
     matches = Match.query.filter(
         Match.scheduled_time <= one_week_from_now,
         Match.status == "SCHEDULED",
-        Match.competition == "playfly",
+        Match.competition.ilike("%playfly%"),
     ).all()
     logger.info(f"Found {len(matches)} matches to update")
     for match in matches:
@@ -162,7 +162,7 @@ def update_playfly_matches():
     matches = Match.query.filter(
         Match.scheduled_time <= datetime.datetime.now().timestamp(),
         Match.status == "SCHEDULED",
-        Match.competition == "playfly",
+        Match.competition.ilike("%playfly%"),
     ).all()
     logger.info(f"Found {len(matches)} matches to update")
 

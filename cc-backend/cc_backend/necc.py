@@ -137,7 +137,7 @@ def get_updated_faceit_schedule(api_key: str):
     matches = Match.query.filter(
         Match.scheduled_time <= one_week_from_now,
         Match.status != "FINISHED",
-        Match.competition == "necc",
+        Match.competition.ilike("%necc%"),
     ).all()
     logger.debug(f"Found {len(matches)} matches to update")
     for match in matches:
@@ -167,7 +167,7 @@ def update_faceit_matches():
     matches = Match.query.filter(
         Match.scheduled_time < int(time.time()),
         Match.status != "FINISHED",
-        Match.competition == "necc",
+        Match.competition.ilike("%necc%"),
     ).all()
     for match in matches:
         url = f"https://open.faceit.com/data/v4/matches/{match.match_id}"
