@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Container, Spinner } from "react-bootstrap";
 import { Event } from "../../types";
 import EventCard from "./EventCard";
+import { useEffect } from "react";
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org";
 
@@ -21,6 +22,10 @@ const Events = () => {
     queryFn: () => fetchEvents(),
     staleTime: 1000 * 60 * 10,
   });
+
+  useEffect(() => {
+    document.title = "CC - Events";
+  }, []);
 
   if (eventLoading) {
     return (
