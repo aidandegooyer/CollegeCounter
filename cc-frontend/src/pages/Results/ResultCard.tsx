@@ -167,7 +167,11 @@ const ResultCard: React.FC<ResultCardProps> = ({ match }) => {
                 <Badge
                   className="mt-2"
                   bg="primary"
-                  style={{ maxWidth: "150px", fontSize: "1rem" }}
+                  style={{
+                    maxWidth: "130px",
+                    fontSize: "1rem",
+                    marginLeft: "1rem",
+                  }}
                 >
                   NECC Playoff
                 </Badge>
