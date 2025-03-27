@@ -1,6 +1,7 @@
 import { Card, Badge, Button } from "react-bootstrap";
 import { Player } from "../../types";
 import errorImage from "../../assets/error-profile-pic.png";
+import { Link } from "react-router-dom";
 
 interface PlayerCardProps {
   player: Player;
@@ -9,11 +10,6 @@ interface PlayerCardProps {
 }
 
 const PlayerCard: React.FC<PlayerCardProps> = ({ player, leader, image }) => {
-  const handlePlayerClick = () => {
-    // open new tab with player profile
-    window.open(`https://www.faceit.com/en/players/${player.nickname}`);
-  };
-
   const getLevelColor = (level: number) => {
     if (level < 3) {
       return "secondary";
@@ -60,24 +56,21 @@ const PlayerCard: React.FC<PlayerCardProps> = ({ player, leader, image }) => {
           ) : (
             ""
           )}
-          {player.nickname}
+          <Link
+            to={`/player?id=${player.player_id}`}
+            style={{ color: "var(--bs-body-color)" }}
+          >
+            {player.nickname}
+          </Link>
         </Card.Title>
         <div className="d-flex justify-content-center">
           <Badge
             bg={getLevelColor(player.skill_level)}
-            style={{ width: "150px" }}
+            style={{ width: "150px", marginBottom: "1rem" }}
           >
             Level: {player.skill_level} (ELO: {player.elo})
           </Badge>
         </div>
-        <Button
-          className="d-none d-md-block"
-          variant="primary"
-          style={{ margin: "1rem" }}
-          onClick={handlePlayerClick}
-        >
-          View Profile
-        </Button>
       </Card>
     </>
   );
