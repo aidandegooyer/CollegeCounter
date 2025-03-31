@@ -38,7 +38,7 @@ const Footer = () => {
         </Row>
         <Row>
           <span style={{ fontSize: "0.8rem", color: "var(--bs-gray)" }}>
-            ©2025 College Counter{" "}
+            ©2025 Station XI LLC.
           </span>
         </Row>
       </Container>
