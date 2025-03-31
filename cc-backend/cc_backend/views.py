@@ -219,7 +219,8 @@ def update_schedule():
     count = necc.get_updated_faceit_schedule(
         api_key=current_app.config.get("FACEIT_API_KEY")
     )
-    return f"Schedule for {count} matches updated! "
+    count2 = playfly.update_playfly_match_schedule()
+    return f"Schedule for {count + count2} matches updated! "
 
 
 # !! SCARY!!! MAKES 300 api calls

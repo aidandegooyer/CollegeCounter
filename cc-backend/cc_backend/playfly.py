@@ -124,15 +124,27 @@ def update_playfly_match_schedule():
         Match.status == "SCHEDULED",
         Match.competition.ilike("%playfly%"),
     ).all()
-    logger.info(f"Found {len(matches)} matches to update")
+    logger.info(f"Found {len(matches)} playfly matches to update schedule for")
+    count = 0
     for match in matches:
-        url = f"https://esports.playflycollege.gg/matches/{match.match_id}"
-        response = requests.get(url)
+        url = f"https://api.leaguespot.gg/api/v2/matches/{match.match_id}"
+        headers = {
+            "X-League-Id": "53015f28-5b33-4882-9f8b-16dcbb13deee",
+            "X-App": "web",
+            "X-Version": "20240912.2",
+        }
+        response = requests.get(url, headers=headers)
         if response.status_code == 200:
             data = response.json()
-            if data.get("scheduled_at") != match.scheduled_time:
-                match.scheduled_time = data.get("scheduled_at")
+            time = int(
+                datetime.datetime.strptime(data["startTimeUtc"], "%Y-%m-%dT%H:%M:%SZ")
+                .replace(tzinfo=datetime.timezone.utc)  # Explicitly set timezone to UTC
+                .timestamp()
+            )
+            if time != match.scheduled_time:
+                match.scheduled_time = time
                 logger.debug(f"Match {match.match_id} schedule updated")
+                count += 1
             else:
                 logger.debug(f"Match {match.match_id} already up to date")
 
@@ -140,6 +152,7 @@ def update_playfly_match_schedule():
         else:
             logger.debug(f"Match {match.match_id} not found")
     db.session.commit()
+    return count
 
 
 def get_team_image_url(team_id):
@@ -160,11 +173,11 @@ def get_team_image_url(team_id):
 def update_playfly_matches():
     count = 0
     matches = Match.query.filter(
-        Match.scheduled_time <= datetime.datetime.now().timestamp(),
+        Match.scheduled_time <= datetime.datetime.now().timestamp() + 24 * 60 * 60,
         Match.status == "SCHEDULED",
         Match.competition.ilike("%playfly%"),
     ).all()
-    logger.info(f"Found {len(matches)} matches to update")
+    logger.info(f"Found {len(matches)} playfly matches to update results for")
 
     for match in matches:
         # get team participant ids from database
