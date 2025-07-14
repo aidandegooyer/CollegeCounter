@@ -1,10 +1,14 @@
 import "./App.css";
-import Admin from "@/pages/Admin/Admin";
+import Navbar from "@/components/Navbar";
+import Home from "@/pages/Home/Home";
 
 function App() {
   return (
     <>
-      <Admin />
+      <Navbar />
+      <div className="app-container flex justify-center mt-2">
+        <Home />
+      </div>
     </>
   );
 }

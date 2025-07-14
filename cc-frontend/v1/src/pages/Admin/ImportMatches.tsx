@@ -136,7 +136,7 @@ function ImportMatches() {
       <h1 className="text-6xl">Import Matches</h1>
       {ImportFlow(step)}
       <button
-        className="bg-primary p-2 px-4 rounded-md cursor-pointer hover:brightness-75 transition-all"
+        className="bg-primary p-2 px-4 rounded-md cursor-pointer hover:bg-[#b5670b] transition-all duration-300"
         onClick={nextStep}
       >
         Next

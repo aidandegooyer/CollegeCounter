@@ -1,0 +1,14 @@
+
+.animate-radio-blink {
+  animation: radio-blink 3.2s infinite;
+  filter: drop-shadow(0 0 8px #ff0000);
+}
+@keyframes radio-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
