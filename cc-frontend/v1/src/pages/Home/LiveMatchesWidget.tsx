@@ -1,14 +1,18 @@
 import logo from "@/assets/0.1x/C Logo@0.1x.png";
 import { Radio } from "lucide-react";
 import "./LiveMatchesWidget.css";
+import { NavLink } from "react-router";
 
 function LiveMatchesWidget() {
   return (
     <div className="matches-widget">
-      <div className="flex items-center justify-between">
+      <NavLink
+        to="matches#live"
+        className="flex cursor-pointer items-center justify-between"
+      >
         <h2>Live Matches</h2>
         <Radio className="animate-radio-blink mr-2 h-6 w-6 text-red-500" />
-      </div>
+      </NavLink>
       <hr />
       <ul className="mt-2 space-y-2">
         <Match />

@@ -1,58 +1,97 @@
 import { Input } from "./ui/input";
+import { NavLink, useLocation } from "react-router";
 import logo from "../assets/0.1x/C Logo@0.1x.png";
 
 function Navbar() {
+  let location = useLocation();
+
   return (
-    <nav className="px-4 py-3 w-full">
-      <div className="container flex justify-between items-center max-w-[1200px] mx-auto">
-        <div className="flex items-center">
+    <nav className="w-full px-4 py-3">
+      <div className="container mx-auto flex max-w-[1200px] items-center justify-between">
+        <NavLink to="/" className="flex items-center">
           <img
             src={logo}
             alt="College Counter Logo"
-            className="h-10 w-10 mr-2"
+            className="mr-2 h-10 w-10 rounded-sm"
           />
-          <div className="text-2xl font-bold">College Counter</div>
-        </div>
+          <div
+            className={`hidden text-2xl font-bold lg:block ${
+              location.pathname === "/"
+                ? "text-foreground"
+                : "text-muted-foreground"
+            }`}
+          >
+            College Counter
+          </div>
+        </NavLink>
         <ul className="flex space-x-6">
           <li>
-            <a
-              href="/"
-              className="hover:text-blue-200 text-muted-foreground transition-colors"
+            <NavLink
+              to="/news"
+              className={`transition-colors hover:text-blue-200 ${
+                location.pathname === "/news"
+                  ? "text-foreground"
+                  : "text-muted-foreground"
+              }`}
+            >
+              News
+            </NavLink>
+          </li>
+          <li>
+            <NavLink
+              to="/rankings"
+              className={`transition-colors hover:text-blue-200 ${
+                location.pathname === "/rankings"
+                  ? "text-foreground"
+                  : "text-muted-foreground"
+              }`}
             >
               Rankings
-            </a>
+            </NavLink>
           </li>
           <li>
-            <a
-              href="/"
-              className="hover:text-blue-200 text-muted-foreground transition-colors"
+            <NavLink
+              to="/matches"
+              className={`transition-colors hover:text-blue-200 ${
+                location.pathname === "/matches"
+                  ? "text-foreground"
+                  : "text-muted-foreground"
+              }`}
             >
               Matches
-            </a>
+            </NavLink>
           </li>
+
           <li>
-            <a
-              href="/about"
-              className="hover:text-blue-200 text-muted-foreground transition-colors"
-            >
-              Results
-            </a>
-          </li>
-          <li>
-            <a
-              href="/contact"
-              className="hover:text-blue-200 text-muted-foreground transition-colors"
+            <NavLink
+              to="/events"
+              className={`transition-colors hover:text-blue-200 ${
+                location.pathname === "/events"
+                  ? "text-foreground"
+                  : "text-muted-foreground"
+              }`}
             >
               Events
-            </a>
+            </NavLink>
           </li>
         </ul>
-        <div>
-          <Input placeholder="Search" />
+        <div className="hidden md:block">
+          <SearchInput />
         </div>
+      </div>
+      <div className="mt-2 block md:hidden">
+        <SearchInput />
       </div>
     </nav>
   );
 }
 
 export default Navbar;
+
+function SearchInput() {
+  return (
+    <div>
+      <Input placeholder="Search" />
+    </div>
+  );
+}

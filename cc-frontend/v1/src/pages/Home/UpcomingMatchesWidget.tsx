@@ -1,13 +1,17 @@
 import logo from "@/assets/0.1x/C Logo@0.1x.png";
 import { ChevronRight, Star } from "lucide-react";
+import { NavLink } from "react-router";
 
 function UpcomingMatchesWidget() {
   return (
     <div className="matches-widget">
-      <div className="group flex cursor-pointer items-center justify-between">
+      <NavLink
+        to="/matches"
+        className="group flex cursor-pointer items-center justify-between"
+      >
         <h2>Upcoming Matches</h2>
         <ChevronRight className="text-muted-foreground mr-2 h-6 w-6 transition-all group-hover:mr-0" />
-      </div>
+      </NavLink>
       <hr />
       <ul className="mt-2 space-y-2">
         <Match />

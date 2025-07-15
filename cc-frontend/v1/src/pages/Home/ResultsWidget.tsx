@@ -1,13 +1,17 @@
 import logo from "@/assets/0.1x/C Logo@0.1x.png";
 import { ChevronRight } from "lucide-react";
+import { NavLink } from "react-router";
 
 function ResultsWidget() {
   return (
     <div className="matches-widget">
-      <div className="group flex cursor-pointer items-center justify-between">
-        <h2>Completed Matches</h2>
+      <NavLink
+        to="matches#past"
+        className="group flex cursor-pointer items-center justify-between"
+      >
+        <h2>Past Matches</h2>
         <ChevronRight className="text-muted-foreground mr-2 h-6 w-6 transition-all group-hover:mr-0" />
-      </div>
+      </NavLink>
       <hr />
       <ul className="mt-2 space-y-2">
         <Match />

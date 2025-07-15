@@ -1,17 +1,23 @@
-import { ChevronRight } from "lucide-react";
 import logo from "@/assets/0.5x/C Logo@0.5x.png";
-import { NavLink } from "react-router";
+
+function News() {
+  return (
+    <div className="app-container mx-4 mt-2 flex justify-center">
+      <div className="news w-full max-w-[1200px]">
+        <div className="flex justify-center">
+          <NewsWidget />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default News;
 
 function NewsWidget() {
   return (
-    <div className="news-widget">
-      <NavLink
-        to="/news"
-        className="group flex cursor-pointer items-center justify-between"
-      >
-        <h2>News</h2>
-        <ChevronRight className="text-muted-foreground mr-2 h-6 w-6 transition-all group-hover:mr-0" />
-      </NavLink>
+    <div className="news-feed w-full max-w-[800px] p-4">
+      <h1>News</h1>
       <hr />
       <ul className="mt-2 space-y-2">
         <FeaturedNews />
@@ -21,8 +27,6 @@ function NewsWidget() {
     </div>
   );
 }
-
-export default NewsWidget;
 
 function FeaturedNews() {
   return (

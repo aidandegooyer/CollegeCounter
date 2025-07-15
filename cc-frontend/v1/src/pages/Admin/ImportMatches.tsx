@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 
 function SelectPlatform() {
   return (
-    <div className="flex flex-col items-center justify-center space-y-4 mb-8">
+    <div className="mb-8 flex flex-col items-center justify-center space-y-4">
       <h1 className="text-3xl">Select Platform</h1>
       <RadioGroup defaultValue="option-one">
         <div className="flex items-center space-x-2">
@@ -29,7 +29,7 @@ function SelectPlatform() {
 }
 function SelectLeagueOrEvent() {
   return (
-    <div className="flex flex-col items-center justify-center space-y-4 mb-8">
+    <div className="mb-8 flex flex-col items-center justify-center space-y-4">
       <h1 className="text-3xl">Select Type</h1>
       <RadioGroup defaultValue="option-one">
         <div className="flex items-center space-x-2">
@@ -46,7 +46,7 @@ function SelectLeagueOrEvent() {
 }
 function SelectOrCreateSeason() {
   return (
-    <div className="flex flex-col items-center justify-center space-y-4 mb-8">
+    <div className="mb-8 flex flex-col items-center justify-center space-y-4">
       <h1 className="text-3xl">Select Season</h1>
       <Select>
         <SelectTrigger className="w-[180px]">
@@ -63,7 +63,7 @@ function SelectOrCreateSeason() {
 }
 function MetadataForm() {
   return (
-    <div className="flex flex-col items-center justify-center space-y-4 mb-8">
+    <div className="mb-8 flex flex-col items-center justify-center space-y-4">
       <h1 className="text-3xl">Input Data</h1>
       <Select>
         <SelectTrigger className="w-[180px]">
@@ -132,16 +132,23 @@ function ImportMatches() {
   const nextStep = () => setStep((prev) => Math.min(prev + 1, 5));
 
   return (
-    <div>
-      <h1 className="text-6xl">Import Matches</h1>
-      {ImportFlow(step)}
-      <button
-        className="bg-primary p-2 px-4 rounded-md cursor-pointer hover:bg-[#b5670b] transition-all duration-300"
-        onClick={nextStep}
-      >
-        Next
-      </button>
-    </div>
+    <>
+      <div className="flex justify-center">
+        <div className="max-w-[600px]">
+          <h1 className="mb-8">Import Matches</h1>
+
+          {ImportFlow(step)}
+          <div className="flex justify-end">
+            <button
+              className="bg-primary cursor-pointer rounded-md p-2 px-4 text-end transition-all duration-300 hover:bg-[#b5670b]"
+              onClick={nextStep}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
