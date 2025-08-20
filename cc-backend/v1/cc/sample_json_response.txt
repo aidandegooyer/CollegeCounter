@@ -1,0 +1,121 @@
+Retrieve all matches of a championship:
+{
+  "end": 0,
+  "items": [
+    {
+      "best_of": 0,
+      "broadcast_start_time": 0,
+      "broadcast_start_time_label": "string",
+      "calculate_elo": true,
+      "chat_room_id": "string",
+      "competition_id": "string",
+      "competition_name": "string",
+      "competition_type": "string",
+      "configured_at": 0,
+      "demo_url": [
+        "string"
+      ],
+      "detailed_results": [
+        {
+          "asc_score": true,
+          "factions": {
+            "property1": {
+              "score": 2
+            },
+            "property2": {
+              "score": 2
+            }
+          },
+          "winner": "string"
+        }
+      ],
+      "faceit_url": "string",
+      "finished_at": 0,
+      "game": "string",
+      "group": 0,
+      "match_id": "string",
+      "organizer_id": "string",
+      "region": "string",
+      "results": {
+        "score": {
+          "property1": 0,
+          "property2": 0
+        },
+        "winner": "string"
+      },
+      "round": 0,
+      "scheduled_at": 0,
+      "started_at": 0,
+      "status": "string",
+      "teams": {
+        "property1": {
+          "avatar": "string",
+          "faction_id": "string",
+          "leader": "string",
+          "name": "string",
+          "roster": [
+            {
+              "anticheat_required": true,
+              "avatar": "string",
+              "game_player_id": "string",
+              "game_player_name": "string",
+              "game_skill_level": 0,
+              "membership": "string",
+              "nickname": "string",
+              "player_id": "string"
+            }
+          ],
+          "roster_v1": null,
+          "stats": {
+            "rating": 0,
+            "skillLevel": {
+              "average": 0,
+              "range": {
+                "max": 0,
+                "min": 0
+              }
+            },
+            "winProbability": 0
+          },
+          "substituted": true,
+          "type": "string"
+        },
+        "property2": {
+          "avatar": "string",
+          "faction_id": "string",
+          "leader": "string",
+          "name": "string",
+          "roster": [
+            {
+              "anticheat_required": true,
+              "avatar": "string",
+              "game_player_id": "string",
+              "game_player_name": "string",
+              "game_skill_level": 0,
+              "membership": "string",
+              "nickname": "string",
+              "player_id": "string"
+            }
+          ],
+          "roster_v1": null,
+          "stats": {
+            "rating": 0,
+            "skillLevel": {
+              "average": 0,
+              "range": {
+                "max": 0,
+                "min": 0
+              }
+            },
+            "winProbability": 0
+          },
+          "substituted": true,
+          "type": "string"
+        }
+      },
+      "version": 0,
+      "voting": null
+    }
+  ],
+  "start": 0
+}

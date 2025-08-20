@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import ImportMatches from "./ImportMatches";
+import DatabaseViewer from "./DatabaseViewer";
 import { getAuth, signOut } from "firebase/auth";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function Admin() {
   const auth = getAuth();
@@ -24,7 +26,19 @@ function Admin() {
           Sign Out
         </Button>
       </div>
-      <ImportMatches />
+
+      <Tabs defaultValue="import" className="w-full">
+        <TabsList>
+          <TabsTrigger value="import">Import Matches</TabsTrigger>
+          <TabsTrigger value="database">Database Viewer</TabsTrigger>
+        </TabsList>
+        <TabsContent value="import">
+          <ImportMatches />
+        </TabsContent>
+        <TabsContent value="database">
+          <DatabaseViewer />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
