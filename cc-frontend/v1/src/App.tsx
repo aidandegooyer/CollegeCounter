@@ -13,6 +13,7 @@ import Matches from "@/pages/Matches/Matches";
 import News from "@/pages/News/News";
 import Admin from "@/pages/Admin/Admin";
 import SignIn from "@/pages/Admin/SignIn";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDrfCYvSpHIFdvVkVsaMSMgil-d2W9JZWc",
@@ -23,6 +24,8 @@ const firebaseConfig = {
   appId: "1:391353509794:web:830723864996c2e85bb4fb",
   measurementId: "G-LP3PPN2BT4",
 };
+
+const queryClient = new QueryClient();
 
 initializeApp(firebaseConfig);
 
@@ -49,29 +52,31 @@ function ProtectedRoute({ children }: { children: React.ReactElement }) {
 function App() {
   return (
     <>
-      <BrowserRouter>
-        <Navbar />
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Navbar />
 
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/news" element={<News />} />
-          <Route path="/rankings" element={<Rankings />} />
-          <Route path="/matches" element={<Matches />} />
-          <Route path="/events" element={<Home />} />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute>
-                <Admin />
-              </ProtectedRoute>
-            }
-          />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/news" element={<News />} />
+            <Route path="/rankings" element={<Rankings />} />
+            <Route path="/matches" element={<Matches />} />
+            <Route path="/events" element={<Home />} />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route path="/signin" element={<SignIn />} />
-        </Routes>
+            <Route path="/signin" element={<SignIn />} />
+          </Routes>
 
-        <Footer />
-      </BrowserRouter>
+          <Footer />
+        </BrowserRouter>
+      </QueryClientProvider>
     </>
   );
 }

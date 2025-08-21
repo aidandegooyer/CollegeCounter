@@ -520,17 +520,21 @@ def public_seasons(request):
     }
 
     for season in paginated_seasons:
+        # Convert datetime to date for comparison if needed
+        current_date = datetime.now().date()
+        is_current = False
+        if season.start_date and season.end_date:
+            is_current = (
+                season.start_date.date() <= current_date <= season.end_date.date()
+            )
+
         result["results"].append(
             {
                 "id": season.id,
                 "name": season.name,
                 "start_date": season.start_date,
                 "end_date": season.end_date,
-                "is_current": (
-                    season.start_date <= datetime.now().date() <= season.end_date
-                    if season.start_date and season.end_date
-                    else False
-                ),
+                "is_current": is_current,
             }
         )
 

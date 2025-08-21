@@ -1,10 +1,60 @@
 import logo from "@/assets/0.1x/C Logo@0.1x.png";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Spinner } from "@/components/ui/shadcn-io/spinner";
+import type { PublicTeam } from "@/services/api";
+import { usePublicTeams } from "@/services/hooks";
 import { ChevronRight } from "lucide-react";
 import { NavLink } from "react-router";
 
 function TeamRankingsWidget() {
+  const { data, isLoading, error } = usePublicTeams(
+    { sort: "elo", order: "desc", page: 1, page_size: 10 },
+    {
+      staleTime: 1000 * 60 * 5,
+    },
+  );
+
+  if (error) {
+    return (
+      <div className="rankings-widget h-103 rounded-xl border-2 px-4 py-2">
+        <NavLink
+          to="/rankings#player"
+          className="group flex cursor-pointer items-center justify-between"
+        >
+          <h2>Player Rankings</h2>
+          <ChevronRight className="text-muted-foreground mr-2 h-6 w-6 transition-all group-hover:mr-0" />
+        </NavLink>
+        <hr />
+        <Alert variant="destructive" className="mt-4">
+          <AlertTitle className="text-lg">Error</AlertTitle>
+          <AlertDescription>
+            There was an error loading the player rankings. Please try again
+            later.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+  if (isLoading || !data) {
+    return (
+      <div className="rankings-widget h-103 rounded-xl border-2 px-4 py-2">
+        <NavLink
+          to="/rankings#player"
+          className="group flex cursor-pointer items-center justify-between"
+        >
+          <h2>Player Rankings</h2>
+          <ChevronRight className="text-muted-foreground mr-2 h-6 w-6 transition-all group-hover:mr-0" />
+        </NavLink>
+        <hr />
+        <div>
+          <Spinner className="mx-auto my-4" />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="rankings-widget rounded-xl border-2 px-4 py-2">
+    <div className="rankings-widget h-103 rounded-xl border-2 px-4 py-2">
       <NavLink
         to="/rankings#team"
         className="group flex cursor-pointer items-center justify-between"
@@ -14,30 +64,38 @@ function TeamRankingsWidget() {
       </NavLink>
       <hr />
       <ul className="space-y-3 py-2 pt-3">
-        {Array.from({ length: 10 }).map((_, i) => (
-          <RankingItem key={i} index={i} />
+        {data.results.map((team, i) => (
+          <RankingItem key={team.id || i} index={i} team={team} />
         ))}
       </ul>
     </div>
   );
 }
 
-function RankingItem({ index }: { index: number }) {
-  const rank = index + 1;
-  const elo = Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000;
+interface RankingItemProps {
+  index: number;
+  team: PublicTeam;
+}
+
+function RankingItem(props: RankingItemProps) {
+  const rank = props.index + 1;
 
   return (
     <li className="flex justify-between">
       <div className="flex items-center space-x-2">
         <span className="mr-3 w-4 text-end font-mono">{rank}</span>
-        <img src={logo} className="h-6 w-6 rounded-sm" alt="Logo" />
-        <span className="truncate overflow-ellipsis whitespace-nowrap">
-          Test Team
-        </span>
+        <img
+          src={props.team.picture || logo}
+          className="h-6 w-6 rounded-sm"
+          alt="pfp"
+        />
+        <div className="max-w-[128px] truncate overflow-ellipsis whitespace-nowrap">
+          {props.team.name}
+        </div>
       </div>
       <div>
         <span className="bg-secondary drop-shadow-secondary drop-shadow-lg/50 rounded-md p-1 font-mono text-sm">
-          {elo}
+          {props.team.elo}
         </span>
       </div>
     </li>

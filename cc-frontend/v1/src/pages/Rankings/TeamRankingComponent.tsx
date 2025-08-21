@@ -1,9 +1,50 @@
 import logo from "@/assets/0.1x/C Logo@0.1x.png";
-import player from "@/assets/player_silhouette.png";
+import silhouette from "@/assets/player_silhouette.png";
 import { useState } from "react";
+import type { PublicTeam } from "@/services/api";
+import { usePublicPlayers } from "@/services/hooks";
+import { Spinner } from "@/components/ui/shadcn-io/spinner";
 
-function TeamRankingComponent() {
+function TeamRankingComponent(team: PublicTeam) {
   const [expanded, setExpanded] = useState(false);
+
+  const { data, error, isLoading } = usePublicPlayers(
+    {
+      team_id: team.id,
+      sort: "elo",
+      order: "desc",
+      visible: true,
+      benched: false,
+      page_size: 5,
+    },
+    { enabled: expanded },
+  );
+
+  function expandedCard() {
+    if (isLoading)
+      return (
+        <div className="flex h-40 items-center justify-center">
+          <Spinner></Spinner>
+        </div>
+      );
+    if (error || data == undefined) return <div>Error loading players</div>;
+
+    return (
+      <div className="mx-12 flex justify-between pt-3">
+        {data.results.map((player, i) => (
+          <div key={i}>
+            <img
+              src={player.picture || silhouette}
+              className="h-32 w-32"
+              alt="Player"
+            />
+            <p className="border-t-2 text-center">{player.name}</p>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div
       className={
@@ -14,27 +55,28 @@ function TeamRankingComponent() {
       <div className="flex justify-between">
         <div className="flex items-center space-x-2">
           <span className="mr-3 w-4 text-end font-mono text-xl">#</span>
-          <img src={logo} className="h-8 w-8 rounded-sm" alt="Logo" />
+          <img
+            src={team.picture || logo}
+            className="h-8 w-8 rounded-sm"
+            alt="Logo"
+          />
           <span className="truncate overflow-ellipsis whitespace-nowrap text-xl">
-            Test Team
+            {team.name}
           </span>
         </div>
         <div>
           <div className="bg-secondary drop-shadow-secondary drop-shadow-lg/50 rounded-md p-1 px-2 font-mono text-lg">
-            ####
+            {team.elo}
           </div>
         </div>
       </div>
       <div
-        className={`hidden transition-all duration-300 md:block ${expanded ? "max-h-[500px]" : "max-h-0 overflow-hidden"}`}
+        className={`hidden transition-all duration-300 md:block ${expanded ? "h-[165px]" : "h-0 overflow-hidden"}`}
       >
-        <div className="mx-12 flex justify-between">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i}>
-              <img src={player} className="h-32 w-32" alt="Player" />
-              <p className="border-t-2 text-center">Player {i + 1}</p>
-            </div>
-          ))}
+        <div
+          className={`bg-background z-10 transition-all duration-300 ${expanded ? "opacity-100" : "opacity-0"}`}
+        >
+          {expandedCard()}
         </div>
       </div>
     </div>

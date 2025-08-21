@@ -1,7 +1,21 @@
-import { ArrowRight, Star } from "lucide-react";
+import { ArrowRight, Star, Filter } from "lucide-react";
 import logo from "@/assets/0.1x/C Logo@0.1x.png";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/shadcn-io/spinner";
+import { usePublicMatches, usePublicSeasons } from "@/services/hooks";
+import InfiniteScroll from "react-infinite-scroll-component";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import type { PublicMatch, MatchQueryParams } from "@/services/api";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function Matches() {
   var initMatchType = "upcoming";
@@ -205,50 +219,136 @@ function UpcomingMatch() {
 }
 
 function Past() {
+  const [page, setPage] = useState(1);
+  const [matches, setMatches] = useState<PublicMatch[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [filters, setFilters] = useState<MatchQueryParams>({
+    date_from: "",
+    date_to: "",
+    season_id: "",
+    competition_id: "",
+    sort: "date",
+    order: "desc",
+    status: "completed",
+  });
+
+  // Apply filters to the query
+  const { data, isLoading, error } = usePublicMatches(
+    {
+      page,
+      page_size: 30,
+    },
+    {
+      staleTime: 1000 * 60 * 5,
+      keepPreviousData: true,
+    },
+  );
+
+  // Update matches when data changes
+  useEffect(() => {
+    if (data?.results) {
+      setMatches((prevMatches) =>
+        page === 1 ? data.results : [...prevMatches, ...data.results],
+      );
+      setHasMore(data.results.length > 0 && data.results.length === 30);
+    }
+  }, [data, page]);
+
+  const loadMoreMatches = () => {
+    if (!isLoading && hasMore) {
+      setPage((prevPage) => prevPage + 1);
+    }
+  };
+
+  const handleFilterChange = (newFilters: Partial<typeof filters>) => {
+    setFilters((prev) => ({ ...prev, ...newFilters }));
+  };
+
+  if (error) {
+    return (
+      <Alert variant="destructive" className="mt-4">
+        <AlertTitle className="text-lg">Error</AlertTitle>
+        <AlertDescription>
+          There was an error loading the match history. Please try again later.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <>
-      <h1>Yesterday</h1>
-      <hr />
-      <ul className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Result key={i} />
-        ))}
-      </ul>
-      <h1 className="mt-8">Last Week</h1>
-      <hr />
-      <ul className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-        {Array.from({ length: 50 }).map((_, i) => (
-          <Result key={i} />
-        ))}
-      </ul>
+      <div className="mb-2 flex flex-col md:flex-row md:items-start md:justify-between">
+        <div>
+          <h1>Past Matches</h1>
+          <hr />
+        </div>
+      </div>
+      {/* TODO: FIX THIS<MatchesFilter filters={filters} onFilterChange={handleFilterChange} />*/}
+
+      <InfiniteScroll
+        dataLength={matches.length}
+        hasMore={hasMore}
+        next={loadMoreMatches}
+        loader={
+          <div className="flex h-10 justify-center">
+            <Spinner />
+          </div>
+        }
+        endMessage={
+          <div className="text-muted-foreground my-4 text-center">
+            No more matches to load
+          </div>
+        }
+        className="infinite-scroll-container"
+      >
+        <ul className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {matches.map((match, i) => (
+            <Result key={match.id || i} match={match} />
+          ))}
+        </ul>
+      </InfiniteScroll>
     </>
   );
 }
 
-function Result() {
+interface ResultProps {
+  match: PublicMatch;
+}
+
+function Result(props: ResultProps) {
+  const winningTeamId = props.match.winner?.id;
+  var winner, loser;
+  if (winningTeamId === props.match.team1.id) {
+    winner = props.match.team1;
+    loser = props.match.team2;
+  } else {
+    winner = props.match.team2;
+    loser = props.match.team1;
+  }
+
   return (
     <li className="cursor-pointer rounded-xl border-2 p-4 py-2">
       <div className="flex">
         <div className="flex-3 space-y-2">
           <div className="flex items-center space-x-2">
-            <img src={logo} className="h-6 w-6" alt="Logo" />
+            <img src={winner.picture || logo} className="h-6 w-6" alt="pfp" />
             <span className="truncate overflow-ellipsis whitespace-nowrap font-semibold">
-              Syracuse University
+              {winner.name}
             </span>
             <span className="flex justify-end">
               <p className="ml-2 rounded-sm px-1 font-mono text-xs text-green-500">
-                +76
+                {/* TODO: INCLUDE +- ELO FROM RESULTS */}
               </p>
             </span>
           </div>
           <div className="flex items-center space-x-2 overflow-ellipsis">
-            <img src={logo} className="h-6 w-6" alt="Logo" />
+            <img src={loser.picture || logo} className="h-6 w-6" alt="pfp" />
             <span className="text-muted-foreground truncate overflow-ellipsis whitespace-nowrap">
-              University of Texas
+              {loser.name}
             </span>
             <span className="flex justify-end">
               <p className="ml-2 rounded-sm px-1 font-mono text-xs text-red-500">
-                -76
+                {/* TODO: INCLUDE +- ELO FROM RESULTS */}
               </p>
             </span>
           </div>
@@ -256,16 +356,178 @@ function Result() {
         <div className="flex-1 space-y-2 text-end">
           <span className="flex justify-end">
             <p className="bg-muted ml-2 rounded-sm px-1 font-mono text-green-500">
-              2
+              {Math.max(props.match.score_team1, props.match.score_team2)}
             </p>
           </span>
           <span className="flex justify-end">
             <p className="bg-muted ml-2 rounded-sm px-1 font-mono text-red-500">
-              1
+              {Math.min(props.match.score_team1, props.match.score_team2)}
             </p>
           </span>
         </div>
       </div>
+      <div className="mt-2 flex items-end justify-between">
+        <p className="text-muted-foreground bg-muted rounded-sm px-1 py-0.5">
+          {new Date(props.match.date).toLocaleString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })}
+        </p>
+        <div className="bg-secondary rounded-sm px-1 py-0.5">
+          {props.match.platform}
+        </div>
+      </div>
     </li>
+  );
+}
+
+interface MatchesFilterProps {
+  filters: MatchQueryParams;
+  onFilterChange: (filters: Partial<MatchQueryParams>) => void;
+}
+
+function MatchesFilter({ filters, onFilterChange }: MatchesFilterProps) {
+  const { data: seasonsData, isLoading, error } = usePublicSeasons();
+  const seasons = seasonsData?.results || [];
+
+  if (isLoading) {
+    return (
+      <div className="matches-filter mt-4 w-full rounded-xl border-2 p-4 md:mt-0 md:w-auto">
+        <Spinner className="mx-auto my-4" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="matches-filter mt-4 w-full rounded-xl border-2 p-4 md:mt-0 md:w-auto">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="font-semibold">Filter Matches</h2>
+      </div>
+
+      <div className="mt-2 flex space-x-2">
+        <div className="space-y-1">
+          <Label htmlFor="date-from">From Date</Label>
+          <Input
+            id="date-from"
+            type="date"
+            value={filters.date_from || ""}
+            onChange={(e) => onFilterChange({ date_from: e.target.value })}
+            className="w-full"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="date-to">To Date</Label>
+          <Input
+            id="date-to"
+            type="date"
+            value={filters.date_to || ""}
+            onChange={(e) => onFilterChange({ date_to: e.target.value })}
+            className="w-full"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="season">Season</Label>
+          <Select
+            value={filters.season_id || "all_seasons"}
+            onValueChange={(value) =>
+              onFilterChange({
+                season_id: value === "all_seasons" ? "" : value,
+              })
+            }
+          >
+            <SelectTrigger id="season">
+              <SelectValue placeholder="Select a season" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all_seasons">All Seasons</SelectItem>
+              {seasons.map((season) => (
+                <SelectItem key={season.id} value={season.id}>
+                  {season.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="competition">Competition</Label>
+          <Select
+            value={filters.competition_id || "all_competitions"}
+            onValueChange={(value) =>
+              onFilterChange({
+                competition_id: value === "all_competitions" ? "" : value,
+              })
+            }
+          >
+            <SelectTrigger id="competition">
+              <SelectValue placeholder="Select a competition" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all_competitions">All Competitions</SelectItem>
+              <SelectItem value="necc">NECC</SelectItem>
+              <SelectItem value="playfly">Playfly</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="sort">Sort By</Label>
+          <Select
+            value={filters.sort || "date"}
+            onValueChange={(value: "date" | "status") =>
+              onFilterChange({ sort: value })
+            }
+          >
+            <SelectTrigger id="sort">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date">Date</SelectItem>
+              <SelectItem value="status">Status</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="order">Order</Label>
+          <Select
+            value={filters.order || "desc"}
+            onValueChange={(value: "asc" | "desc") =>
+              onFilterChange({ order: value })
+            }
+          >
+            <SelectTrigger id="order">
+              <SelectValue placeholder="Order" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="desc">Newest First</SelectItem>
+              <SelectItem value="asc">Oldest First</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="invisible">Reset</Label>
+          <Button
+            onClick={() =>
+              onFilterChange({
+                date_from: "",
+                date_to: "",
+                season_id: "",
+                competition_id: "",
+                sort: "date",
+                order: "desc",
+              })
+            }
+            variant="destructive"
+            className="cursor-pointer"
+          >
+            Reset Filters
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }

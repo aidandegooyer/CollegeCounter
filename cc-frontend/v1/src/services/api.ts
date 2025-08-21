@@ -12,6 +12,8 @@ const api = axios.create({
 api.interceptors.request.use(async (config) => {
   const auth = getAuth();
   const user = auth.currentUser;
+
+  await new Promise(resolve => setTimeout(resolve, 1000));
   
   if (user) {
     try {
