@@ -3,6 +3,7 @@ import ImportMatches from "./ImportMatches";
 import DatabaseViewer from "./DatabaseViewer";
 import { getAuth, signOut } from "firebase/auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ClearDatabase from "./ClearDatabase";
 
 function Admin() {
   const auth = getAuth();
@@ -31,12 +32,16 @@ function Admin() {
         <TabsList>
           <TabsTrigger value="import">Import Matches</TabsTrigger>
           <TabsTrigger value="database">Database Viewer</TabsTrigger>
+          <TabsTrigger value="clear-database">Clear Database</TabsTrigger>
         </TabsList>
         <TabsContent value="import">
           <ImportMatches />
         </TabsContent>
         <TabsContent value="database">
           <DatabaseViewer />
+        </TabsContent>
+        <TabsContent value="clear-database">
+          <ClearDatabase />
         </TabsContent>
       </Tabs>
     </div>

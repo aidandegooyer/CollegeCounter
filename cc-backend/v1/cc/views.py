@@ -1,13 +1,13 @@
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_datetime
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from datetime import datetime
+from django.db.models import Q
+from django.core.paginator import Paginator
 
-import json
-import uuid
 from .models import (
     Team,
     Player,
@@ -17,7 +17,10 @@ from .models import (
     Competition,
     Event,
     EventMatch,
+    Ranking,
+    RankingItem,
 )
+from .middleware import firebase_auth_required
 
 
 def index(request):
@@ -26,6 +29,7 @@ def index(request):
 
 @csrf_exempt
 @api_view(["POST"])
+@firebase_auth_required
 def import_matches(request):
     """
     Import matches from an external API (Faceit or Playfly) into the database.
@@ -34,7 +38,8 @@ def import_matches(request):
         "platform": "faceit" | "playfly",
         "competition_name": "string",
         "season_id": "uuid",
-        "data": {...} // API response data
+        "data": {...}, // API response data
+        "participant_matches": { "participant_id": "team_id", ... } // Optional
     }
     """
     try:
@@ -43,6 +48,7 @@ def import_matches(request):
         competition_name = data.get("competition_name", "")
         season_id = data.get("season_id")
         api_data = data.get("data", {})
+        participant_matches = data.get("participant_matches", {})
 
         # Get or create the competition
         competition, created = Competition.objects.get_or_create(name=competition_name)
@@ -54,6 +60,47 @@ def import_matches(request):
             return Response(
                 {"error": "Season not found"}, status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Apply participant matches if provided
+        if participant_matches:
+            for participant_id, team_id in participant_matches.items():
+                try:
+                    # Check if this is a placeholder ID for a team match
+                    if participant_id.startswith("platform:"):
+                        # Format is "platform:{platform}:team:{team_name}"
+                        parts = participant_id.split(":")
+                        if len(parts) >= 4:
+                            platform_name = parts[1]
+                            team_name = ":".join(
+                                parts[3:]
+                            )  # Join in case team name has colons
+
+                            # Find or create participant for this team
+                            team = Team.objects.get(id=team_id)
+
+                            # Create a participant record to link team to competition and season
+                            participant, created = Participant.objects.get_or_create(
+                                team=team,
+                                competition=competition,
+                                season=season,
+                                defaults={
+                                    "faceit_id": team_name
+                                    if platform_name == "faceit"
+                                    else None,
+                                    "playfly_id": team_name
+                                    if platform_name == "playfly"
+                                    else None,
+                                },
+                            )
+                    else:
+                        # Regular participant ID
+                        participant = Participant.objects.get(id=participant_id)
+                        team = Team.objects.get(id=team_id)
+                        participant.team = team
+                        participant.save()
+                except (Participant.DoesNotExist, Team.DoesNotExist) as e:
+                    # Log this but don't fail the import
+                    print(f"Error applying participant match: {e}")
 
         # Process matches based on platform
         if platform == "faceit":
@@ -199,8 +246,24 @@ def get_or_create_team(team_data, competition, season):
     """
     team_name = team_data.get("name", "Unknown Team")
     team_avatar = team_data.get("avatar")
+    team_faceit_id = team_data.get("id")
 
-    # Try to find existing team by name
+    # First, check if there's an existing participant for this team ID in this competition/season
+    existing_participant = None
+    if team_faceit_id:
+        try:
+            existing_participant = Participant.objects.get(
+                faceit_id=team_faceit_id, competition=competition, season=season
+            )
+        except Participant.DoesNotExist:
+            pass
+
+    # If we found a participant with a team, use that team
+    if existing_participant and existing_participant.team:
+        team = existing_participant.team
+        return team, False
+
+    # If no existing participant found, try to find an existing team by name
     try:
         team = Team.objects.get(name=team_name)
     except Team.DoesNotExist:
@@ -213,7 +276,7 @@ def get_or_create_team(team_data, competition, season):
         competition=competition,
         season=season,
         defaults={
-            "faceit_id": team_data.get("id")  # Adjust field as needed
+            "faceit_id": team_faceit_id  # Store the faceit ID
         },
     )
 
@@ -236,6 +299,7 @@ def process_player(player_data, team):
     # Try to find player by Faceit ID
     try:
         player = Player.objects.get(faceit_id=player_id)
+        player.benched = False  # Reset benched status
     except Player.DoesNotExist:
         # Create new player
         player = Player.objects.create(
@@ -246,6 +310,7 @@ def process_player(player_data, team):
 
 
 @api_view(["GET"])
+@firebase_auth_required
 def list_seasons(request):
     """
     Get all seasons
@@ -267,6 +332,7 @@ def list_seasons(request):
 
 
 @api_view(["POST"])
+@firebase_auth_required
 def create_season(request):
     """
     Create a new season
@@ -302,6 +368,7 @@ def create_season(request):
 
 
 @api_view(["GET"])
+@firebase_auth_required
 def list_teams(request):
     """
     Get all teams
@@ -333,6 +400,7 @@ def list_teams(request):
 
 
 @api_view(["GET"])
+@firebase_auth_required
 def list_players(request):
     """
     Get all players
@@ -368,6 +436,7 @@ def list_players(request):
 
 
 @api_view(["GET"])
+@firebase_auth_required
 def list_matches(request):
     """
     Get all matches
@@ -407,3 +476,150 @@ def list_matches(request):
         )
 
     return Response(result)
+
+
+@api_view(["POST"])
+@firebase_auth_required
+def clear_database(request):
+    """
+    Clear the database for testing purposes.
+    This will delete all matches, participants, teams, players, events, and rankings.
+    It will NOT delete seasons or competitions to preserve the structure.
+    """
+    try:
+        # Verify security key to prevent accidental deletion
+        security_key = request.data.get("security_key")
+        if security_key != "confirm-database-clear-123":  # Simple security key
+            return Response(
+                {"error": "Invalid security key"}, status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Delete data in a specific order to prevent foreign key constraint issues
+        EventMatch.objects.all().delete()
+        Event.objects.all().delete()
+        Match.objects.all().delete()
+        RankingItem.objects.all().delete()
+        Ranking.objects.all().delete()
+        Participant.objects.all().delete()
+        Player.objects.all().delete()
+        Team.objects.all().delete()
+
+        return Response({"message": "Database cleared successfully"})
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["GET", "POST"])
+@firebase_auth_required
+def match_participants(request):
+    """
+    Match participants between competitions/seasons and teams.
+
+    GET: Get all unmatched participants and available teams
+    POST: Create or update participant matches
+    """
+    if request.method == "GET":
+        # Get all participants
+        participants = Participant.objects.all()
+
+        # Get teams
+        teams = Team.objects.all()
+
+        result = {"participants": [], "teams": []}
+
+        # Format participants data
+        for participant in participants:
+            result["participants"].append(
+                {
+                    "id": participant.id,
+                    "team_id": participant.team.id if participant.team else None,
+                    "team_name": participant.team.name if participant.team else None,
+                    "competition_id": participant.competition.id
+                    if participant.competition
+                    else None,
+                    "competition_name": participant.competition.name
+                    if participant.competition
+                    else None,
+                    "season_id": participant.season.id if participant.season else None,
+                    "season_name": participant.season.name
+                    if participant.season
+                    else None,
+                    "faceit_id": participant.faceit_id,
+                    "playfly_id": participant.playfly_id,
+                    "playfly_participant_id": participant.playfly_participant_id,
+                }
+            )
+
+        # Format teams data
+        for team in teams:
+            result["teams"].append(
+                {
+                    "id": team.id,
+                    "name": team.name,
+                    "picture": team.picture,
+                    "school_name": team.school_name,
+                }
+            )
+
+        return Response(result)
+
+    elif request.method == "POST":
+        try:
+            participant_id = request.data.get("participant_id")
+            team_id = request.data.get("team_id")
+
+            if not participant_id or not team_id:
+                return Response(
+                    {"error": "Missing participant_id or team_id"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Get the participant and team
+            try:
+                participant = Participant.objects.get(id=participant_id)
+            except Participant.DoesNotExist:
+                return Response(
+                    {"error": f"Participant with ID {participant_id} not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            try:
+                team = Team.objects.get(id=team_id)
+            except Team.DoesNotExist:
+                return Response(
+                    {"error": f"Team with ID {team_id} not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # Update the participant
+            participant.team = team
+            participant.save()
+
+            return Response(
+                {
+                    "message": "Participant matched successfully",
+                    "participant": {
+                        "id": participant.id,
+                        "team_id": team.id,
+                        "team_name": team.name,
+                        "competition_id": participant.competition.id
+                        if participant.competition
+                        else None,
+                        "competition_name": participant.competition.name
+                        if participant.competition
+                        else None,
+                        "season_id": participant.season.id
+                        if participant.season
+                        else None,
+                        "season_name": participant.season.name
+                        if participant.season
+                        else None,
+                    },
+                }
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

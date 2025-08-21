@@ -18,9 +18,11 @@ import {
   importMatches,
   fetchFaceitMatches,
   fetchPlayflyMatches,
+  fetchParticipants,
+  matchParticipant,
 } from "@/services/api";
 
-import type { Season } from "@/services/api";
+import type { Season, Team, Player, Participant } from "@/services/api";
 
 function SelectPlatform({
   platform,
@@ -289,11 +291,317 @@ function ImportPreview({
   );
 }
 
-function ParticipantMatcher() {
+function ParticipantMatcher({
+  previewData,
+  platform,
+  selectedSeason,
+  competitionName,
+  isLoading,
+  setIsLoading,
+  setParticipantMatches,
+}: {
+  previewData: any;
+  platform: string;
+  selectedSeason: string;
+  competitionName: string;
+  isLoading: boolean;
+  setIsLoading: (loading: boolean) => void;
+  setParticipantMatches: (matches: Record<string, string>) => void;
+}) {
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [error, setError] = useState<string>("");
+  const [participantSelections, setParticipantSelections] = useState<
+    Record<string, string>
+  >({});
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [participantSearchQuery, setParticipantSearchQuery] =
+    useState<string>("");
+  const [unidentifiedTeams, setUnidentifiedTeams] = useState<
+    Array<{ name: string; id?: string; selected?: boolean }>
+  >([]);
+  const [selectedPlatformTeam, setSelectedPlatformTeam] = useState<
+    string | null
+  >(null);
+  const [selectedExistingTeam, setSelectedExistingTeam] = useState<
+    string | null
+  >(null);
+  const [matchedTeams, setMatchedTeams] = useState<
+    Array<{
+      platformTeam: string;
+      existingTeam: string;
+      existingTeamId: string;
+    }>
+  >([]);
+
+  useEffect(() => {
+    const fetchParticipantData = async () => {
+      setIsLoading(true);
+      try {
+        // Get existing teams and participants
+        const data = await fetchParticipants();
+        setTeams(data.teams);
+        setParticipants(data.participants);
+
+        // Extract unique team names from the preview data that don't have matches
+        if (previewData && platform === "faceit") {
+          const matches = previewData.items || [];
+          const teamNames = new Set<string>();
+
+          matches.forEach((match: any) => {
+            const teams = match.teams || {};
+            Object.values(teams).forEach((team: any) => {
+              if (team && team.name) {
+                teamNames.add(team.name);
+              }
+            });
+          });
+
+          setUnidentifiedTeams(
+            Array.from(teamNames).map((name) => ({ name, selected: false })),
+          );
+        } else if (previewData && platform === "playfly") {
+          // Similar logic for playfly data
+          // Implement based on playfly data structure
+        }
+      } catch (err: any) {
+        setError(
+          err.response?.data?.error || "Failed to fetch participant data",
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchParticipantData();
+  }, [previewData, platform, setIsLoading]);
+
+  const handlePlatformTeamSelect = (teamName: string) => {
+    setSelectedPlatformTeam(teamName);
+    setSelectedExistingTeam(null); // Reset existing team selection when platform team changes
+  };
+
+  const handleExistingTeamSelect = (teamId: string) => {
+    setSelectedExistingTeam(teamId);
+  };
+
+  const handleAddMatch = () => {
+    if (selectedPlatformTeam && selectedExistingTeam) {
+      // Get the name of the selected existing team
+      const existingTeam = teams.find((t) => t.id === selectedExistingTeam);
+      if (!existingTeam) return;
+
+      // Add to matched teams
+      setMatchedTeams((prev) => [
+        ...prev,
+        {
+          platformTeam: selectedPlatformTeam,
+          existingTeam: existingTeam.name,
+          existingTeamId: existingTeam.id,
+        },
+      ]);
+
+      // Remove the platform team from unidentified teams
+      setUnidentifiedTeams((prev) =>
+        prev.filter((team) => team.name !== selectedPlatformTeam),
+      );
+
+      // Reset selections
+      setSelectedPlatformTeam(null);
+      setSelectedExistingTeam(null);
+
+      // Update participant selections (this will be used for the actual import)
+      setParticipantSelections((prev) => {
+        // For now, we're just building a placeholder participant ID since we don't have actual
+        // participant IDs before the import. We'll use a special format that the backend can parse.
+        const placeholderId = `platform:${platform}:team:${selectedPlatformTeam}`;
+        return {
+          ...prev,
+          [placeholderId]: selectedExistingTeam,
+        };
+      });
+    }
+  };
+
+  const handleRemoveMatch = (index: number) => {
+    const removedMatch = matchedTeams[index];
+
+    // Add the platform team back to unidentified teams
+    setUnidentifiedTeams((prev) => [
+      ...prev,
+      { name: removedMatch.platformTeam, selected: false },
+    ]);
+
+    // Remove from matched teams
+    setMatchedTeams((prev) => prev.filter((_, i) => i !== index));
+
+    // Remove from participant selections
+    setParticipantSelections((prev) => {
+      const newSelections = { ...prev };
+      const placeholderId = `platform:${platform}:team:${removedMatch.platformTeam}`;
+      delete newSelections[placeholderId];
+      return newSelections;
+    });
+  };
+
+  const confirmMatches = () => {
+    setParticipantMatches(participantSelections);
+  };
+
+  // Filter teams by search query
+  const filteredTeams = teams.filter((team) =>
+    team.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  // Filter unidentified teams
+  const filteredUnidentifiedTeams = unidentifiedTeams.filter((team) =>
+    team.name.toLowerCase().includes(participantSearchQuery.toLowerCase()),
+  );
+
   return (
     <div className="mb-8 flex flex-col items-center justify-center space-y-4">
       <h1 className="text-3xl">Participant Matcher</h1>
-      <p>This feature will be implemented later</p>
+      <p className="mb-4 text-center text-gray-600">
+        Match the teams from the {platform} platform with existing teams in your
+        database to prevent duplicates.
+      </p>
+
+      {isLoading ? (
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+      ) : error ? (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : (
+        <>
+          <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2">
+            {/* Left side: New teams from the platform */}
+            <div className="rounded-md border p-4">
+              <h2 className="mb-2 text-xl font-semibold">
+                Teams from {platform}
+              </h2>
+              <Input
+                placeholder="Search teams..."
+                value={participantSearchQuery}
+                onChange={(e) => setParticipantSearchQuery(e.target.value)}
+                className="mb-4"
+              />
+              <div className="max-h-80 overflow-y-auto">
+                {filteredUnidentifiedTeams.length > 0 ? (
+                  filteredUnidentifiedTeams.map((team, index) => (
+                    <div
+                      key={index}
+                      className={`hover:bg-muted/50 cursor-pointer border-b p-2 ${selectedPlatformTeam === team.name ? "bg-muted" : ""}`}
+                      onClick={() => handlePlatformTeamSelect(team.name)}
+                    >
+                      <p className="font-semibold">{team.name}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="py-4 text-center text-gray-500">
+                    No teams found from {platform}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Right side: Existing teams in database */}
+            <div className="rounded-md border p-4">
+              <h2 className="mb-2 text-xl font-semibold">Existing Teams</h2>
+              <Input
+                placeholder="Search existing teams..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="mb-4"
+              />
+              <div className="max-h-80 overflow-y-auto">
+                {filteredTeams.length > 0 ? (
+                  filteredTeams.map((team) => (
+                    <div
+                      key={team.id}
+                      className={`hover:bg-muted/50 cursor-pointer border-b p-2 ${selectedExistingTeam === team.id ? "bg-muted" : ""}`}
+                      onClick={() => handleExistingTeamSelect(team.id)}
+                    >
+                      <div className="flex items-center">
+                        {team.picture && (
+                          <img
+                            src={team.picture}
+                            alt={team.name}
+                            className="mr-2 h-8 w-8 rounded-full"
+                          />
+                        )}
+                        <p className="font-semibold">{team.name}</p>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        {team.school_name || "School not specified"}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="py-4 text-center text-gray-500">
+                    No existing teams found
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Match button */}
+          <div className="flex w-full justify-center">
+            <Button
+              onClick={handleAddMatch}
+              disabled={!selectedPlatformTeam || !selectedExistingTeam}
+              className="mt-2"
+            >
+              Match Teams
+            </Button>
+          </div>
+
+          {/* Matched teams display */}
+          {matchedTeams.length > 0 && (
+            <div className="mt-4 w-full rounded-md border p-4">
+              <h2 className="mb-2 text-xl font-semibold">Matched Teams</h2>
+              <div className="max-h-60 overflow-y-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="p-2 text-left">Platform Team</th>
+                      <th className="p-2 text-left">Existing Team</th>
+                      <th className="p-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matchedTeams.map((match, index) => (
+                      <tr key={index} className="border-b hover:bg-gray-50">
+                        <td className="p-2">{match.platformTeam}</td>
+                        <td className="p-2">{match.existingTeam}</td>
+                        <td className="p-2 text-right">
+                          <button
+                            onClick={() => handleRemoveMatch(index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <Button
+            onClick={confirmMatches}
+            disabled={isLoading}
+            className="mt-4"
+          >
+            Continue with Import
+          </Button>
+        </>
+      )}
     </div>
   );
 }
@@ -314,6 +622,9 @@ function ImportMatches() {
     success?: boolean;
     message?: string;
   }>({});
+  const [participantMatches, setParticipantMatches] = useState<
+    Record<string, string>
+  >({});
 
   // Fetch seasons on component mount
   useEffect(() => {
@@ -372,15 +683,17 @@ function ImportMatches() {
       setIsLoading(false);
     }
 
-    // Special handling for import step
-    if (step === 4) {
+    // Special handling for import step (now moved to after participant matching)
+    if (step === 5) {
       setIsLoading(true);
       try {
+        // Include participant matches in the import request
         const result = await importMatches({
           platform: platform as "faceit" | "playfly",
           competition_name: competitionName,
           season_id: selectedSeason,
           data: previewData,
+          participant_matches: participantMatches,
         });
 
         setImportStatus({
@@ -398,7 +711,7 @@ function ImportMatches() {
       setIsLoading(false);
     }
 
-    setStep((prev) => Math.min(prev + 1, 5));
+    setStep((prev) => Math.min(prev + 1, 6));
   };
 
   const prevStep = () => {
@@ -450,7 +763,38 @@ function ImportMatches() {
           <ImportPreview previewData={previewData} isLoading={isLoading} />
         );
       case 5:
-        return <ParticipantMatcher />;
+        return (
+          <ParticipantMatcher
+            previewData={previewData}
+            platform={platform}
+            selectedSeason={selectedSeason}
+            competitionName={competitionName}
+            isLoading={isLoading}
+            setIsLoading={setIsLoading}
+            setParticipantMatches={setParticipantMatches}
+          />
+        );
+      case 6:
+        return (
+          <div className="mb-8 flex flex-col items-center justify-center space-y-4">
+            <h1 className="text-3xl">Import Complete</h1>
+            {importStatus.success ? (
+              <Alert variant="default" className="mb-4">
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertTitle>Success</AlertTitle>
+                <AlertDescription>{importStatus.message}</AlertDescription>
+              </Alert>
+            ) : (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>
+                  {importStatus.message || "An error occurred during import."}
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        );
       default:
         return null;
     }
@@ -464,32 +808,38 @@ function ImportMatches() {
         {/* Progress indicator */}
         <div className="mb-8">
           <div className="flex justify-between">
-            {["Platform", "Type", "Season", "Details", "Preview", "Match"].map(
-              (label, index) => (
+            {[
+              "Platform",
+              "Type",
+              "Season",
+              "Details",
+              "Preview",
+              "Match",
+              "Complete",
+            ].map((label, index) => (
+              <div
+                key={label}
+                className={`flex flex-col items-center ${index <= step ? "text-primary" : "text-muted-foreground"}`}
+              >
                 <div
-                  key={label}
-                  className={`flex flex-col items-center ${index <= step ? "text-primary" : "text-muted-foreground"}`}
+                  className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full ${
+                    index < step
+                      ? "bg-primary text-white"
+                      : index === step
+                        ? "border-primary border-2"
+                        : "border-muted border-2"
+                  }`}
                 >
-                  <div
-                    className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full ${
-                      index < step
-                        ? "bg-primary text-white"
-                        : index === step
-                          ? "border-primary border-2"
-                          : "border-muted border-2"
-                    }`}
-                  >
-                    {index < step ? "✓" : ""}
-                  </div>
-                  <span className="text-xs">{label}</span>
+                  {index < step ? "✓" : ""}
                 </div>
-              ),
-            )}
+                <span className="text-xs">{label}</span>
+              </div>
+            ))}
           </div>
           <div className="bg-muted mt-2 h-1">
             <div
               className="bg-primary h-full transition-all"
-              style={{ width: `${(step / 5) * 100}%` }}
+              style={{ width: `${(step / 6) * 100}%` }}
             ></div>
           </div>
         </div>
@@ -529,7 +879,7 @@ function ImportMatches() {
             onClick={nextStep}
             disabled={isLoading}
           >
-            {isLoading ? "Loading..." : step === 4 ? "Import" : "Next"}
+            {isLoading ? "Loading..." : step === 5 ? "Import" : "Next"}
           </button>
         </div>
       </div>

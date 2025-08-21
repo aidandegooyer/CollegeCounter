@@ -12,7 +12,11 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import { fetchTeams, fetchPlayers, fetchMatches } from "@/services/api";
+import {
+  fetchAllTeams,
+  fetchAllPlayers,
+  fetchAllMatches,
+} from "@/services/api";
 import type { Team, Player, Match } from "@/services/api";
 
 function DatabaseViewer() {
@@ -33,16 +37,16 @@ function DatabaseViewer() {
         // For now, we're using mock data
         switch (activeTab) {
           case "teams":
-            const teamsData = await fetchTeams();
+            const teamsData = await fetchAllTeams();
             setTeams(teamsData);
 
             break;
           case "players":
-            const playersData = await fetchPlayers();
+            const playersData = await fetchAllPlayers();
             setPlayers(playersData);
             break;
           case "matches":
-            const matchesData = await fetchMatches();
+            const matchesData = await fetchAllMatches();
             setMatches(matchesData);
             break;
         }

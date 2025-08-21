@@ -81,7 +81,7 @@ function TeamRankingsFilter() {
       <h2>Filter</h2>
       <hr />
       <h3 className="mt-2">Competition</h3>
-      <RadioGroup className="mt-2" defaultValue="all">
+      <RadioGroup className="my-2" defaultValue="all">
         <Label className="flex cursor-pointer space-x-2">
           <RadioGroupItem value="all" id="competition-all" />
           <span className="">All</span>
@@ -95,21 +95,6 @@ function TeamRankingsFilter() {
           <span className="">Playfly</span>
         </Label>
       </RadioGroup>
-      <h3 className="mt-4">Date</h3>
-      <RadioGroup className="mt-2" defaultValue="all">
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem value="all" />
-          <Label className="ml-2">All</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem value="last-week" />
-          <Label className="ml-2">Last Week</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem value="last-month" />
-          <Label className="ml-2">Last Month</Label>
-        </div>
-      </RadioGroup>
     </div>
   );
 }
@@ -119,21 +104,20 @@ function PlayerRankingsFilter() {
     <div className="team-rankings-filter w-full rounded-xl border-2 p-4 py-2">
       <h2>Filter</h2>
       <hr />
-
-      <h3 className="mt-2">Date</h3>
-      <RadioGroup className="mt-2" defaultValue="all">
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem value="all" />
-          <Label className="ml-2">All</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem value="last-week" />
-          <Label className="ml-2">Last Week</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem value="last-month" />
-          <Label className="ml-2">Last Month</Label>
-        </div>
+      <h3 className="mt-2">Competition</h3>
+      <RadioGroup className="my-2" defaultValue="all">
+        <Label className="flex cursor-pointer space-x-2">
+          <RadioGroupItem value="all" id="competition-all" />
+          <span className="">All</span>
+        </Label>
+        <Label className="flex cursor-pointer space-x-2">
+          <RadioGroupItem value="necc" id="competition-necc" />
+          <span className="">NECC</span>
+        </Label>
+        <Label className="flex cursor-pointer space-x-2">
+          <RadioGroupItem value="playfly" id="competition-playfly" />
+          <span className="">Playfly</span>
+        </Label>
       </RadioGroup>
     </div>
   );

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -40,6 +41,11 @@ INSTALLED_APPS = [
     "corsheaders",
     "cc",
 ]
+
+# Firebase Admin SDK credentials
+FIREBASE_ADMIN_CREDENTIAL = os.path.join(
+    BASE_DIR, "college-counter-9057f-firebase-adminsdk-fbsvc-a632f7f6e6.json"
+)
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

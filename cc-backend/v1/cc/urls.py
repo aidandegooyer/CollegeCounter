@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 
 from . import views
 
@@ -10,4 +10,8 @@ urlpatterns = [
     path("teams/", views.list_teams, name="list_teams"),
     path("players/", views.list_players, name="list_players"),
     path("matches/", views.list_matches, name="list_matches"),
+    path("clear-database/", views.clear_database, name="clear_database"),
+    path("participants/", views.match_participants, name="match_participants"),
+    # Include public API endpoints
+    path("public/", include("cc.urls_public")),
 ]
