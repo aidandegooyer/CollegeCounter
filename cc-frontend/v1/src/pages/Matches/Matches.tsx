@@ -1,4 +1,4 @@
-import { ArrowRight, Star, Filter } from "lucide-react";
+import { ArrowRight, Star } from "lucide-react";
 import logo from "@/assets/0.1x/C Logo@0.1x.png";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -237,6 +237,7 @@ function Past() {
     {
       page,
       page_size: 30,
+      status: "completed",
     },
     {
       staleTime: 1000 * 60 * 5,
@@ -367,15 +368,16 @@ function Result(props: ResultProps) {
         </div>
       </div>
       <div className="mt-2 flex items-end justify-between">
-        <p className="text-muted-foreground bg-muted rounded-sm px-1 py-0.5">
+        <p className="text-foreground bg-muted rounded-sm px-1 py-0.5">
           {new Date(props.match.date).toLocaleString(undefined, {
             year: "numeric",
             month: "short",
             day: "numeric",
           })}
         </p>
+
         <div className="bg-secondary rounded-sm px-1 py-0.5">
-          {props.match.platform}
+          {props.match.competition?.name || ""}
         </div>
       </div>
     </li>

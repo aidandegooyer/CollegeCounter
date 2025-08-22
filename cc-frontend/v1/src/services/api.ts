@@ -288,6 +288,14 @@ export interface PublicMatch {
   score_team1: number;
   score_team2: number;
   platform: string;
+  competition?: {
+    id: string;
+    name: string;
+  };
+  season?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface PublicSeason {
@@ -392,6 +400,7 @@ export const fetchPublicSeasons = async (params: SeasonQueryParams = {}): Promis
   const response = await api.get(`/public/seasons${queryString ? `?${queryString}` : ''}`);
   return response.data;
 };
+
 
 // Legacy function - consider deprecating or updating to use public API
 export const fetchTeams = async (): Promise<Team[]> => {

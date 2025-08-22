@@ -3,7 +3,7 @@ import {
   fetchPublicTeams, 
   fetchPublicPlayers, 
   fetchPublicMatches, 
-  fetchPublicSeasons
+  fetchPublicSeasons,
 } from '@/services/api';
 import type {
   TeamQueryParams,
@@ -136,3 +136,4 @@ export function useUpcomingMatches(limit = 5, options = {}) {
     ...options,
   });
 }
+

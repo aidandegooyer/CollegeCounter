@@ -220,6 +220,8 @@ def import_faceit_matches(api_data, competition, season):
             score_team1=score_team1,
             score_team2=score_team2,
             platform="faceit",
+            season=season,
+            competition=competition,
         )
 
         imported_matches.append(str(match.id))
@@ -236,6 +238,15 @@ def import_playfly_matches(api_data, competition, season):
     imported_matches = []
 
     # Process matches similar to Faceit but adapted for Playfly's structure
+    # When creating Match objects, include season and competition:
+    # match = Match.objects.create(
+    #     team1=team1,
+    #     team2=team2,
+    #     ...other fields...
+    #     platform="playfly",
+    #     season=season,
+    #     competition=competition
+    # )
 
     return imported_matches
 
@@ -472,6 +483,15 @@ def list_matches(request):
                 "score_team1": match.score_team1,
                 "score_team2": match.score_team2,
                 "platform": match.platform,
+                "season": {"id": match.season.id, "name": match.season.name}
+                if match.season
+                else None,
+                "competition": {
+                    "id": match.competition.id,
+                    "name": match.competition.name,
+                }
+                if match.competition
+                else None,
             }
         )
 

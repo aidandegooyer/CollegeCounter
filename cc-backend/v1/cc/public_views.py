@@ -7,7 +7,7 @@ from django.utils.dateparse import parse_datetime
 from datetime import datetime
 import uuid
 
-from .models import Team, Player, Match, Season, Participant
+from .models import Competition, Team, Player, Match, Season, Participant
 
 # Maximum items per page
 MAX_PAGE_SIZE = 100
@@ -446,6 +446,15 @@ def public_matches(request):
                 "score_team1": match.score_team1,
                 "score_team2": match.score_team2,
                 "platform": match.platform,
+                "season": {"id": match.season.id, "name": match.season.name}
+                if match.season
+                else None,
+                "competition": {
+                    "id": match.competition.id,
+                    "name": match.competition.name,
+                }
+                if match.competition
+                else None,
             }
         )
 
@@ -539,3 +548,30 @@ def public_seasons(request):
         )
 
     return Response(result)
+
+
+@api_view(["GET"])
+def public_competition_name(request, competition_id):
+    """
+    Public API endpoint to fetch the name of a competition by its ID.
+
+    Path Parameters:
+    - competition_id: The UUID of the competition
+
+    Returns the name of the competition.
+    """
+    try:
+        uuid.UUID(competition_id)  # Validate UUID format
+    except ValueError:
+        return Response(
+            {"error": "Invalid competition_id format"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        competition = Competition.objects.get(id=competition_id)
+        return Response({"name": competition.name})
+    except Competition.DoesNotExist:
+        return Response(
+            {"error": "Competition not found"}, status=status.HTTP_404_NOT_FOUND
+        )

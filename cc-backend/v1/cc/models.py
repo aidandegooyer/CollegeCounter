@@ -62,7 +62,7 @@ class Match(models.Model):
     team2 = models.ForeignKey(
         Team, on_delete=models.CASCADE, related_name="matches_as_team2"
     )
-    date = models.DateTimeField(auto_now_add=True)
+    date = models.DateTimeField()
     status = models.CharField(
         max_length=20,
         choices=[
@@ -72,6 +72,20 @@ class Match(models.Model):
             ("cancelled", "Cancelled"),
         ],
         default="scheduled",
+    )
+    season = models.ForeignKey(
+        "Season",
+        on_delete=models.CASCADE,
+        related_name="matches",
+        blank=True,
+        null=True,
+    )
+    competition = models.ForeignKey(
+        "Competition",
+        on_delete=models.CASCADE,
+        related_name="matches",
+        blank=True,
+        null=True,
     )
     url = models.URLField(blank=True, null=True, help_text="Link to match details")
     winner = models.ForeignKey(
