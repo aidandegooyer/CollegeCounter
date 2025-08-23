@@ -4,6 +4,7 @@ import DatabaseViewer from "./DatabaseViewer";
 import { getAuth, signOut } from "firebase/auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ClearDatabase from "./ClearDatabase";
+import ControlPanel from "./ControlPanel";
 
 function Admin() {
   const auth = getAuth();
@@ -28,12 +29,16 @@ function Admin() {
         </Button>
       </div>
 
-      <Tabs defaultValue="import" className="w-full">
+      <Tabs defaultValue="control-panel" className="w-full">
         <TabsList>
+          <TabsTrigger value="control-panel">Control Panel</TabsTrigger>
           <TabsTrigger value="import">Import Matches</TabsTrigger>
           <TabsTrigger value="database">Database Viewer</TabsTrigger>
           <TabsTrigger value="clear-database">Clear Database</TabsTrigger>
         </TabsList>
+        <TabsContent value="control-panel">
+          <ControlPanel />
+        </TabsContent>
         <TabsContent value="import">
           <ImportMatches />
         </TabsContent>

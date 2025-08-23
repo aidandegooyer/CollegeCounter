@@ -1,6 +1,28 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@font-face {
+    font-family: 'Varsity Team';
+    src: url('/fonts/VarsityTeamBold.woff2') format('woff2'),
+        url('VarsityTeamBold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Blockletter';
+    src: url('/fonts/Blockletter.otf') format('opentype');
+    ascent-override: 80%;     /* lowers the top of letters by shrinking ascent */
+    descent-override: 10%;   /* increases the bottom by expanding descent */
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+
+
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -39,6 +61,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --font-varsity: 'VarsityTeam', sans-serif;
+  --font-block: 'Blockletter', sans-serif;
 }
 
 :root {
@@ -118,10 +142,11 @@
     @apply bg-background text-foreground;
   }
   h1 {
-    @apply text-3xl font-bold;
+    @apply text-5xl font-block;
   }
   h2 {
     @apply text-xl font-semibold;
   }
 }
+
 

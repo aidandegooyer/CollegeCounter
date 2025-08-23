@@ -5,9 +5,6 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from datetime import datetime
-from django.db.models import Q
-from django.core.paginator import Paginator
-
 from .models import (
     Team,
     Player,
@@ -143,7 +140,7 @@ def import_faceit_matches(api_data, competition, season):
 
     for match_data in matches:
         # Extract match details
-        match_id = match_data.get("match_id")
+        # match_id = match_data.get("match_id")
         faceit_url = match_data.get("faceit_url")
         status_value = match_data.get("status")
 

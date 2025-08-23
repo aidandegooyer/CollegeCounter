@@ -1,8 +1,49 @@
-import logo from "@/assets/0.1x/C Logo@0.1x.png";
+import Logo from "@/components/Logo";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Spinner } from "@/components/ui/shadcn-io/spinner";
+import type { PublicMatch } from "@/services/api";
+import { usePublicMatches } from "@/services/hooks";
 import { ChevronRight } from "lucide-react";
 import { NavLink } from "react-router";
 
 function ResultsWidget() {
+  const { data, isLoading, error } = usePublicMatches(
+    { sort: "date", order: "desc", page: 1, page_size: 4 },
+    {
+      staleTime: 1000 * 60 * 5,
+    },
+  );
+
+  function renderMatches() {
+    if (isLoading || !data) {
+      return (
+        <div className="flex h-40 items-center justify-center">
+          <Spinner />
+        </div>
+      );
+    }
+    if (error) {
+      return (
+        <div className="mt-4">
+          <Alert variant="destructive" className="mt-4">
+            <AlertTitle className="text-lg">Error</AlertTitle>
+            <AlertDescription>
+              There was an error loading the player rankings. Please try again
+              later.
+            </AlertDescription>
+          </Alert>
+        </div>
+      );
+    }
+    return (
+      <>
+        {data.results.map((match, index) => (
+          <Match key={index} {...match} />
+        ))}
+      </>
+    );
+  }
+
   return (
     <div className="matches-widget">
       <NavLink
@@ -13,30 +54,44 @@ function ResultsWidget() {
         <ChevronRight className="text-muted-foreground mr-2 h-6 w-6 transition-all group-hover:mr-0" />
       </NavLink>
       <hr />
-      <ul className="mt-2 space-y-2">
-        <Match />
-        <Match />
-        <Match />
-        <Match />
-      </ul>
+      <ul className="mt-2 space-y-2">{renderMatches()}</ul>
     </div>
   );
 }
 
-function Match() {
+function Match(match: PublicMatch) {
+  const winningTeamId = match.winner?.id;
+  var winner, loser;
+  if (winningTeamId === match.team1.id) {
+    winner = match.team1;
+    loser = match.team2;
+  } else {
+    winner = match.team2;
+    loser = match.team1;
+  }
   return (
     <li className="flex cursor-pointer rounded-xl border-2 p-4 py-2">
       <div className="flex-3 space-y-2">
         <div className="flex items-center space-x-2">
-          <img src={logo} className="h-6 w-6" alt="Logo" />
+          <Logo
+            src={winner.picture}
+            className="h-6 w-6"
+            alt="Logo"
+            type="team"
+          />
           <span className="truncate overflow-ellipsis whitespace-nowrap font-semibold">
-            Syracuse University
+            {winner.name}
           </span>
         </div>
         <div className="flex items-center space-x-2 overflow-ellipsis">
-          <img src={logo} className="h-6 w-6" alt="Logo" />
+          <Logo
+            src={loser.picture}
+            className="h-6 w-6"
+            alt="Logo"
+            type="team"
+          />
           <span className="text-muted-foreground truncate overflow-ellipsis whitespace-nowrap">
-            University of Texas
+            {loser.name}
           </span>
         </div>
       </div>

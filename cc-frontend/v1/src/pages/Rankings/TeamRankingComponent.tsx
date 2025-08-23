@@ -1,9 +1,9 @@
-import logo from "@/assets/0.1x/C Logo@0.1x.png";
 import silhouette from "@/assets/player_silhouette.png";
 import { useState } from "react";
 import type { PublicTeam } from "@/services/api";
 import { usePublicPlayers } from "@/services/hooks";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
+import Logo from "@/components/Logo";
 
 function TeamRankingComponent(team: PublicTeam) {
   const [expanded, setExpanded] = useState(false);
@@ -33,10 +33,11 @@ function TeamRankingComponent(team: PublicTeam) {
       <div className="mx-12 flex justify-between pt-3">
         {data.results.map((player, i) => (
           <div key={i}>
-            <img
-              src={player.picture || silhouette}
+            <Logo
+              src={player.picture}
               className="h-32 w-32"
               alt="Player"
+              type="player"
             />
             <p className="border-t-2 text-center">{player.name}</p>
           </div>
@@ -55,10 +56,11 @@ function TeamRankingComponent(team: PublicTeam) {
       <div className="flex justify-between">
         <div className="flex items-center space-x-2">
           <span className="mr-3 w-4 text-end font-mono text-xl">#</span>
-          <img
-            src={team.picture || logo}
+          <Logo
+            src={team.picture}
             className="h-8 w-8 rounded-sm"
             alt="Logo"
+            type="team"
           />
           <span className="truncate overflow-ellipsis whitespace-nowrap text-xl">
             {team.name}

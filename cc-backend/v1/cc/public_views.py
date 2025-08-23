@@ -7,7 +7,7 @@ from django.utils.dateparse import parse_datetime
 from datetime import datetime
 import uuid
 
-from .models import Competition, Team, Player, Match, Season, Participant
+from .models import Team, Player, Match, Season, Participant
 
 # Maximum items per page
 MAX_PAGE_SIZE = 100
@@ -306,6 +306,7 @@ def public_matches(request):
     date_to = request.query_params.get("date_to", "")
     season_id = request.query_params.get("season_id", "")
     competition_id = request.query_params.get("competition_id", "")
+    competition_name = request.query_params.get("competition_name", "")
 
     page = int(request.query_params.get("page", "1"))
     page_size = min(int(request.query_params.get("page_size", "20")), MAX_PAGE_SIZE)
@@ -364,40 +365,29 @@ def public_matches(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-    if season_id or competition_id:
-        event_query = Q()
-
-        if season_id:
-            try:
-                uuid.UUID(season_id)  # Validate UUID
-                event_query &= Q(season_id=season_id)
-            except ValueError:
-                return Response(
-                    {"error": "Invalid season_id format"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        if competition_id:
-            try:
-                uuid.UUID(competition_id)  # Validate UUID
-                event_query &= Q(competition_id=competition_id)
-            except ValueError:
-                return Response(
-                    {"error": "Invalid competition_id format"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        else:
-            # If no matches found in the specified season/competition, return empty
+    if season_id:
+        try:
+            uuid.UUID(season_id)  # Validate UUID
+            query &= Q(season_id=season_id)
+        except ValueError:
             return Response(
-                {
-                    "count": 0,
-                    "total_pages": 0,
-                    "current_page": page,
-                    "page_size": page_size,
-                    "results": [],
-                }
+                {"error": "Invalid season_id format"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
+
+    if competition_id:
+        try:
+            uuid.UUID(competition_id)  # Validate UUID
+            query &= Q(competition_id=competition_id)
+        except ValueError:
+            return Response(
+                {"error": "Invalid competition_id format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    if competition_name:
+        # Filter by competition name using the relationship
+        query &= Q(competition__name__icontains=competition_name)
 
     matches = Match.objects.filter(query).order_by(sort_field)
 
@@ -548,30 +538,3 @@ def public_seasons(request):
         )
 
     return Response(result)
-
-
-@api_view(["GET"])
-def public_competition_name(request, competition_id):
-    """
-    Public API endpoint to fetch the name of a competition by its ID.
-
-    Path Parameters:
-    - competition_id: The UUID of the competition
-
-    Returns the name of the competition.
-    """
-    try:
-        uuid.UUID(competition_id)  # Validate UUID format
-    except ValueError:
-        return Response(
-            {"error": "Invalid competition_id format"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    try:
-        competition = Competition.objects.get(id=competition_id)
-        return Response({"name": competition.name})
-    except Competition.DoesNotExist:
-        return Response(
-            {"error": "Competition not found"}, status=status.HTTP_404_NOT_FOUND
-        )

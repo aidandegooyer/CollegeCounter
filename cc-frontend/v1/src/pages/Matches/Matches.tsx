@@ -1,6 +1,6 @@
-import { ArrowRight, Star } from "lucide-react";
+import { ArrowRight, Menu, Star } from "lucide-react";
 import logo from "@/assets/0.1x/C Logo@0.1x.png";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { usePublicMatches, usePublicSeasons } from "@/services/hooks";
@@ -16,15 +16,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Logo from "@/components/Logo";
 
 function Matches() {
-  var initMatchType = "upcoming";
-  const hash = window.location.hash.replace("#", "");
-  if (hash === "live" || hash === "past") {
-    initMatchType = hash;
-  }
+  const getInitialMatchType = () => {
+    const hash = window.location.hash.replace("#", "");
+    if (hash === "live" || hash === "upcoming" || hash === "past") {
+      return hash;
+    }
+    return "upcoming";
+  };
 
-  const [matchType, setMatchType] = useState(initMatchType || "live");
+  const [matchType, setMatchType] = useState(getInitialMatchType() || "live");
+  window.location.hash = matchType;
 
   return (
     <div className="app-container mx-4 flex justify-center">
@@ -219,6 +223,7 @@ function UpcomingMatch() {
 }
 
 function Past() {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [page, setPage] = useState(1);
   const [matches, setMatches] = useState<PublicMatch[]>([]);
   const [hasMore, setHasMore] = useState(true);
@@ -226,7 +231,7 @@ function Past() {
     date_from: "",
     date_to: "",
     season_id: "",
-    competition_id: "",
+    competition_name: "",
     sort: "date",
     order: "desc",
     status: "completed",
@@ -238,6 +243,7 @@ function Past() {
       page,
       page_size: 30,
       status: "completed",
+      ...filters,
     },
     {
       staleTime: 1000 * 60 * 5,
@@ -255,6 +261,8 @@ function Past() {
     }
   }, [data, page]);
 
+  // Don't use a useEffect for filter changes - handle it directly in the change handler
+
   const loadMoreMatches = () => {
     if (!isLoading && hasMore) {
       setPage((prevPage) => prevPage + 1);
@@ -262,6 +270,9 @@ function Past() {
   };
 
   const handleFilterChange = (newFilters: Partial<typeof filters>) => {
+    // Reset page and matches when filters change, and then update filters
+    setPage(1);
+    setMatches([]);
     setFilters((prev) => ({ ...prev, ...newFilters }));
   };
 
@@ -279,12 +290,32 @@ function Past() {
   return (
     <>
       <div className="mb-2 flex flex-col md:flex-row md:items-start md:justify-between">
-        <div>
-          <h1>Past Matches</h1>
+        <div className="w-full">
+          <h1 className="">Past Matches</h1>
           <hr />
         </div>
       </div>
-      {/* TODO: FIX THIS<MatchesFilter filters={filters} onFilterChange={handleFilterChange} />*/}
+
+      <div
+        className={`matches-filter mt-4 w-full rounded-xl border-2 p-4 md:mt-0 md:w-auto ${isExpanded ? "max-h-[1000px]" : "max-h-16"} transition-all duration-300`}
+      >
+        <div
+          className="mb-2 flex cursor-pointer items-center justify-between"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          <h2 className="font-semibold">Filter Matches</h2>
+
+          <Menu />
+        </div>
+        <div
+          className={`bg-background z-10 transition-all duration-200 ${isExpanded ? "opacity-100" : "opacity-0"}`}
+        >
+          <MatchesFilter
+            filters={filters}
+            onFilterChange={handleFilterChange}
+          />
+        </div>
+      </div>
 
       <InfiniteScroll
         dataLength={matches.length}
@@ -332,7 +363,12 @@ function Result(props: ResultProps) {
       <div className="flex">
         <div className="flex-3 space-y-2">
           <div className="flex items-center space-x-2">
-            <img src={winner.picture || logo} className="h-6 w-6" alt="pfp" />
+            <Logo
+              src={winner.picture}
+              className="h-6 w-6"
+              alt="pfp"
+              type="team"
+            />
             <span className="truncate overflow-ellipsis whitespace-nowrap font-semibold">
               {winner.name}
             </span>
@@ -343,7 +379,12 @@ function Result(props: ResultProps) {
             </span>
           </div>
           <div className="flex items-center space-x-2 overflow-ellipsis">
-            <img src={loser.picture || logo} className="h-6 w-6" alt="pfp" />
+            <Logo
+              src={loser.picture || logo}
+              className="h-6 w-6"
+              alt="pfp"
+              type="team"
+            />
             <span className="text-muted-foreground truncate overflow-ellipsis whitespace-nowrap">
               {loser.name}
             </span>
@@ -367,18 +408,23 @@ function Result(props: ResultProps) {
           </span>
         </div>
       </div>
-      <div className="mt-2 flex items-end justify-between">
-        <p className="text-foreground bg-muted rounded-sm px-1 py-0.5">
+      <hr className="my-2" />
+      <div className="flex items-end justify-between">
+        <div className="flex items-center space-x-2">
+          <div className="bg-secondary rounded-sm px-1 py-0.5">
+            {props.match.competition?.name || ""}
+          </div>
+          <div className="bg-muted rounded-sm px-1 py-0.5">
+            {props.match.season?.name || ""}
+          </div>
+        </div>
+        <p className="text-muted-foreground py-0.5">
           {new Date(props.match.date).toLocaleString(undefined, {
             year: "numeric",
             month: "short",
             day: "numeric",
           })}
         </p>
-
-        <div className="bg-secondary rounded-sm px-1 py-0.5">
-          {props.match.competition?.name || ""}
-        </div>
       </div>
     </li>
   );
@@ -390,6 +436,8 @@ interface MatchesFilterProps {
 }
 
 function MatchesFilter({ filters, onFilterChange }: MatchesFilterProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   const { data: seasonsData, isLoading, error } = usePublicSeasons();
   const seasons = seasonsData?.results || [];
 
@@ -402,133 +450,108 @@ function MatchesFilter({ filters, onFilterChange }: MatchesFilterProps) {
   }
 
   return (
-    <div className="matches-filter mt-4 w-full rounded-xl border-2 p-4 md:mt-0 md:w-auto">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="font-semibold">Filter Matches</h2>
+    <div className={`mt-4 flex flex-wrap space-x-2 space-y-2`}>
+      <div className="space-y-1">
+        <Label htmlFor="date-from">From Date</Label>
+        <Input
+          id="date-from"
+          type="date"
+          value={filters.date_from || ""}
+          onChange={(e) => onFilterChange({ date_from: e.target.value })}
+          className="w-full"
+        />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="date-to">To Date</Label>
+        <Input
+          id="date-to"
+          type="date"
+          value={filters.date_to || ""}
+          onChange={(e) => onFilterChange({ date_to: e.target.value })}
+          className="w-full"
+        />
       </div>
 
-      <div className="mt-2 flex space-x-2">
-        <div className="space-y-1">
-          <Label htmlFor="date-from">From Date</Label>
-          <Input
-            id="date-from"
-            type="date"
-            value={filters.date_from || ""}
-            onChange={(e) => onFilterChange({ date_from: e.target.value })}
-            className="w-full"
-          />
-        </div>
+      <div className="space-y-1">
+        <Label htmlFor="season">Season</Label>
+        <Select
+          value={filters.season_id || "all_seasons"}
+          onValueChange={(value) =>
+            onFilterChange({
+              season_id: value === "all_seasons" ? "" : value,
+            })
+          }
+        >
+          <SelectTrigger id="season">
+            <SelectValue placeholder="Select a season" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all_seasons">All Seasons</SelectItem>
+            {seasons.map((season) => (
+              <SelectItem key={season.id} value={season.id}>
+                {season.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="date-to">To Date</Label>
-          <Input
-            id="date-to"
-            type="date"
-            value={filters.date_to || ""}
-            onChange={(e) => onFilterChange({ date_to: e.target.value })}
-            className="w-full"
-          />
-        </div>
+      <div className="space-y-1">
+        <Label htmlFor="competition">Competition</Label>
+        <Select
+          value={filters.competition_name || "all_competitions"}
+          onValueChange={(value) =>
+            onFilterChange({
+              competition_name: value === "all_competitions" ? "" : value,
+            })
+          }
+        >
+          <SelectTrigger id="competition">
+            <SelectValue placeholder="Select a competition" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all_competitions">All Competitions</SelectItem>
+            <SelectItem value="necc">NECC</SelectItem>
+            <SelectItem value="playfly">Playfly</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="season">Season</Label>
-          <Select
-            value={filters.season_id || "all_seasons"}
-            onValueChange={(value) =>
-              onFilterChange({
-                season_id: value === "all_seasons" ? "" : value,
-              })
-            }
-          >
-            <SelectTrigger id="season">
-              <SelectValue placeholder="Select a season" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all_seasons">All Seasons</SelectItem>
-              {seasons.map((season) => (
-                <SelectItem key={season.id} value={season.id}>
-                  {season.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1">
-          <Label htmlFor="competition">Competition</Label>
-          <Select
-            value={filters.competition_id || "all_competitions"}
-            onValueChange={(value) =>
-              onFilterChange({
-                competition_id: value === "all_competitions" ? "" : value,
-              })
-            }
-          >
-            <SelectTrigger id="competition">
-              <SelectValue placeholder="Select a competition" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all_competitions">All Competitions</SelectItem>
-              <SelectItem value="necc">NECC</SelectItem>
-              <SelectItem value="playfly">Playfly</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1">
-          <Label htmlFor="sort">Sort By</Label>
-          <Select
-            value={filters.sort || "date"}
-            onValueChange={(value: "date" | "status") =>
-              onFilterChange({ sort: value })
-            }
-          >
-            <SelectTrigger id="sort">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="date">Date</SelectItem>
-              <SelectItem value="status">Status</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1">
-          <Label htmlFor="order">Order</Label>
-          <Select
-            value={filters.order || "desc"}
-            onValueChange={(value: "asc" | "desc") =>
-              onFilterChange({ order: value })
-            }
-          >
-            <SelectTrigger id="order">
-              <SelectValue placeholder="Order" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="desc">Newest First</SelectItem>
-              <SelectItem value="asc">Oldest First</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1">
-          <Label className="invisible">Reset</Label>
-          <Button
-            onClick={() =>
-              onFilterChange({
-                date_from: "",
-                date_to: "",
-                season_id: "",
-                competition_id: "",
-                sort: "date",
-                order: "desc",
-              })
-            }
-            variant="destructive"
-            className="cursor-pointer"
-          >
-            Reset Filters
-          </Button>
-        </div>
+      <div className="space-y-1">
+        <Label htmlFor="order">Order</Label>
+        <Select
+          value={filters.order || "desc"}
+          onValueChange={(value: "asc" | "desc") =>
+            onFilterChange({ order: value })
+          }
+        >
+          <SelectTrigger id="order">
+            <SelectValue placeholder="Order" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="desc">Newest First</SelectItem>
+            <SelectItem value="asc">Oldest First</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1">
+        <Label className="invisible">Reset</Label>
+        <Button
+          onClick={() =>
+            onFilterChange({
+              date_from: "",
+              date_to: "",
+              season_id: "",
+              competition_name: "",
+              sort: "date",
+              order: "desc",
+            })
+          }
+          variant="destructive"
+          className="cursor-pointer"
+        >
+          Reset Filters
+        </Button>
       </div>
     </div>
   );

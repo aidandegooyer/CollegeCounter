@@ -9,13 +9,18 @@ import { usePublicPlayers, usePublicTeams } from "@/services/hooks";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 
 function Rankings() {
-  var initRankingType = "team";
-  const hash = window.location.hash.replace("#", "");
-  if (hash === "team" || hash === "player") {
-    initRankingType = hash;
-  }
+  const getInitialRankingType = () => {
+    const hash = window.location.hash.replace("#", "");
+    if (hash === "team" || hash === "player") {
+      return hash;
+    }
+    return "team";
+  };
 
-  const [rankingType, setRankingType] = useState(initRankingType || "team");
+  const [rankingType, setRankingType] = useState(
+    getInitialRankingType() || "team",
+  );
+  window.location.hash = rankingType;
 
   return (
     <div className="app-container mx-16 flex justify-center">
@@ -52,11 +57,8 @@ function Rankings() {
             </div>
           </div>
         </div>
-        <h1>
-          {rankingType === "team"
-            ? `Team Rankings on ${new Date().toLocaleDateString()}`
-            : "Current Player Rankings"}
-        </h1>
+
+        <h1>{rankingType === "team" ? `Team Rankings` : "Player Rankings"}</h1>
         <h2 className="text-muted-foreground">
           {rankingType === "team"
             ? "Based on initial Faceit Elo and Team Performance"

@@ -1,4 +1,4 @@
-import logo from "@/assets/0.1x/C Logo@0.1x.png";
+import Logo from "@/components/Logo";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import type { PublicTeam } from "@/services/api";
@@ -28,7 +28,7 @@ function TeamRankingsWidget() {
         <Alert variant="destructive" className="mt-4">
           <AlertTitle className="text-lg">Error</AlertTitle>
           <AlertDescription>
-            There was an error loading the player rankings. Please try again
+            There was an error loading the team rankings. Please try again
             later.
           </AlertDescription>
         </Alert>
@@ -84,10 +84,11 @@ function RankingItem(props: RankingItemProps) {
     <li className="flex justify-between">
       <div className="flex items-center space-x-2">
         <span className="mr-3 w-4 text-end font-mono">{rank}</span>
-        <img
-          src={props.team.picture || logo}
+        <Logo
+          src={props.team.picture}
           className="h-6 w-6 rounded-sm"
           alt="pfp"
+          type="team"
         />
         <div className="max-w-[128px] truncate overflow-ellipsis whitespace-nowrap">
           {props.team.name}

@@ -15,7 +15,7 @@ function Navbar() {
             className="mr-2 h-10 w-10 rounded-sm"
           />
           <div
-            className={`hidden text-2xl font-bold lg:block ${
+            className={`font-block hidden text-3xl lg:block ${
               location.pathname === "/"
                 ? "text-foreground"
                 : "text-muted-foreground"
@@ -64,7 +64,8 @@ function Navbar() {
 
           <li>
             <NavLink
-              to="/events"
+              //TODO: Add events page
+              to="/"
               className={`transition-colors hover:text-blue-200 ${
                 location.pathname === "/events"
                   ? "text-foreground"

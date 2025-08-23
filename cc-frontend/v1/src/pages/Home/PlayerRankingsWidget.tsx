@@ -1,4 +1,4 @@
-import player from "@/assets/player_silhouette.png";
+import Logo from "@/components/Logo";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import type { PublicPlayer } from "@/services/api";
@@ -84,10 +84,11 @@ function RankingItem(props: RankingItemProps) {
     <li className="flex justify-between">
       <div className="flex items-center space-x-2">
         <span className="mr-3 w-4 text-end font-mono">{rank}</span>
-        <img
-          src={props.player.picture || player}
+        <Logo
+          src={props.player.picture}
           className="h-6 w-6 rounded-sm"
           alt="pfp"
+          type="player"
         />
         <div className="max-w-[128px] truncate overflow-ellipsis whitespace-nowrap">
           {props.player.name}

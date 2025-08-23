@@ -1,4 +1,4 @@
-import silhouette from "@/assets/player_silhouette.png";
+import Logo from "@/components/Logo";
 import type { PublicPlayer } from "@/services/api";
 
 function PlayerRankingComponent(player: PublicPlayer & { rank: number }) {
@@ -11,10 +11,11 @@ function PlayerRankingComponent(player: PublicPlayer & { rank: number }) {
           <span className="mr-3 text-end font-mono text-xl">
             {player.rank + 1}
           </span>
-          <img
-            src={player.picture || silhouette}
+          <Logo
+            src={player.picture}
             className="h-8 w-8 rounded-sm"
             alt="pfp"
+            type="player"
           />
           <span className="truncate overflow-ellipsis whitespace-nowrap text-xl">
             {player.name}

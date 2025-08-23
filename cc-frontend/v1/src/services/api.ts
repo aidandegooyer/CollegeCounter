@@ -341,7 +341,7 @@ export interface MatchQueryParams {
   date_from?: string;
   date_to?: string;
   season_id?: string;
-  competition_id?: string;
+  competition_name?: string;
   page?: number;
   page_size?: number;
   sort?: 'date' | 'status';
