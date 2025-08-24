@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { PublicTeam, Team } from "@/services/api";
+import type { PublicTeam } from "@/services/api";
 import { usePublicPlayers } from "@/services/hooks";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import Logo from "@/components/Logo";

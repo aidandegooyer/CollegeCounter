@@ -96,7 +96,7 @@ function News() {
       <div className="news-widget max-w-[900px]">
         <h1>News</h1>
 
-        <hr />
+        <hr className="w-[900px]" />
         {renderContent()}
       </div>
     </div>

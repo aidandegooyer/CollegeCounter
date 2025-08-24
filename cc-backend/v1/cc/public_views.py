@@ -28,6 +28,7 @@ def public_teams(request):
     - page_size: Items per page (default: 20, max: 100)
     - sort: Sort field (default: name)
     - order: Sort order (asc or desc, default: asc)
+    - season_id: Filter teams that participated in a specific season
 
     Returns a paginated list of teams.
     """
@@ -43,6 +44,7 @@ def public_teams(request):
     school_name = request.query_params.get("school_name", "")
     season_id = request.query_params.get("season_id", "")
     competition_id = request.query_params.get("competition_id", "")
+    season_id = request.query_params.get("season_id", "")
 
     page = int(request.query_params.get("page", "1"))
     page_size = min(int(request.query_params.get("page_size", "20")), MAX_PAGE_SIZE)
@@ -69,6 +71,9 @@ def public_teams(request):
 
     if school_name:
         query &= Q(school_name__icontains=school_name)
+
+    if season_id:
+        query &= Q(participants__season_id=season_id)
 
     if season_id or competition_id:
         participant_query = Q()

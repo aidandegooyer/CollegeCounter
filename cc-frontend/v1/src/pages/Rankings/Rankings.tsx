@@ -7,8 +7,19 @@ import InfiniteScroll from "react-infinite-scroll-component";
 import PlayerRankingComponent from "./PlayerRankingComponent";
 import { usePublicPlayers, usePublicTeams } from "@/services/hooks";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Menu } from "lucide-react";
 
 function Rankings() {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   const getInitialRankingType = () => {
     const hash = window.location.hash.replace("#", "");
     if (hash === "team" || hash === "player") {
@@ -24,7 +35,7 @@ function Rankings() {
 
   return (
     <div className="app-container mx-16 flex justify-center">
-      <div className="rankings w-full max-w-[1200px] justify-center">
+      <div className="rankings w-full max-w-[900px] justify-center">
         <div className="flex justify-center">
           <div className="my-4 flex h-12 w-[500px] rounded-xl border-2">
             <div
@@ -64,19 +75,28 @@ function Rankings() {
             ? "Based on initial Faceit Elo and Team Performance"
             : "Based on current Faceit Elo"}
         </h2>
+
+        <div
+          className={`matches-filter mt-4 w-full cursor-pointer rounded-xl border-2 p-4 md:mt-0 md:w-auto ${isExpanded ? "max-h-[1000px]" : "max-h-16"} transition-all duration-300`}
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-semibold">Filter Matches</h2>
+
+            <Menu />
+          </div>
+          <div
+            className={`bg-background transition-all duration-200 ${isExpanded ? "opacity-100" : "pointer-events-none opacity-0"}`}
+          >
+            <RankingsFilter expanded={isExpanded} />
+          </div>
+        </div>
         <div className="mt-2 flex w-full">
           <div className="flex-4 space-y-3">
             {rankingType === "player" ? (
               <PlayerRankingBody />
             ) : (
               <TeamRankingBody />
-            )}
-          </div>
-          <div className="ml-8 hidden flex-1 space-y-4 lg:block">
-            {rankingType === "team" ? (
-              <TeamRankingsFilter />
-            ) : (
-              <PlayerRankingsFilter />
             )}
           </div>
         </div>
@@ -142,30 +162,6 @@ function TeamRankingBody() {
   );
 }
 
-function TeamRankingsFilter() {
-  return (
-    <div className="team-rankings-filter w-full rounded-xl border-2 p-4 py-2">
-      <h2>Filter</h2>
-      <hr />
-      <h3 className="mt-2">Competition</h3>
-      <RadioGroup className="my-2" defaultValue="all">
-        <Label className="flex cursor-pointer space-x-2">
-          <RadioGroupItem value="all" id="competition-all" />
-          <span className="">All</span>
-        </Label>
-        <Label className="flex cursor-pointer space-x-2">
-          <RadioGroupItem value="necc" id="competition-necc" />
-          <span className="">NECC</span>
-        </Label>
-        <Label className="flex cursor-pointer space-x-2">
-          <RadioGroupItem value="playfly" id="competition-playfly" />
-          <span className="">Playfly</span>
-        </Label>
-      </RadioGroup>
-    </div>
-  );
-}
-
 function PlayerRankingBody() {
   const [page, setPage] = useState(1);
   const [players, setPlayers] = useState<any[]>([]);
@@ -221,26 +217,49 @@ function PlayerRankingBody() {
   );
 }
 
-function PlayerRankingsFilter() {
+interface RankingsFilterProps {
+  expanded: boolean;
+}
+
+function RankingsFilter(props: RankingsFilterProps) {
   return (
-    <div className="team-rankings-filter w-full rounded-xl border-2 p-4 py-2">
-      <h2>Filter</h2>
-      <hr />
-      <h3 className="mt-2">Competition</h3>
-      <RadioGroup className="my-2" defaultValue="all">
-        <Label className="flex cursor-pointer space-x-2">
-          <RadioGroupItem value="all" id="competition-all" />
-          <span className="">All</span>
-        </Label>
-        <Label className="flex cursor-pointer space-x-2">
-          <RadioGroupItem value="necc" id="competition-necc" />
-          <span className="">NECC</span>
-        </Label>
-        <Label className="flex cursor-pointer space-x-2">
-          <RadioGroupItem value="playfly" id="competition-playfly" />
-          <span className="">Playfly</span>
-        </Label>
-      </RadioGroup>
+    <div
+      className={`mt-4 flex flex-wrap justify-center space-x-2 space-y-2 ${props.expanded ? "" : "pointer-events-none"}`}
+    >
+      <div className="space-y-1">
+        <Label htmlFor="season">Season</Label>
+        <Select>
+          <SelectTrigger id="season">
+            <SelectValue placeholder="Select a season" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all_seasons">All Seasons</SelectItem>
+            <SelectItem value="necc">Spring 2025</SelectItem>
+            <SelectItem value="playfly">Fall 2025</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor="competition">Competition</Label>
+        <Select>
+          <SelectTrigger id="competition">
+            <SelectValue placeholder="Select a competition" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all_competitions">All Competitions</SelectItem>
+            <SelectItem value="necc">NECC</SelectItem>
+            <SelectItem value="playfly">Playfly</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1">
+        <Label className="invisible">Reset</Label>
+        <Button variant="destructive" className="cursor-pointer">
+          Reset Filters
+        </Button>
+      </div>
     </div>
   );
 }

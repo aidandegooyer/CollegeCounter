@@ -297,18 +297,16 @@ function Past() {
       </div>
 
       <div
-        className={`matches-filter mt-4 w-full rounded-xl border-2 p-4 md:mt-0 md:w-auto ${isExpanded ? "max-h-[1000px]" : "max-h-16"} transition-all duration-300`}
+        className={`matches-filter mt-4 w-full cursor-pointer rounded-xl border-2 p-4 md:mt-0 md:w-auto ${isExpanded ? "max-h-[1000px]" : "max-h-16"} transition-all duration-300`}
+        onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div
-          className="mb-2 flex cursor-pointer items-center justify-between"
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
+        <div className="mb-2 flex items-center justify-between">
           <h2 className="font-semibold">Filter Matches</h2>
 
           <Menu />
         </div>
         <div
-          className={`bg-background z-10 transition-all duration-200 ${isExpanded ? "opacity-100" : "opacity-0"}`}
+          className={`bg-background z-10 transition-all duration-200 ${isExpanded ? "opacity-100" : "pointer-events-none opacity-0"}`}
         >
           <MatchesFilter
             filters={filters}

@@ -8,7 +8,13 @@ import { NavLink } from "react-router";
 
 function TeamRankingsWidget() {
   const { data, isLoading, error } = usePublicTeams(
-    { sort: "elo", order: "desc", page: 1, page_size: 10 },
+    {
+      sort: "elo",
+      order: "desc",
+      season_id: "d82082f3-c673-4e99-a3ba-20acec5b028f",
+      page: 1,
+      page_size: 10,
+    },
     {
       staleTime: 1000 * 60 * 5,
     },

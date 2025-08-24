@@ -20,8 +20,11 @@ function PlayerRankingComponent(player: PublicPlayer & { rank: number }) {
           <span className="truncate overflow-ellipsis whitespace-nowrap text-xl">
             {player.name}
           </span>
+          <div className="bg-secondary drop-shadow-secondary drop-shadow-lg/50 ml-2 hidden rounded-md p-1 px-2 text-xs sm:block">
+            {player.team?.name}
+          </div>
         </div>
-        <div>
+        <div className="flex items-center space-x-4">
           <div className="bg-primary drop-shadow-primary drop-shadow-lg/50 rounded-md p-1 px-2 font-mono text-lg">
             {player.elo}
           </div>
