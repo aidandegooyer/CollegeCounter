@@ -1,12 +1,103 @@
 import logo from "@/assets/0.5x/C Logo@0.5x.png";
+import { Spinner } from "@/components/ui/shadcn-io/spinner";
+import client from "@/services/sanity-client";
+import { formatDistanceToNow } from "date-fns";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
+
+interface PortableTextBlock {
+  _type: "block";
+  _key: string;
+  style?: string;
+  markDefs?: { _key: string; _type: string; href?: string }[];
+  children: { _type: "span"; text: string; _key: string; marks?: string[] }[];
+}
+
+interface SanityPost {
+  _id: string;
+  title: string;
+  slug: { _type: "slug"; current: string };
+  body?: PortableTextBlock[];
+  excerpt?: string;
+  imageUrl?: string;
+  author?: string;
+  authorLink?: string;
+  publishedAt: string;
+}
 
 function News() {
-  return (
-    <div className="app-container mx-4 mt-2 flex justify-center">
-      <div className="news w-full max-w-[1200px]">
-        <div className="flex justify-center">
-          <NewsWidget />
+  const [posts, setPosts] = useState<SanityPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchPosts = async (start: number, amount: number) => {
+      try {
+        setLoading(true);
+        // Query for posts, ordered by publishedAt date, limited to 3
+        const query = `*[_type == "post"] | order(publishedAt desc)[${start}...${start + amount}]{
+          _id,
+          title,
+          slug,
+          "excerpt": array::join(string::split(pt::text(body), "")[0...300], ""),
+          publishedAt,
+          "imageUrl": image.asset->url,
+          author,
+          authorLink
+        }`;
+
+        const result = await client.fetch(query);
+        setPosts(result);
+      } catch (err) {
+        console.error("Error fetching posts:", err);
+        setError("Failed to load news posts");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPosts(0, 10);
+  }, []);
+
+  // If there are no posts but we're not loading, render a placeholder
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="flex h-64 items-center justify-center">
+          <Spinner className="h-8 w-8" />
         </div>
+      );
+    }
+
+    if (error) {
+      return <div className="mt-4 text-center text-red-500">{error}</div>;
+    }
+
+    if (posts.length === 0) {
+      return (
+        <div className="text-muted-foreground mt-4 text-center">
+          No news posts available
+        </div>
+      );
+    }
+
+    return (
+      <ul className="mt-2 space-y-4">
+        {posts.length > 0 && <FeaturedNews post={posts[0]} />}
+        {posts.slice(1).map((post) => (
+          <NewsItem key={post._id} post={post} />
+        ))}
+      </ul>
+    );
+  };
+
+  return (
+    <div className="flex justify-center">
+      <div className="news-widget max-w-[900px]">
+        <h1>News</h1>
+
+        <hr />
+        {renderContent()}
       </div>
     </div>
   );
@@ -14,50 +105,71 @@ function News() {
 
 export default News;
 
-function NewsWidget() {
-  return (
-    <div className="news-feed w-full max-w-[800px] p-4">
-      <h1>News</h1>
-      <hr />
-      <ul className="mt-2 space-y-2">
-        <FeaturedNews />
-        <NewsItem />
-        <NewsItem />
-      </ul>
-    </div>
-  );
-}
+function FeaturedNews({ post }: { post: SanityPost }) {
+  let navigate = useNavigate();
+  const handleClick = () => {
+    navigate(`/news/${post.slug.current}`);
+  };
 
-function FeaturedNews() {
   return (
-    <div className="featured-news rounded-xl border-2">
+    <div
+      className="featured-news cursor-pointer rounded-xl border-2 transition-colors hover:border-blue-400"
+      onClick={handleClick}
+    >
       <img
-        src={logo}
+        src={post.imageUrl || logo}
         className="h-64 w-full rounded-xl object-cover"
-        alt="Featured News"
+        alt={post.title}
       />
       <div className="p-4 pt-2">
-        <h2 className="text-lg font-semibold">Featured News</h2>
+        <h2 className="text-lg font-semibold">{post.title}</h2>
         <p className="text-muted-foreground mt-2">
-          This is a brief description of the featured news item.
+          {post.excerpt || "No excerpt available"}
         </p>
+        <div className="mt-2 flex justify-between">
+          <span className="text-foreground bg-secondary rounded px-1 py-0.5 text-sm">
+            {post.author || "College Counter Staff"}
+          </span>
+          <span className="text-muted-foreground text-sm">
+            {formatDistanceToNow(new Date(post.publishedAt), {
+              addSuffix: true,
+            })}
+          </span>
+        </div>
       </div>
     </div>
   );
 }
 
-function NewsItem() {
+function NewsItem({ post }: { post: SanityPost }) {
+  let navigate = useNavigate();
+  const handleClick = () => {
+    navigate(`/news/${post.slug.current}`);
+  };
+
   return (
-    <li className="flex cursor-pointer rounded-xl border-2 p-4 py-2">
-      <div className="flex-1 space-y-2">
-        <h3 className="font-semibold">News Title</h3>
-        <p className="text-muted-foreground">
-          Brief description of the news item.
-        </p>
+    <li
+      className="cursor-pointer rounded-xl border-2 p-4 py-2 transition-colors hover:border-blue-400"
+      onClick={handleClick}
+    >
+      <div className="flex w-full justify-between">
+        <h3 className="font-semibold">{post.title}</h3>
+        <span className="text-muted-foreground w-30 text-end">
+          {formatDistanceToNow(new Date(post.publishedAt), { addSuffix: true })}
+        </span>
       </div>
-      <div className="flex-1 text-end">
-        <span className="text-muted-foreground">2025-10-01</span>
-      </div>
+      <p
+        className="text-muted-foreground h-12 overflow-hidden text-ellipsis"
+        style={{
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          wordBreak: "break-word",
+        }}
+        title={post.excerpt}
+      >
+        {post.excerpt || "No excerpt available"}
+      </p>
     </li>
   );
 }

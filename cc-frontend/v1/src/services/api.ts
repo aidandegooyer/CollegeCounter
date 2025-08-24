@@ -13,7 +13,7 @@ api.interceptors.request.use(async (config) => {
   const auth = getAuth();
   const user = auth.currentUser;
 
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  await new Promise(resolve => setTimeout(resolve, 300));
   
   if (user) {
     try {

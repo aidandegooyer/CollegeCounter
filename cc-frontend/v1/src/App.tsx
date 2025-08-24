@@ -14,6 +14,7 @@ import News from "@/pages/News/News";
 import Admin from "@/pages/Admin/Admin";
 import SignIn from "@/pages/Admin/SignIn";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import Article from "@/pages/News/Article";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDrfCYvSpHIFdvVkVsaMSMgil-d2W9JZWc",
@@ -59,6 +60,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/news" element={<News />} />
+            <Route path="/news/:slug" element={<Article />} />
             <Route path="/rankings" element={<Rankings />} />
             <Route path="/matches" element={<Matches />} />
             <Route path="/events" element={<Home />} />
