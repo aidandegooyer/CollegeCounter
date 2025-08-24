@@ -5,6 +5,7 @@ import { getAuth, signOut } from "firebase/auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ClearDatabase from "./ClearDatabase";
 import ControlPanel from "./ControlPanel";
+import EditTeamPlayer from "./EditTeamPlayer";
 
 function Admin() {
   const auth = getAuth();
@@ -31,13 +32,42 @@ function Admin() {
 
       <Tabs defaultValue="control-panel" className="w-full">
         <TabsList>
-          <TabsTrigger value="control-panel">Control Panel</TabsTrigger>
-          <TabsTrigger value="import">Import Matches</TabsTrigger>
-          <TabsTrigger value="database">Database Viewer</TabsTrigger>
-          <TabsTrigger value="clear-database">Clear Database</TabsTrigger>
+          <TabsTrigger
+            value="control-panel"
+            className="hover:text-foreground! cursor-pointer"
+          >
+            Control Panel
+          </TabsTrigger>
+          <TabsTrigger
+            value="edit"
+            className="hover:text-foreground! cursor-pointer"
+          >
+            Edit Team/Player
+          </TabsTrigger>
+          <TabsTrigger
+            value="import"
+            className="hover:text-foreground! cursor-pointer"
+          >
+            Import Matches
+          </TabsTrigger>
+          <TabsTrigger
+            value="database"
+            className="hover:text-foreground! cursor-pointer"
+          >
+            Database Viewer
+          </TabsTrigger>
+          <TabsTrigger
+            value="clear-database"
+            className="hover:text-foreground! cursor-pointer"
+          >
+            Clear Database
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="control-panel">
           <ControlPanel />
+        </TabsContent>
+        <TabsContent value="edit">
+          <EditTeamPlayer />
         </TabsContent>
         <TabsContent value="import">
           <ImportMatches />

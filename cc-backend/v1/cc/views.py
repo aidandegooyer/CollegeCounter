@@ -19,6 +19,10 @@ from .models import (
 )
 from .middleware import firebase_auth_required
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def index(request):
     return HttpResponse("Hello! This is the College Counter backend API.")
@@ -527,6 +531,103 @@ def clear_database(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(["POST"])
+@firebase_auth_required
+def update_player_elo(request):
+    """
+    Update player ELO ratings from Faceit API.
+    This will fetch the latest ELO for all players with a faceit_id
+    and update the values in our database.
+    """
+    try:
+        # Get all players with faceit_id
+        players = Player.objects.filter(faceit_id__isnull=False)
+        updated_count = 0
+        not_found_count = 0
+        faceit_api_url = "https://open.faceit.com/data/v4/players"
+
+        # Get the API key from request headers or use default
+        api_key = request.data.get("api_key", "3c0ddd87-ff50-45df-8d56-3cf62ef5fbc8")
+
+        for player in players:
+            if not player.faceit_id:
+                continue
+
+            try:
+                # Fetch player data from Faceit
+                import requests
+
+                headers = {"Authorization": f"Bearer {api_key}"}
+                response = requests.get(
+                    f"{faceit_api_url}/{player.faceit_id}", headers=headers
+                )
+
+                if response.status_code == 200:
+                    player_data = response.json()
+                    games = player_data.get("games", {})
+
+                    # Look for CS2 or CS:GO game data
+                    cs_data = games.get("cs2")
+
+                    if cs_data and "faceit_elo" in cs_data:
+                        player.elo = cs_data["faceit_elo"]
+                        player.skill_level = cs_data.get("skill_level", 1)
+                        player.save()
+                        logger.info(
+                            f"Updated ELO for player {player.name} to {player.elo}"
+                        )
+                        updated_count += 1
+                    else:
+                        not_found_count += 1
+                else:
+                    not_found_count += 1
+
+            except Exception as e:
+                logger.warning(f"Error updating player {player.name}: {str(e)}")
+                not_found_count += 1
+
+        return Response(
+            {
+                "message": "Player ELO update completed",
+                "updated_players": updated_count,
+                "not_found": not_found_count,
+            }
+        )
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["POST"])
+@firebase_auth_required
+def reset_player_elo(request):
+    """
+    Reset all player ELO ratings to the default value.
+    """
+    try:
+        # Get default ELO value from request or use 1000
+        default_elo = request.data.get("default_elo", 1000)
+        default_skill_level = request.data.get("default_skill_level", 1)
+
+        # Update all players
+        players = Player.objects.all()
+        updated_count = 0
+
+        for player in players:
+            player.elo = default_elo
+            player.skill_level = default_skill_level
+            player.save()
+            updated_count += 1
+
+        return Response(
+            {
+                "message": f"Player ELO reset to {default_elo}",
+                "updated_players": updated_count,
+            }
+        )
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(["GET", "POST"])
 @firebase_auth_required
 def match_participants(request):
@@ -640,3 +741,61 @@ def match_participants(request):
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+@api_view(["POST"])
+@firebase_auth_required
+def calculate_team_elos(request):
+    """
+    Calculate team ELOs based on player ELOs.
+    Formula: team_elo = mean(top 5 player ELOs) - 0.1 * std_dev(top 5 player ELOs)
+    """
+    try:
+        import statistics
+
+        # Get all teams
+        teams = Team.objects.all()
+        updated_count = 0
+        no_players_count = 0
+
+        for team in teams:
+            # Get active (non-benched) players for this team
+            players = Player.objects.filter(team=team, benched=False)
+
+            # Get player ELOs
+            player_elos = [player.elo for player in players if player.elo > 0]
+
+            # Need at least 2 players to calculate standard deviation
+            if len(player_elos) < 2:
+                no_players_count += 1
+                continue
+
+            # Take the highest 5 ELOs for this average
+            player_elos.sort(reverse=True)
+            player_elos = player_elos[:5]
+
+            # Calculate team ELO
+            mean_elo = statistics.mean(player_elos)
+            std_dev = statistics.stdev(player_elos)
+            k = 0.1
+            team_elo = mean_elo - k * std_dev
+
+            # Round to integer
+            team_elo = round(team_elo)
+
+            # Update team
+            team.elo = team_elo
+            team.save()
+            logger.info(f"Updated ELO for team {team.name} to {team.elo}")
+            updated_count += 1
+
+        return Response(
+            {
+                "message": "Team ELO calculation completed",
+                "updated_teams": updated_count,
+                "teams_without_enough_players": no_players_count,
+            }
+        )
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

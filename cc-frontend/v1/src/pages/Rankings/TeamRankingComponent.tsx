@@ -1,16 +1,20 @@
-import silhouette from "@/assets/player_silhouette.png";
 import { useState } from "react";
-import type { PublicTeam } from "@/services/api";
+import type { PublicTeam, Team } from "@/services/api";
 import { usePublicPlayers } from "@/services/hooks";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import Logo from "@/components/Logo";
 
-function TeamRankingComponent(team: PublicTeam) {
+interface TeamRankingComponentProps {
+  team: PublicTeam;
+  rank: number;
+}
+
+function TeamRankingComponent(props: TeamRankingComponentProps) {
   const [expanded, setExpanded] = useState(false);
 
   const { data, error, isLoading } = usePublicPlayers(
     {
-      team_id: team.id,
+      team_id: props.team.id,
       sort: "elo",
       order: "desc",
       visible: true,
@@ -55,20 +59,22 @@ function TeamRankingComponent(team: PublicTeam) {
     >
       <div className="flex justify-between">
         <div className="flex items-center space-x-2">
-          <span className="mr-3 w-4 text-end font-mono text-xl">#</span>
+          <span className="mr-3 text-end font-mono text-xl">
+            {props.rank + 1}
+          </span>
           <Logo
-            src={team.picture}
+            src={props.team.picture}
             className="h-8 w-8 rounded-sm"
-            alt="Logo"
+            alt="pfp"
             type="team"
           />
           <span className="truncate overflow-ellipsis whitespace-nowrap text-xl">
-            {team.name}
+            {props.team.name}
           </span>
         </div>
         <div>
           <div className="bg-secondary drop-shadow-secondary drop-shadow-lg/50 rounded-md p-1 px-2 font-mono text-lg">
-            {team.elo}
+            {props.team.elo}
           </div>
         </div>
       </div>

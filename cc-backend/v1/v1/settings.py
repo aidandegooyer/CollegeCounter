@@ -47,6 +47,8 @@ FIREBASE_ADMIN_CREDENTIAL = os.path.join(
     BASE_DIR, "college-counter-9057f-firebase-adminsdk-fbsvc-a632f7f6e6.json"
 )
 
+FIREBASE_STORAGE_BUCKET = "college-counter-9057f.firebasestorage.app"
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

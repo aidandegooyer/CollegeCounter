@@ -95,7 +95,7 @@ function RankingItem(props: RankingItemProps) {
         </div>
       </div>
       <div>
-        <span className="bg-secondary drop-shadow-secondary drop-shadow-lg/50 rounded-md p-1 font-mono text-sm">
+        <span className="bg-primary drop-shadow-primary drop-shadow-lg/50 rounded-md p-1 font-mono text-sm">
           {props.player.elo}
         </span>
       </div>

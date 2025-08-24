@@ -136,7 +136,7 @@ function TeamRankingBody() {
       className="infinite-scroll-container space-y-2"
     >
       {teams.map((team, i) => (
-        <TeamRankingComponent key={team.id || i} {...team} />
+        <TeamRankingComponent key={team.id || i} team={team} rank={i} />
       ))}
     </InfiniteScroll>
   );

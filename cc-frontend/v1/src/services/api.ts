@@ -175,6 +175,44 @@ export const clearDatabase = async (
   return response.data;
 };
 
+// Player ELO management functions
+export interface PlayerEloResponse {
+  message: string;
+  updated_players: number;
+  not_found?: number;
+}
+
+export interface TeamEloResponse {
+  message: string;
+  updated_teams: number;
+  teams_without_enough_players?: number;
+}
+
+export const updatePlayerElo = async (
+  apiKey?: string
+): Promise<PlayerEloResponse> => {
+  const response = await api.post(`/player-elo/update/`, {
+    api_key: apiKey
+  });
+  return response.data;
+};
+
+export const resetPlayerElo = async (
+  defaultElo: number = 1000,
+  defaultSkillLevel: number = 1
+): Promise<PlayerEloResponse> => {
+  const response = await api.post(`/player-elo/reset/`, {
+    default_elo: defaultElo,
+    default_skill_level: defaultSkillLevel
+  });
+  return response.data;
+};
+
+export const calculateTeamElos = async (): Promise<TeamEloResponse> => {
+  const response = await api.post(`/team-elo/calculate/`);
+  return response.data;
+};
+
 // fetch data from Faceit API
 export const fetchFaceitMatches = async (eventId: string): Promise<any> => {
   const limit = 100;
