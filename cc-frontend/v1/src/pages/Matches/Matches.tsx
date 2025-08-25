@@ -1,6 +1,6 @@
 import { ArrowRight, Menu, Star } from "lucide-react";
 import logo from "@/assets/0.1x/C Logo@0.1x.png";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { usePublicMatches, usePublicSeasons } from "@/services/hooks";
@@ -111,13 +111,13 @@ function LiveMatch() {
           <div className="mb-2 flex items-center space-x-2">
             <img src={logo} className="h-6 w-6" alt="Logo" />
             <span className="truncate overflow-ellipsis whitespace-nowrap">
-              Syracuse University
+              Test University
             </span>
           </div>
           <div className="flex items-center space-x-2 overflow-ellipsis">
             <img src={logo} className="h-6 w-6" alt="Logo" />
             <span className="truncate overflow-ellipsis whitespace-nowrap">
-              University of Texas
+              University of Test
             </span>
           </div>
         </div>
@@ -178,7 +178,7 @@ function UpcomingMatch() {
         <div className="flex items-center space-x-2">
           <img src={logo} className="h-6 w-6" alt="Logo" />
           <span className="truncate overflow-ellipsis whitespace-nowrap">
-            Syracuse University
+            Test University
           </span>
           <span className="bg-muted ml-2 flex items-center justify-end rounded-sm text-xs">
             <p className="border-r-1 px-1 font-mono text-xs text-green-500">
@@ -192,7 +192,7 @@ function UpcomingMatch() {
         <div className="flex items-center space-x-2 overflow-ellipsis">
           <img src={logo} className="h-6 w-6" alt="Logo" />
           <span className="truncate overflow-ellipsis whitespace-nowrap">
-            University of Texas
+            University of Test
           </span>
           <span className="bg-muted ml-2 flex items-center justify-end rounded-sm text-xs">
             <p className="border-r-1 px-1 font-mono text-xs text-green-500">
@@ -347,7 +347,7 @@ interface ResultProps {
 
 function Result(props: ResultProps) {
   const winningTeamId = props.match.winner?.id;
-  var winner, loser;
+  let winner, loser;
   if (winningTeamId === props.match.team1.id) {
     winner = props.match.team1;
     loser = props.match.team2;
@@ -434,9 +434,7 @@ interface MatchesFilterProps {
 }
 
 function MatchesFilter({ filters, onFilterChange }: MatchesFilterProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const { data: seasonsData, isLoading, error } = usePublicSeasons();
+  const { data: seasonsData, isLoading } = usePublicSeasons();
   const seasons = seasonsData?.results || [];
 
   if (isLoading) {

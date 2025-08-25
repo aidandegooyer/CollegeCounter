@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 
+import dj_database_url
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -21,12 +23,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-b1ckk=-f8j7n0usn@uom%duor8ufkldbzfq0wp=5#!j+4lp=zi"
+
+SECRET_KEY = os.environ["SECRET_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
 
 
 # Application definition
@@ -42,10 +45,19 @@ INSTALLED_APPS = [
     "cc",
 ]
 
+CORS_ALLOWED_ORIGINS = [
+    "https://www.collegecounter.org",
+]
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_TRUSTED_ORIGINS = [
+    "https://api.collegecounter.org",
+    "https://www.collegecounter.org",
+]
+
+
 # Firebase Admin SDK credentials
-FIREBASE_ADMIN_CREDENTIAL = os.path.join(
-    BASE_DIR, "college-counter-9057f-firebase-adminsdk-fbsvc-a632f7f6e6.json"
-)
+FIREBASE_ADMIN_CREDENTIAL = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 FIREBASE_STORAGE_BUCKET = "college-counter-9057f.firebasestorage.app"
 
@@ -62,7 +74,6 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "v1.urls"
 
-CORS_ORIGIN_ALLOW_ALL = True
 
 TEMPLATES = [
     {
@@ -85,16 +96,18 @@ WSGI_APPLICATION = "v1.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "cc",  # your dev database name
-        "USER": "ccdev",  # the user you created
-        "PASSWORD": "dev",  # that user’s password
-        "HOST": "localhost",  # or '127.0.0.1'
-        "PORT": "5432",  # default Postgres port
-    }
-}
+# DATABASES = {
+#    "default": {
+#        "ENGINE": "django.db.backends.postgresql",
+#        "NAME": "cc",  # your dev database name
+#        "USER": "ccdev",  # the user you created
+#        "PASSWORD": "dev",  # that user’s password
+#        "HOST": "localhost",  # or '127.0.0.1'
+#        "PORT": "5432",  # default Postgres port
+#    }
+# }
+
+DATABASES = {"default": dj_database_url.config(default=os.getenv("DATABASE_URL"))}
 
 
 # Password validation

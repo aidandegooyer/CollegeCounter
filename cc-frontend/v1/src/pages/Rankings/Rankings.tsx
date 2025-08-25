@@ -1,6 +1,4 @@
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-
 import { useState, useEffect } from "react";
 import TeamRankingComponent from "./TeamRankingComponent";
 import InfiniteScroll from "react-infinite-scroll-component";

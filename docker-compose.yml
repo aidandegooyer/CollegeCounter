@@ -1,39 +1,68 @@
-version: '3.8'
+
 services:
- 
-  cc-backend:
-    build:
-      context: ./cc-backend
-      dockerfile: Dockerfile
-    container_name: backend
-    expose:
-      - "8000"
-    networks:
-      - app-network
-
-  cc-frontend:
-    build:
-      context: ./cc-frontend
-      dockerfile: Dockerfile
-    container_name: frontend
-    expose:
-      - "80"
-    networks:
-      - app-network
-
-  reverse-proxy:
-    image: nginx:stable-alpine
-    container_name: reverse-proxy
-    volumes:
-      - ./reverse-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+  # Reverse proxy (nginx)
+  proxy:
+    image: jwilder/nginx-proxy
+    restart: always
     ports:
       - "80:80"
-    depends_on:
-      - cc-backend
-      - cc-frontend
-    networks:
-      - app-network
+      - "443:443"
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
+      - /etc/nginx/vhost.d
+      - /usr/share/nginx/html
+      - /var/run/docker.sock:/tmp/docker.sock:ro
 
-networks:
-  app-network:
-    driver: bridge
+  # Let's Encrypt companion
+  acme-companion:
+    image: nginxproxy/acme-companion
+    restart: always
+    volumes:
+      - ./certs:/etc/nginx/certs
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    depends_on:
+      - proxy
+
+  frontend:
+    build:
+      context: ./cc-frontend/v1
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL}
+    environment:
+      VIRTUAL_HOST: www.collegecounter.org
+      LETSENCRYPT_HOST: www.collegecounter.org
+      LETSENCRYPT_EMAIL: collegiatecounter@gmail.com
+    depends_on:
+      - backend
+
+  backend:
+    build: ./cc-frontend/v1
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+      DATABASE_URL: ${DATABASE_URL}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}
+      VIRTUAL_HOST: api.collegecounter.org
+      LETSENCRYPT_HOST: api.collegecounter.org
+      LETSENCRYPT_EMAIL: collegiatecounter@gmail.com
+    volumes:
+      - ./credentials/google-service-account.json:/secrets/google-service-account.json:ro
+    expose:
+      - "8000"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+  certs:

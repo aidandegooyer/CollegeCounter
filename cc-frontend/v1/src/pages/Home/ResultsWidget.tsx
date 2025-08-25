@@ -61,7 +61,7 @@ function ResultsWidget() {
 
 function Match(match: PublicMatch) {
   const winningTeamId = match.winner?.id;
-  var winner, loser;
+  let winner, loser;
   if (winningTeamId === match.team1.id) {
     winner = match.team1;
     loser = match.team2;

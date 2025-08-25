@@ -3,7 +3,7 @@ import { NavLink, useLocation } from "react-router";
 import logo from "../assets/0.1x/C Logo@0.1x.png";
 
 function Navbar() {
-  let location = useLocation();
+  const location = useLocation();
 
   return (
     <nav className="bg-background/80 border-border sticky top-0 z-50 w-full px-4 py-3 backdrop-blur-md">

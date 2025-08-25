@@ -221,16 +221,20 @@ export const fetchFaceitMatches = async (eventId: string): Promise<any> => {
   let hasMore = true;
 
   while (hasMore) {
+    const FACEIT_API_KEY = import.meta.env.VITE_FACEIT_API_KEY || process.env.VITE_FACEIT_API_KEY;
+    if (!FACEIT_API_KEY) {
+      throw new Error('FACEIT API key is not set in environment variables');
+    }
     const response = await axios.get(
       `https://open.faceit.com/data/v4/championships/${eventId}/matches`,
       {
-        headers: {
-          'Authorization': `Bearer ${"3c0ddd87-ff50-45df-8d56-3cf62ef5fbc8"}`,
-        },
-        params: {
-          offset,
-          limit,
-        },
+      headers: {
+        'Authorization': `Bearer ${FACEIT_API_KEY}`,
+      },
+      params: {
+        offset,
+        limit,
+      },
       }
     );
     const data = response.data;

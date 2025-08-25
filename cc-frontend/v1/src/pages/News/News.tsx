@@ -106,7 +106,7 @@ function News() {
 export default News;
 
 function FeaturedNews({ post }: { post: SanityPost }) {
-  let navigate = useNavigate();
+  const navigate = useNavigate();
   const handleClick = () => {
     navigate(`/news/${post.slug.current}`);
   };
@@ -142,7 +142,7 @@ function FeaturedNews({ post }: { post: SanityPost }) {
 }
 
 function NewsItem({ post }: { post: SanityPost }) {
-  let navigate = useNavigate();
+  const navigate = useNavigate();
   const handleClick = () => {
     navigate(`/news/${post.slug.current}`);
   };

@@ -19,10 +19,9 @@ import {
   fetchFaceitMatches,
   fetchPlayflyMatches,
   fetchParticipants,
-  matchParticipant,
 } from "@/services/api";
 
-import type { Season, Team, Player, Participant } from "@/services/api";
+import type { Season, Team } from "@/services/api";
 
 function SelectPlatform({
   platform,
@@ -294,8 +293,6 @@ function ImportPreview({
 function ParticipantMatcher({
   previewData,
   platform,
-  selectedSeason,
-  competitionName,
   isLoading,
   setIsLoading,
   setParticipantMatches,
@@ -308,7 +305,6 @@ function ParticipantMatcher({
   setIsLoading: (loading: boolean) => void;
   setParticipantMatches: (matches: Record<string, string>) => void;
 }) {
-  const [participants, setParticipants] = useState<Participant[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [error, setError] = useState<string>("");
   const [participantSelections, setParticipantSelections] = useState<
@@ -341,7 +337,6 @@ function ParticipantMatcher({
         // Get existing teams and participants
         const data = await fetchParticipants();
         setTeams(data.teams);
-        setParticipants(data.participants);
 
         // Extract unique team names from the preview data that don't have matches
         if (previewData && platform === "faceit") {

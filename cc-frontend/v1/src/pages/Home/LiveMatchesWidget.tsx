@@ -29,13 +29,13 @@ function Match() {
         <div className="flex items-center space-x-2">
           <img src={logo} className="h-6 w-6" alt="Logo" />
           <span className="truncate overflow-ellipsis whitespace-nowrap">
-            Syracuse University
+            Test University
           </span>
         </div>
         <div className="flex items-center space-x-2 overflow-ellipsis">
           <img src={logo} className="h-6 w-6" alt="Logo" />
           <span className="truncate overflow-ellipsis whitespace-nowrap">
-            University of Texas
+            University of Test
           </span>
         </div>
       </div>
