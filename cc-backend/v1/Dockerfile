@@ -31,4 +31,4 @@ COPY . .
 COPY gunicorn.conf.py .
 
 EXPOSE 8000
-CMD ["gunicorn", "--config", "gunicorn.conf.py", "backend.wsgi:application"]
+CMD ["gunicorn", "--config", "gunicorn.conf.py", "v1.wsgi:application"]

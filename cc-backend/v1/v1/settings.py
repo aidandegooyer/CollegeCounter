@@ -27,7 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ["SECRET_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
 
@@ -47,12 +47,14 @@ INSTALLED_APPS = [
 
 CORS_ALLOWED_ORIGINS = [
     "https://www.collegecounter.org",
+    "https://collegecounter.org"
 ]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 CSRF_TRUSTED_ORIGINS = [
     "https://api.collegecounter.org",
     "https://www.collegecounter.org",
+    "https://collegecounter.org"
 ]
 
 

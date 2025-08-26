@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getAuth } from 'firebase/auth';
 
 // base API URL
-const API_BASE_URL = 'http://127.0.0.1:8000/v1';  // Adjust this according to your setup
+const API_BASE_URL = 'https://api.collegecounter.org/v1';  // Adjust this according to your setup
 
 const api = axios.create({
   baseURL: API_BASE_URL
@@ -14,7 +14,7 @@ api.interceptors.request.use(async (config) => {
   const user = auth.currentUser;
 
   await new Promise(resolve => setTimeout(resolve, 300));
-  
+
   if (user) {
     try {
       const token = await user.getIdToken();
@@ -23,7 +23,7 @@ api.interceptors.request.use(async (config) => {
       console.error('Error getting auth token:', error);
     }
   }
-  
+
   return config;
 }, (error) => {
   return Promise.reject(error);
@@ -117,8 +117,8 @@ export const fetchSeasons = async (): Promise<Season[]> => {
 };
 
 export const createSeason = async (
-  name: string, 
-  start_date: string, 
+  name: string,
+  start_date: string,
   end_date: string
 ): Promise<Season> => {
   const response = await api.post(`/seasons/create/`, {
@@ -153,14 +153,14 @@ export const fetchAllMatches = async (): Promise<Match[]> => {
 };
 
 // Participant matching API functions
-export const fetchParticipants = async (): Promise<{participants: Participant[], teams: Team[]}> => {
+export const fetchParticipants = async (): Promise<{ participants: Participant[], teams: Team[] }> => {
   const response = await api.get(`/participants/`);
   return response.data;
 };
 
 export const matchParticipant = async (
   request: ParticipantMatchRequest
-): Promise<{message: string, participant: Participant}> => {
+): Promise<{ message: string, participant: Participant }> => {
   const response = await api.post(`/participants/`, request);
   return response.data;
 };
@@ -168,7 +168,7 @@ export const matchParticipant = async (
 // Database clearing API function
 export const clearDatabase = async (
   securityKey: string
-): Promise<{message: string}> => {
+): Promise<{ message: string }> => {
   const response = await api.post(`/clear-database/`, {
     security_key: securityKey
   });
@@ -221,20 +221,20 @@ export const fetchFaceitMatches = async (eventId: string): Promise<any> => {
   let hasMore = true;
 
   while (hasMore) {
-    const FACEIT_API_KEY = import.meta.env.VITE_FACEIT_API_KEY || process.env.VITE_FACEIT_API_KEY;
+    const FACEIT_API_KEY = "12bf8e56-3e9d-4f80-8c0a-09cacbe319bd";
     if (!FACEIT_API_KEY) {
       throw new Error('FACEIT API key is not set in environment variables');
     }
     const response = await axios.get(
       `https://open.faceit.com/data/v4/championships/${eventId}/matches`,
       {
-      headers: {
-        'Authorization': `Bearer ${FACEIT_API_KEY}`,
-      },
-      params: {
-        offset,
-        limit,
-      },
+        headers: {
+          'Authorization': `Bearer ${FACEIT_API_KEY}`,
+        },
+        params: {
+          offset,
+          limit,
+        },
       }
     );
     const data = response.data;
@@ -402,7 +402,7 @@ export interface SeasonQueryParams {
 // Helper function to convert query params to URL search params
 const convertToQueryString = (params: Record<string, any>): string => {
   const searchParams = new URLSearchParams();
-  
+
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
       if (Array.isArray(value)) {
@@ -414,7 +414,7 @@ const convertToQueryString = (params: Record<string, any>): string => {
       }
     }
   });
-  
+
   return searchParams.toString();
 };
 

@@ -9,15 +9,20 @@ services:
       - "443:443"
     volumes:
       - ./certs:/etc/nginx/certs:ro
-      - /etc/nginx/vhost.d
-      - /usr/share/nginx/html
+      - /etc/nginx/vhost.d:/etc/nginx/vhost.d:rw
       - /var/run/docker.sock:/tmp/docker.sock:ro
+      - /usr/share/nginx/html:/usr/share/nginx/html:rw
 
   # Let's Encrypt companion
   acme-companion:
     image: nginxproxy/acme-companion
     restart: always
+    environment:
+       NGINX_PROXY_CONTAINER: collegecounter-proxy-1
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/nginx/vhost.d:/etc/nginx/vhost.d:rw
+      - /usr/share/nginx/html:/usr/share/nginx/html:rw
       - ./certs:/etc/nginx/certs
       - /var/run/docker.sock:/tmp/docker.sock:ro
     depends_on:
@@ -29,16 +34,18 @@ services:
       args:
         REACT_APP_API_URL: ${REACT_APP_API_URL}
     environment:
-      VIRTUAL_HOST: www.collegecounter.org
-      LETSENCRYPT_HOST: www.collegecounter.org
+      VIRTUAL_HOST: collegecounter.org,www.collegecounter.org
+      LETSENCRYPT_HOST: collegecounter.org,www.collegecounter.org
       LETSENCRYPT_EMAIL: collegiatecounter@gmail.com
     depends_on:
       - backend
+    expose:
+      - "80"
 
   backend:
-    build: ./cc-frontend/v1
+    build: ./cc-backend/v1
     environment:
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
       DJANGO_DEBUG: ${DJANGO_DEBUG}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
       DATABASE_URL: ${DATABASE_URL}
@@ -47,7 +54,7 @@ services:
       LETSENCRYPT_HOST: api.collegecounter.org
       LETSENCRYPT_EMAIL: collegiatecounter@gmail.com
     volumes:
-      - ./credentials/google-service-account.json:/secrets/google-service-account.json:ro
+      - ./credentials/college-counter-9057f-firebase-adminsdk-fbsvc-a632f7f6e6.json:/secrets/college-counter-9057f-firebase-adminsdk-fbsvc-a632f7f6e6.json:ro
     expose:
       - "8000"
     depends_on:
@@ -66,3 +73,4 @@ services:
 volumes:
   pgdata:
   certs:
+

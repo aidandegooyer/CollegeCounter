@@ -4,3 +4,12 @@ deploy_instructions.txt
 deploy.sh
 .env
 credentials
+
+# ignore TLS certs and keys and firebase service account json
+/certs/
+/**/*.pem
+/**/*.key
+/**/*.crt
+/**/*.p12
+/**/*.jks
+/**/*.json

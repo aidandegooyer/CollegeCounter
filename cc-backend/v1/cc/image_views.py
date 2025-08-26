@@ -13,7 +13,7 @@ import datetime
 # Initialize Firebase Storage (this would typically be done in your app's initialization)
 # This assumes you've added the Firebase credentials to your Django settings
 if not firebase_admin._apps:
-    cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
+    cred = credentials.Certificate(settings.FIREBASE_ADMIN_CREDENTIAL)
     firebase_admin.initialize_app(
         cred, {"storageBucket": "college-counter-9057f.firebasestorage.app"}
     )
