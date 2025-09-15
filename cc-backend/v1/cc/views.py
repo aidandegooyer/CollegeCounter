@@ -3,6 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_datetime
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from django.conf import settings
 from rest_framework import status
 from datetime import datetime
 from .models import (
@@ -20,6 +21,7 @@ from .models import (
 from .middleware import firebase_auth_required
 
 import logging
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +109,7 @@ def import_matches(request):
         if platform == "faceit":
             imported_matches = import_faceit_matches(api_data, competition, season)
         elif platform == "playfly":
-            imported_matches = import_playfly_matches(api_data, competition, season)
+            imported_matches = import_faceit_matches(api_data, competition, season)
         else:
             return Response(
                 {"error": "Unsupported platform"}, status=status.HTTP_400_BAD_REQUEST
@@ -131,8 +133,22 @@ def import_faceit_matches(api_data, competition, season):
     """
 
     def safe_parse_datetime(dt):
+        """
+        Parse a datetime from either a string (e.g. "2025-10-25T00:30:00Z")
+        or a unix timestamp (int/float, seconds since epoch).
+        Returns a timezone-aware datetime or None.
+        """
         if isinstance(dt, str):
-            return parse_datetime(dt)
+            # Try to parse ISO format with Z
+            parsed = parse_datetime(dt)
+            if parsed:
+                return parsed
+            # If parse_datetime fails, try to parse as unix timestamp string
+            try:
+                ts = float(dt)
+                return datetime.fromtimestamp(ts)
+            except ValueError:
+                return None
         if isinstance(dt, (int, float)):
             return datetime.fromtimestamp(dt)
         return None
@@ -295,28 +311,111 @@ def get_or_create_team(team_data, competition, season):
     # Process players if needed
     roster = team_data.get("roster", [])
     for player_data in roster:
-        process_player(player_data, team)
+        process_player(player_data, team, season)
 
     return team, created
 
 
-def process_player(player_data, team):
+def process_player(player_data, team, season):
     """
     Process player data and associate with team
     """
     player_id = player_data.get("player_id")
+    game_player_id = player_data.get("game_player_id")
     nickname = player_data.get("nickname", "Unknown Player")
     avatar = player_data.get("avatar")
 
-    # Try to find player by Faceit ID
-    try:
-        player = Player.objects.get(faceit_id=player_id)
-        player.benched = False  # Reset benched status
-    except Player.DoesNotExist:
-        # Create new player
-        player = Player.objects.create(
-            name=nickname, picture=avatar, faceit_id=player_id, team=team
-        )
+    if game_player_id == "":
+        game_player_id = None
+
+    elo = 1000
+
+    player_exists = (
+        Player.objects.filter(steam_id=game_player_id).exists()
+        if game_player_id
+        else False
+    )
+
+    if not player_exists:
+        try:
+            print(f"Processing player {nickname} with game_player_id {game_player_id}")
+            # If we have a game_player_id (steam_id), fetch Faceit player ID from Faceit API
+            if game_player_id:
+                faceit_api_url = "https://open.faceit.com/data/v4/players"
+                api_key = getattr(settings, "FACEIT_API_KEY", None)
+                if api_key:
+                    headers = {"Authorization": f"Bearer {api_key}"}
+                    params = {"game": "cs2", "game_player_id": game_player_id}
+                    response = requests.get(
+                        faceit_api_url, headers=headers, params=params
+                    )
+                    if response.status_code == 200:
+                        faceit_data = response.json()
+                        player_id = faceit_data.get("player_id", player_id)
+                        nickname = faceit_data.get("nickname", nickname)
+                        avatar = faceit_data.get("avatar", avatar)
+                        elo = (
+                            faceit_data.get("games", {})
+                            .get("cs2", {})
+                            .get("faceit_elo", 1000)
+                        )
+                        print(f"Fetched Faceit ID {player_id} for player {nickname}")
+                        print(f"Player ELO is {elo}")
+                    else:
+                        print(
+                            f"Failed to fetch Faceit player for game_player_id {game_player_id}: {response.status_code}"
+                        )
+        except Exception as e:
+            logger.warning(f"Could not fetch Faceit player ID for {nickname}: {str(e)}")
+
+    # Try to find player by steam_id first, then by faceit_id
+    player = None
+
+    # First, try to find by steam_id if available
+    if game_player_id:
+        try:
+            player = Player.objects.get(steam_id=game_player_id)
+            # Update player info if found by steam_id
+            player.name = nickname
+            player.picture = avatar
+            player.faceit_id = player_id
+            player.elo = elo
+            player.team = team
+            player.benched = False
+            player.seasons.add(season)
+            player.save()
+            return player
+        except Player.DoesNotExist:
+            pass
+
+    # If not found by steam_id, try to find by faceit_id
+    if player_id:
+        try:
+            player = Player.objects.get(faceit_id=player_id)
+            # Update steam_id if it was missing
+            if game_player_id and not player.steam_id:
+                player.steam_id = game_player_id
+            player.name = nickname
+            player.picture = avatar
+            player.elo = elo
+            player.team = team
+            player.benched = False
+            player.seasons.add(season)
+            player.save()
+            return player
+        except Player.DoesNotExist:
+            pass
+
+    # If player not found by either ID, create new player
+    player = Player.objects.create(
+        name=nickname,
+        picture=avatar,
+        faceit_id=player_id,
+        team=team,
+        elo=elo,
+        steam_id=game_player_id,
+    )
+    player.seasons.set([season])
 
     return player
 
@@ -551,16 +650,14 @@ def update_player_elo(request):
 
         for player in players:
             if not player.faceit_id:
+                print(f"Skipping player {player.name} with no Faceit ID")
                 continue
 
             try:
-                # Fetch player data from Faceit
-                import requests
-
+                api_key = getattr(settings, "FACEIT_API_KEY", None)
                 headers = {"Authorization": f"Bearer {api_key}"}
-                response = requests.get(
-                    f"{faceit_api_url}/{player.faceit_id}", headers=headers
-                )
+                params = {"game": "cs2", "game_player_id": player.steam_id}
+                response = requests.get(faceit_api_url, headers=headers, params=params)
 
                 if response.status_code == 200:
                     player_data = response.json()
@@ -583,7 +680,7 @@ def update_player_elo(request):
                     not_found_count += 1
 
             except Exception as e:
-                logger.warning(f"Error updating player {player.name}: {str(e)}")
+                print(f"Error updating player {player.name}: {str(e)}")
                 not_found_count += 1
 
         return Response(
@@ -799,3 +896,165 @@ def calculate_team_elos(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# LeagueSpot API Proxy Views
+# These proxy the LeagueSpot API to avoid CORS issues in the frontend
+
+
+def get_leaguespot_headers():
+    """Get the standard headers needed for LeagueSpot API requests"""
+    apikey = getattr(settings, "PLAYFLY_API_KEY", None)
+    return {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:142.0) Gecko/20100101 Firefox/142.0",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.5",
+        "X-App": "web",
+        "X-Version": "20250907.4",
+        "X-League-Id": "53015f28-5b33-4882-9f8b-16dcbb13deee",
+        "Origin": "https://esports.pcl.gg",
+        "Connection": "keep-alive",
+        "Referer": "https://esports.pcl.gg/",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "cross-site",
+        "Pragma": "no-cache",
+        "Cache-Control": "no-cache",
+        "Authorization": apikey,
+    }
+
+
+@api_view(["GET"])
+def proxy_leaguespot_season(request, season_id):
+    """Proxy LeagueSpot season API to avoid CORS issues"""
+    headers = get_leaguespot_headers()
+
+    try:
+        response = requests.get(
+            f"https://api.leaguespot.gg/api/v1/seasons/{season_id}",
+            headers=headers,
+            timeout=30,
+        )
+
+        # Log the response details for debugging
+        logger.info(f"LeagueSpot season API response status: {response.status_code}")
+        logger.info(f"LeagueSpot season API response headers: {dict(response.headers)}")
+        if response.status_code != 200:
+            return Response(
+                {
+                    "error": f"LeagueSpot API returned status {response.status_code}: {response.text}"
+                },
+                status=response.status_code,
+            )
+
+        # Check if response is empty
+        if not response.text.strip():
+            return Response(
+                {"error": "LeagueSpot API returned empty response"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        # Try to parse JSON
+        try:
+            json_data = response.json()
+            return Response(json_data)
+        except ValueError as json_error:
+            logger.error(f"Failed to parse JSON from LeagueSpot: {json_error}")
+            logger.error(f"Raw response: {response.text}")
+            return Response(
+                {
+                    "error": f"Invalid JSON response from LeagueSpot: {response.text[:200]}"
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error proxying LeagueSpot season {season_id}: {str(e)}")
+        return Response(
+            {"error": f"Failed to fetch season data: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["GET"])
+def proxy_leaguespot_stage(request, stage_id):
+    """Proxy LeagueSpot stage API to avoid CORS issues"""
+    headers = get_leaguespot_headers()
+
+    try:
+        response = requests.get(
+            f"https://api.leaguespot.gg/api/v1/stages/{stage_id}",
+            headers=headers,
+            timeout=30,
+        )
+        response.raise_for_status()
+        return Response(response.json())
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error proxying LeagueSpot stage {stage_id}: {str(e)}")
+        return Response(
+            {"error": f"Failed to fetch stage data: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["GET"])
+def proxy_leaguespot_round_matches(request, round_id):
+    """Proxy LeagueSpot round matches API to avoid CORS issues"""
+    headers = get_leaguespot_headers()
+
+    try:
+        response = requests.get(
+            f"https://api.leaguespot.gg/api/v1/rounds/{round_id}/matches",
+            headers=headers,
+            timeout=30,
+        )
+        response.raise_for_status()
+        return Response(response.json())
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error proxying LeagueSpot round matches {round_id}: {str(e)}")
+        return Response(
+            {"error": f"Failed to fetch round matches: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["GET"])
+def proxy_leaguespot_match(request, match_id):
+    """Proxy LeagueSpot match API to avoid CORS issues"""
+    headers = get_leaguespot_headers()
+
+    try:
+        response = requests.get(
+            f"https://api.leaguespot.gg/api/v2/matches/{match_id}",
+            headers=headers,
+            timeout=30,
+        )
+        response.raise_for_status()
+        return Response(response.json())
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error proxying LeagueSpot match {match_id}: {str(e)}")
+        return Response(
+            {"error": f"Failed to fetch match data: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["GET"])
+def proxy_leaguespot_participants(request, match_id):
+    """Proxy LeagueSpot match participants API to avoid CORS issues"""
+    headers = get_leaguespot_headers()
+
+    try:
+        response = requests.get(
+            f"https://api.leaguespot.gg/api/v1/matches/{match_id}/participants",
+            headers=headers,
+            timeout=30,
+        )
+        response.raise_for_status()
+        return Response(response.json())
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error proxying LeagueSpot participants {match_id}: {str(e)}")
+        return Response(
+            {"error": f"Failed to fetch participants data: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

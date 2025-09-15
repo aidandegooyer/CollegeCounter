@@ -93,10 +93,10 @@ function News() {
 
   return (
     <div className="flex justify-center">
-      <div className="news-widget max-w-[900px]">
+      <div className="news-widget mx-4 w-full max-w-[700px]">
         <h1>News</h1>
 
-        <hr className="w-[900px]" />
+        <hr className="max-w-[1000px]" />
         {renderContent()}
       </div>
     </div>
@@ -123,11 +123,8 @@ function FeaturedNews({ post }: { post: SanityPost }) {
       />
       <div className="p-4 pt-2">
         <h2 className="text-lg font-semibold">{post.title}</h2>
-        <p className="text-muted-foreground mt-2">
-          {post.excerpt || "No excerpt available"}
-        </p>
         <div className="mt-2 flex justify-between">
-          <span className="text-foreground bg-secondary rounded px-1 py-0.5 text-sm">
+          <span className="text-foreground text-sm">
             {post.author || "College Counter Staff"}
           </span>
           <span className="text-muted-foreground text-sm">
@@ -152,24 +149,19 @@ function NewsItem({ post }: { post: SanityPost }) {
       className="cursor-pointer rounded-xl border-2 p-4 py-2 transition-colors hover:border-blue-400"
       onClick={handleClick}
     >
-      <div className="flex w-full justify-between">
+      <div className="w-full">
         <h3 className="font-semibold">{post.title}</h3>
-        <span className="text-muted-foreground w-30 text-end">
-          {formatDistanceToNow(new Date(post.publishedAt), { addSuffix: true })}
-        </span>
+        <div className="mt-2 flex justify-between">
+          <span className="text-foreground text-sm">
+            {post.author || "College Counter Staff"}
+          </span>
+          <span className="text-muted-foreground text-sm">
+            {formatDistanceToNow(new Date(post.publishedAt), {
+              addSuffix: true,
+            })}
+          </span>
+        </div>
       </div>
-      <p
-        className="text-muted-foreground h-12 overflow-hidden text-ellipsis"
-        style={{
-          display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical",
-          wordBreak: "break-word",
-        }}
-        title={post.excerpt}
-      >
-        {post.excerpt || "No excerpt available"}
-      </p>
     </li>
   );
 }

@@ -45,6 +45,12 @@ class Player(models.Model):
     )
     benched = models.BooleanField(default=False)
     visible = models.BooleanField(default=True)
+    seasons = models.ManyToManyField(
+        "Season",
+        related_name="players",
+        blank=True,
+        help_text="Seasons this player has participated in",
+    )
 
     def __str__(self):
         return self.name

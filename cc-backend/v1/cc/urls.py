@@ -29,6 +29,32 @@ urlpatterns = [
     ),
     path("teams/<uuid:team_id>/", image_views.update_team, name="update_team"),
     path("players/<uuid:player_id>/", image_views.update_player, name="update_player"),
+    # LeagueSpot API proxy endpoints
+    path(
+        "proxy/leaguespot/seasons/<str:season_id>/",
+        views.proxy_leaguespot_season,
+        name="proxy_leaguespot_season",
+    ),
+    path(
+        "proxy/leaguespot/stages/<str:stage_id>/",
+        views.proxy_leaguespot_stage,
+        name="proxy_leaguespot_stage",
+    ),
+    path(
+        "proxy/leaguespot/rounds/<str:round_id>/matches/",
+        views.proxy_leaguespot_round_matches,
+        name="proxy_leaguespot_round_matches",
+    ),
+    path(
+        "proxy/leaguespot/matches/<str:match_id>/",
+        views.proxy_leaguespot_match,
+        name="proxy_leaguespot_match",
+    ),
+    path(
+        "proxy/leaguespot/matches/<str:match_id>/participants/",
+        views.proxy_leaguespot_participants,
+        name="proxy_leaguespot_participants",
+    ),
     # Include public API endpoints
     path("public/", include("cc.urls_public")),
 ]

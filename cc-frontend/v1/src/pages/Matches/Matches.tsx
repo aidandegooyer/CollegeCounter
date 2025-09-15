@@ -1,9 +1,12 @@
 import { ArrowRight, Menu, Star } from "lucide-react";
-import logo from "@/assets/0.1x/C Logo@0.1x.png";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
-import { usePublicMatches, usePublicSeasons } from "@/services/hooks";
+import {
+  usePublicMatches,
+  usePublicSeasons,
+  usePublicTeams,
+} from "@/services/hooks";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { PublicMatch, MatchQueryParams } from "@/services/api";
@@ -17,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Logo from "@/components/Logo";
+import { calculateMatchStars } from "@/services/elo";
 
 function Matches() {
   const getInitialMatchType = () => {
@@ -90,124 +94,330 @@ function Matches() {
 export default Matches;
 
 function Live() {
+  const {
+    data: liveMatches,
+    isLoading,
+    error,
+  } = usePublicMatches({
+    status: "in_progress",
+    sort: "date",
+    order: "desc",
+  });
+
+  if (error) {
+    return (
+      <Alert variant="destructive" className="mt-4">
+        <AlertTitle className="text-lg">Error</AlertTitle>
+        <AlertDescription>
+          There was an error loading live matches. Please try again later.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <>
       <h1>Live Matches</h1>
       <hr />
-      <ul className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 11 }).map((_, i) => (
-          <LiveMatch key={i} />
-        ))}
-      </ul>
+      {isLoading ? (
+        <div className="flex h-20 items-center justify-center">
+          <Spinner />
+        </div>
+      ) : liveMatches?.results && liveMatches.results.length > 0 ? (
+        <ul className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {liveMatches.results.map((match) => (
+            <LiveMatch key={match.id} match={match} />
+          ))}
+        </ul>
+      ) : (
+        <div className="text-muted-foreground my-4 text-center">
+          No live matches currently
+        </div>
+      )}
     </>
   );
 }
 
-function LiveMatch() {
+interface LiveMatchProps {
+  match: PublicMatch;
+}
+
+function LiveMatch({ match }: LiveMatchProps) {
   return (
     <li className="rounded-xl border-2 p-4 py-2">
       <div className="flex">
         <div className="flex-3 space-y-1">
           <div className="mb-2 flex items-center space-x-2">
-            <img src={logo} className="h-6 w-6" alt="Logo" />
+            <Logo src={match.team1?.picture} type="team" className="h-6 w-6" />
             <span className="truncate overflow-ellipsis whitespace-nowrap">
-              Test University
+              {match.team1?.name || "Unknown Team"}
             </span>
           </div>
           <div className="flex items-center space-x-2 overflow-ellipsis">
-            <img src={logo} className="h-6 w-6" alt="Logo" />
+            <Logo src={match.team2?.picture} type="team" className="h-6 w-6" />
             <span className="truncate overflow-ellipsis whitespace-nowrap">
-              University of Test
+              {match.team2?.name || "Unknown Team"}
             </span>
           </div>
         </div>
         <div className="flex-1 space-y-2 text-end">
           <span className="flex justify-end">
-            <p className="font-mono text-green-500">11</p>
-            <p className="bg-muted ml-2 rounded-sm px-1 font-mono text-red-500">
-              0
+            <p
+              className={`font-mono ${match.score_team1 > match.score_team2 ? "text-green-500" : "text-red-500"}`}
+            >
+              {match.score_team1}
             </p>
           </span>
           <span className="flex justify-end">
-            <p className="font-mono text-red-500">4</p>
-            <p className="bg-muted ml-2 rounded-sm px-1 font-mono text-green-500">
-              1
+            <p
+              className={`font-mono ${match.score_team2 > match.score_team1 ? "text-green-500" : "text-red-500"}`}
+            >
+              {match.score_team2}
             </p>
           </span>
         </div>
       </div>
-      <Button className="bg-secondary text-foreground group mt-2 flex w-full cursor-pointer items-center">
-        View
-        <ArrowRight
-          size={1}
-          className="mt-0.5 transition-all group-hover:ml-2"
-        />
-      </Button>
+      {match.url && (
+        <Button
+          className="bg-secondary text-foreground group mt-2 flex w-full cursor-pointer items-center"
+          asChild
+        >
+          <a href={match.url} target="_blank" rel="noopener noreferrer">
+            View
+            <ArrowRight
+              size={16}
+              className="ml-1 transition-all group-hover:ml-2"
+            />
+          </a>
+        </Button>
+      )}
     </li>
   );
 }
 
 function Upcoming() {
+  // Get upcoming matches for today
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+  const tomorrowStr = new Date(today.getTime() + 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
+
+  // Get matches for this week (next 7 days)
+  const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const weekStr = weekFromNow.toISOString().split("T")[0];
+
+  // Get later matches (beyond this week)
+  const monthFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const monthStr = monthFromNow.toISOString().split("T")[0];
+
+  const {
+    data: todayMatches,
+    isLoading: todayLoading,
+    error: todayError,
+  } = usePublicMatches({
+    date_from: todayStr,
+    date_to: tomorrowStr,
+    status: "scheduled",
+    sort: "date",
+    order: "asc",
+  });
+
+  const {
+    data: weekMatches,
+    isLoading: weekLoading,
+    error: weekError,
+  } = usePublicMatches({
+    date_from: tomorrowStr,
+    date_to: weekStr,
+    status: "scheduled",
+    sort: "date",
+    order: "asc",
+  });
+
+  const {
+    data: laterMatches,
+    isLoading: laterLoading,
+    error: laterError,
+  } = usePublicMatches({
+    date_from: weekStr,
+    date_to: monthStr,
+    status: "scheduled",
+    sort: "date",
+    order: "asc",
+    page_size: 50,
+  });
+
+  // Helper function to sort matches by date then by stars (descending)
+  const sortMatchesByDateAndStars = (matches: PublicMatch[]) => {
+    return [...matches].sort((a, b) => {
+      // First sort by date
+      const dateA = new Date(a.date || 0).getTime();
+      const dateB = new Date(b.date || 0).getTime();
+
+      if (dateA !== dateB) {
+        return dateA - dateB; // Earlier dates first
+      }
+
+      // If dates are the same, sort by stars (highest first)
+      const starsA = calculateMatchStars(
+        a.team1?.elo || 1000,
+        a.team2?.elo || 1000,
+      );
+      const starsB = calculateMatchStars(
+        b.team1?.elo || 1000,
+        b.team2?.elo || 1000,
+      );
+
+      return starsB - starsA; // Higher stars first
+    });
+  };
+
+  if (todayError || weekError || laterError) {
+    return (
+      <Alert variant="destructive" className="mt-4">
+        <AlertTitle className="text-lg">Error</AlertTitle>
+        <AlertDescription>
+          There was an error loading upcoming matches. Please try again later.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <>
       <h1>Today</h1>
       <hr />
-      <ul className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-        {Array.from({ length: 9 }).map((_, i) => (
-          <UpcomingMatch key={i} />
-        ))}
-      </ul>
+      {todayLoading ? (
+        <div className="flex h-20 items-center justify-center">
+          <Spinner />
+        </div>
+      ) : todayMatches?.results && todayMatches.results.length > 0 ? (
+        <ul className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+          {sortMatchesByDateAndStars(todayMatches.results).map((match) => (
+            <UpcomingMatch
+              key={match.id}
+              match={match}
+              stars={calculateMatchStars(
+                match.team1?.elo || 1000,
+                match.team2?.elo || 1000,
+              )}
+            />
+          ))}
+        </ul>
+      ) : (
+        <div className="text-muted-foreground my-4 text-center">
+          No matches scheduled for today
+        </div>
+      )}
+
       <h1 className="mt-8">This Week</h1>
       <hr />
-      <ul className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-        {Array.from({ length: 100 }).map((_, i) => (
-          <UpcomingMatch key={i} />
-        ))}
-      </ul>
+      {weekLoading ? (
+        <div className="flex h-20 items-center justify-center">
+          <Spinner />
+        </div>
+      ) : weekMatches?.results && weekMatches.results.length > 0 ? (
+        <ul className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+          {sortMatchesByDateAndStars(weekMatches.results).map((match) => (
+            <UpcomingMatch
+              key={match.id}
+              match={match}
+              stars={calculateMatchStars(
+                match.team1?.elo || 1000,
+                match.team2?.elo || 1000,
+              )}
+            />
+          ))}
+        </ul>
+      ) : (
+        <div className="text-muted-foreground my-4 text-center">
+          No matches scheduled for this week
+        </div>
+      )}
+
+      <h1 className="mt-8">This Month</h1>
+      <hr />
+      {laterLoading ? (
+        <div className="flex h-20 items-center justify-center">
+          <Spinner />
+        </div>
+      ) : laterMatches?.results && laterMatches.results.length > 0 ? (
+        <ul className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+          {sortMatchesByDateAndStars(laterMatches.results).map((match) => (
+            <UpcomingMatch
+              key={match.id}
+              match={match}
+              stars={calculateMatchStars(
+                match.team1?.elo || 1000,
+                match.team2?.elo || 1000,
+              )}
+            />
+          ))}
+        </ul>
+      ) : (
+        <div className="text-muted-foreground my-4 text-center">
+          No matches scheduled for this month
+        </div>
+      )}
     </>
   );
 }
 
-function UpcomingMatch() {
-  const stars = Math.floor(Math.random() * 5) + 1;
+interface UpcomingMatchProps {
+  match: PublicMatch;
+  stars: number;
+}
+
+function UpcomingMatch({ match, stars }: UpcomingMatchProps) {
+  // Format date and time
+  const matchDate = new Date(match.date || "");
+  const dateStr = matchDate.toLocaleDateString([], {
+    day: "numeric",
+    month: "short",
+  });
+  const timeStr = matchDate.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
   return (
     <li
       className={`bg-background flex rounded-xl border-2 p-4 py-2 ${stars === 5 ? "drop-shadow-primary/40 border-primary drop-shadow-lg" : ""}`}
     >
-      <div className="flex-3 space-y-3">
+      <div className="flex-5 space-y-3">
         <div className="flex items-center space-x-2">
-          <img src={logo} className="h-6 w-6" alt="Logo" />
+          <Logo src={match.team1?.picture} type="team" className="h-6 w-6" />
           <span className="truncate overflow-ellipsis whitespace-nowrap">
-            Test University
+            {match.team1?.name || "Unknown Team"}
           </span>
+          {/* Show platform or competition info instead of ELO since it's not available */}
           <span className="bg-muted ml-2 flex items-center justify-end rounded-sm text-xs">
-            <p className="border-r-1 px-1 font-mono text-xs text-green-500">
-              +76
-            </p>
-            <p className="rounded-sm px-1 font-mono text-xs text-red-500">
-              -23
+            <p className="text-muted-foreground px-1 font-mono text-xs">
+              {match.team1?.elo}
             </p>
           </span>
         </div>
         <div className="flex items-center space-x-2 overflow-ellipsis">
-          <img src={logo} className="h-6 w-6" alt="Logo" />
+          <Logo src={match.team2?.picture} type="team" className="h-6 w-6" />
           <span className="truncate overflow-ellipsis whitespace-nowrap">
-            University of Test
+            {match.team2?.name || "Unknown Team"}
           </span>
           <span className="bg-muted ml-2 flex items-center justify-end rounded-sm text-xs">
-            <p className="border-r-1 px-1 font-mono text-xs text-green-500">
-              +23
-            </p>
-            <p className="rounded-sm px-1 font-mono text-xs text-red-500">
-              -76
+            <p className="text-muted-foreground px-1 font-mono text-xs">
+              {match.team2.elo}
             </p>
           </span>
         </div>
       </div>
-      <div className="flex-1 text-end text-sm">
-        <span className="text-muted-foreground">2025-10-01</span>
+      <div className="flex-2 text-end text-sm">
+        <span className="text-muted-foreground">
+          {dateStr}, {timeStr}
+        </span>
         <br />
-        <span className="text-muted-foreground">3:00 PM</span>
+        <span className="text-foreground bg-secondary rounded-md px-2 py-0.5">
+          {match.competition?.name}
+        </span>
         <br />
         <span className="text-muted-foreground space-x-.5 mt-1 flex items-center justify-end">
           {Array.from({ length: stars }).map((_, i) => (
@@ -378,7 +588,7 @@ function Result(props: ResultProps) {
           </div>
           <div className="flex items-center space-x-2 overflow-ellipsis">
             <Logo
-              src={loser.picture || logo}
+              src={loser.picture}
               className="h-6 w-6"
               alt="pfp"
               type="team"

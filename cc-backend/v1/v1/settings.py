@@ -15,6 +15,10 @@ import os
 
 import dj_database_url
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -24,12 +28,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 
-SECRET_KEY = os.environ["SECRET_KEY"]
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
+PLAYFLY_API_KEY = os.getenv("PLAYFLY_API_KEY", "")
+FACEIT_API_KEY = os.getenv("FACEIT_API_KEY", "")
+
+
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
+    CORS_ALLOWED_ORIGINS = [
+        "https://www.collegecounter.org",
+        "https://collegecounter.org",
+    ]
 
 
 # Application definition
@@ -45,16 +61,12 @@ INSTALLED_APPS = [
     "cc",
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "https://www.collegecounter.org",
-    "https://collegecounter.org"
-]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 CSRF_TRUSTED_ORIGINS = [
     "https://api.collegecounter.org",
     "https://www.collegecounter.org",
-    "https://collegecounter.org"
+    "https://collegecounter.org",
 ]
 
 

@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { getAuth } from 'firebase/auth';
 
-// base API URL
-const API_BASE_URL = 'https://api.collegecounter.org/v1';  // Adjust this according to your setup
+// Use Vite's import.meta.env for environment variables in frontend
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.collegecounter.org/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL
@@ -261,6 +261,67 @@ export const fetchPlayflyMatches = async (eventId: string): Promise<any> => {
   return response.data;
 };
 
+// LeagueSpot API interfaces
+export interface LeagueSpotSeason {
+  id: string;
+  currentStageId: string;
+  name: string;
+  state: number;
+  [key: string]: any;
+}
+
+export interface LeagueSpotStage {
+  id: string;
+  name: string;
+  currentRoundId: string;
+  participants: any[];
+  rounds: any[];
+  [key: string]: any;
+}
+
+export interface LeagueSpotMatch {
+  id: string;
+  participants: any[];
+  startTimeUtc: string;
+  currentState: number;
+  [key: string]: any;
+}
+
+export interface LeagueSpotParticipant {
+  participantId: string;
+  teamId: string;
+  name: string;
+  users: any[];
+  [key: string]: any;
+}
+
+// LeagueSpot API functions for reverse engineering Playfly matches
+// Using backend proxy to avoid CORS issues
+export const fetchLeagueSpotSeason = async (seasonId: string): Promise<LeagueSpotSeason> => {
+  const response = await api.get(`/proxy/leaguespot/seasons/${seasonId}/`);
+  return response.data;
+};
+
+export const fetchLeagueSpotStage = async (stageId: string): Promise<LeagueSpotStage> => {
+  const response = await api.get(`/proxy/leaguespot/stages/${stageId}/`);
+  return response.data;
+};
+
+export const fetchLeagueSpotRoundMatches = async (roundId: string): Promise<LeagueSpotMatch[]> => {
+  const response = await api.get(`/proxy/leaguespot/rounds/${roundId}/matches/`);
+  return response.data;
+};
+
+export const fetchLeagueSpotMatch = async (matchId: string): Promise<LeagueSpotMatch> => {
+  const response = await api.get(`/proxy/leaguespot/matches/${matchId}/`);
+  return response.data;
+};
+
+export const fetchLeagueSpotParticipants = async (matchId: string): Promise<LeagueSpotParticipant[]> => {
+  const response = await api.get(`/proxy/leaguespot/matches/${matchId}/participants/`);
+  return response.data;
+};
+
 
 /*
 
@@ -313,11 +374,13 @@ export interface PublicMatch {
     id: string;
     name: string;
     picture?: string;
+    elo: number;
   };
   team2: {
     id: string;
     name: string;
     picture?: string;
+    elo: number;
   };
   date: string;
   status: string;
@@ -366,6 +429,7 @@ export interface PlayerQueryParams {
   name?: string;
   team_id?: string;
   steam_id?: string;
+  season_id?: string;
   faceit_id?: string;
   visible?: boolean;
   benched?: boolean;

@@ -44,7 +44,6 @@ def public_teams(request):
     school_name = request.query_params.get("school_name", "")
     season_id = request.query_params.get("season_id", "")
     competition_id = request.query_params.get("competition_id", "")
-    season_id = request.query_params.get("season_id", "")
 
     page = int(request.query_params.get("page", "1"))
     page_size = min(int(request.query_params.get("page_size", "20")), MAX_PAGE_SIZE)
@@ -72,9 +71,7 @@ def public_teams(request):
     if school_name:
         query &= Q(school_name__icontains=school_name)
 
-    if season_id:
-        query &= Q(participants__season_id=season_id)
-
+    # Handle season_id and competition_id filtering through Participant model
     if season_id or competition_id:
         participant_query = Q()
 
@@ -163,6 +160,7 @@ def public_players(request):
     - page_size: Items per page (default: 20, max: 100)
     - sort: Sort field (default: name)
     - order: Sort order (asc or desc, default: asc)
+    - season_id: Filter players that participated in a specific season
 
     Returns a paginated list of players.
     """
@@ -178,6 +176,7 @@ def public_players(request):
     team_id = request.query_params.get("team_id", "")
     steam_id = request.query_params.get("steam_id", "")
     faceit_id = request.query_params.get("faceit_id", "")
+    season_id = request.query_params.get("season_id", "")
 
     visible = request.query_params.get("visible", "")
     benched = request.query_params.get("benched", "")
@@ -228,6 +227,16 @@ def public_players(request):
 
     if not visible:
         query &= Q(visible=True)
+
+    if season_id:
+        try:
+            uuid.UUID(season_id)  # Validate UUID
+            query &= Q(seasons__id=season_id)
+        except ValueError:
+            return Response(
+                {"error": "Invalid season_id format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     players = Player.objects.filter(query).order_by(sort_field)
 
@@ -428,11 +437,13 @@ def public_matches(request):
                     "id": match.team1.id,
                     "name": match.team1.name,
                     "picture": match.team1.picture,
+                    "elo": match.team1.elo,
                 },
                 "team2": {
                     "id": match.team2.id,
                     "name": match.team2.name,
                     "picture": match.team2.picture,
+                    "elo": match.team2.elo,
                 },
                 "date": match.date,
                 "status": match.status,

@@ -8,7 +8,13 @@ import { NavLink } from "react-router";
 
 function PlayerRankingsWidget() {
   const { data, isLoading, error } = usePublicPlayers(
-    { sort: "elo", order: "desc", page: 1, page_size: 10 },
+    {
+      sort: "elo",
+      order: "desc",
+      page: 1,
+      page_size: 10,
+      season_id: import.meta.env.VITE_CURRENT_SEASON_ID,
+    },
     {
       staleTime: 1000 * 60 * 5,
     },

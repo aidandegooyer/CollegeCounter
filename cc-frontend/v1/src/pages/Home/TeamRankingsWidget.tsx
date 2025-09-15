@@ -11,7 +11,7 @@ function TeamRankingsWidget() {
     {
       sort: "elo",
       order: "desc",
-      season_id: "d82082f3-c673-4e99-a3ba-20acec5b028f",
+      season_id: import.meta.env.VITE_CURRENT_SEASON_ID,
       page: 1,
       page_size: 10,
     },

@@ -8,7 +8,7 @@ import { NavLink } from "react-router";
 
 function ResultsWidget() {
   const { data, isLoading, error } = usePublicMatches(
-    { sort: "date", order: "desc", page: 1, page_size: 4 },
+    { sort: "date", order: "desc", page: 1, page_size: 4, status: "completed" },
     {
       staleTime: 1000 * 60 * 5,
     },
@@ -75,7 +75,7 @@ function Match(match: PublicMatch) {
         <div className="flex items-center space-x-2">
           <Logo
             src={winner.picture}
-            className="h-6 w-6"
+            className="h-6 w-6 rounded-sm"
             alt="Logo"
             type="team"
           />
@@ -86,7 +86,7 @@ function Match(match: PublicMatch) {
         <div className="flex items-center space-x-2 overflow-ellipsis">
           <Logo
             src={loser.picture}
-            className="h-6 w-6"
+            className="h-6 w-6 rounded-sm"
             alt="Logo"
             type="team"
           />
@@ -98,12 +98,12 @@ function Match(match: PublicMatch) {
       <div className="flex-1 space-y-2 text-end">
         <span className="flex justify-end">
           <p className="bg-muted ml-2 rounded-sm px-1 font-mono text-green-500">
-            2
+            {Math.max(match.score_team2, match.score_team1)}
           </p>
         </span>
         <span className="flex justify-end">
           <p className="bg-muted ml-2 rounded-sm px-1 font-mono text-red-500">
-            1
+            {Math.min(match.score_team2, match.score_team1)}
           </p>
         </span>
       </div>

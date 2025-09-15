@@ -17,8 +17,12 @@ import {
   createSeason,
   importMatches,
   fetchFaceitMatches,
-  fetchPlayflyMatches,
   fetchParticipants,
+  fetchLeagueSpotSeason,
+  fetchLeagueSpotStage,
+  fetchLeagueSpotRoundMatches,
+  fetchLeagueSpotMatch,
+  fetchLeagueSpotParticipants,
 } from "@/services/api";
 
 import type { Season, Team } from "@/services/api";
@@ -45,6 +49,232 @@ function SelectPlatform({
       </RadioGroup>
     </div>
   );
+}
+
+// Function to convert LeagueSpot data to our schema format
+function convertLeagueSpotDataToSchema(leagueSpotData: any): any {
+  if (!leagueSpotData || !leagueSpotData.matches) {
+    return { items: [] };
+  }
+
+  const convertedMatches = leagueSpotData.matches.map((match: any) => {
+    // Extract team information from participants
+    const teams = match.participants || [];
+    const team1 = teams[0] || {};
+    const team2 = teams[1] || {};
+
+    return {
+      match_id: match.id,
+      competition_id: match.leagueId || "",
+      competition_name: leagueSpotData.season?.name || "Unknown Competition",
+      region: "",
+      status: getMatchStatus(match.currentState),
+      scheduled_at: match.startTimeUtc,
+      finished_at: match.currentState === 3 ? match.startTimeUtc : null, // Assuming state 3 is finished
+      results: {
+        winner:
+          match.winner ||
+          (match.currentState === 3
+            ? teams[0]?.gameWins > teams[1]?.gameWins
+              ? "faction1"
+              : "faction2"
+            : null),
+        score: {
+          faction1: team1.gameWins || 0,
+          faction2: team2.gameWins || 0,
+        },
+      },
+      teams: {
+        faction1: {
+          faction_id: team1.teamId || team1.id,
+          name: team1.name || "Unknown Team 1",
+          avatar: team1.avatarUrl || "",
+          roster: convertPlayersToFaceitFormat(team1.users || []),
+        },
+        faction2: {
+          faction_id: team2.teamId || team2.id,
+          name: team2.name || "Unknown Team 2",
+          avatar: team2.avatarUrl || "",
+          roster: convertPlayersToFaceitFormat(team2.users || []),
+        },
+      },
+      voting: null,
+      maps: [],
+      // Add original LeagueSpot data for debugging
+      _leaguespot_original: match,
+    };
+  });
+
+  return {
+    items: convertedMatches,
+    // Preserve original data structure for reference
+    _leaguespot_raw: leagueSpotData,
+  };
+}
+
+// Helper function to convert match state to status
+function getMatchStatus(currentState: number): string {
+  switch (currentState) {
+    case 0:
+      return "SCHEDULED";
+    case 1:
+      return "READY";
+    case 2:
+      return "ONGOING";
+    case 3:
+      return "FINISHED";
+    case 4:
+      return "ABORTED";
+    case 5:
+      return "CANCELLED";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+// Helper function to convert LeagueSpot users to Faceit roster format
+function convertPlayersToFaceitFormat(users: any[]): any[] {
+  return users
+    .filter((user: any) => {
+      // Skip coaches (teamRoleId: "6f4da22c-7fe5-4c78-8876-eec2c87d1096")
+      return user.teamRoleId !== "6f4da22c-7fe5-4c78-8876-eec2c87d1096";
+    })
+    .map((user: any) => {
+      // Determine if player is captain (teamRoleId: "5a1675f0-2fa9-482b-b187-434901734a42")
+      const isCaptain =
+        user.teamRoleId === "5a1675f0-2fa9-482b-b187-434901734a42";
+
+      return {
+        player_id: user.userId || user.id,
+        nickname: user.gamerHandle || user.firstName || "Unknown Player",
+        avatar: user.avatarUrl || "",
+        membership: user.teamRoleId || "",
+        game_player_id: user.gameHandle?.providerUserId || "",
+        game_player_name:
+          user.gamerHandle || user.firstName || "Unknown Player",
+        game_skill_level: user.gameRanking?.numericValue || 0,
+        faceit_url: "",
+        // Add captain flag for easier identification
+        is_captain: isCaptain,
+        // Store original user data
+        _leaguespot_original: user,
+      };
+    });
+}
+
+// Function to fetch all Playfly matches using LeagueSpot API
+// This function reverse engineers the LeagueSpot API to import Playfly matches:
+// 1. Get season info from seasonId to find currentStageId
+// 2. Get stage info to find all rounds
+// 3. Get matches from each round
+// 4. Get detailed match data and participants for each match
+// 5. Return comprehensive match data for import
+async function fetchPlayflyMatchesViaLeagueSpot(
+  seasonId: string,
+): Promise<any> {
+  if (!seasonId || seasonId.trim() === "") {
+    throw new Error("Season ID is required");
+  }
+
+  try {
+    // Step 1: Get season info to get currentStageId
+    console.log(`Fetching season data for: ${seasonId}`);
+    const seasonData = await fetchLeagueSpotSeason(seasonId);
+    const stageId = seasonData.currentStageId;
+
+    if (!stageId) {
+      throw new Error("No current stage found for this season");
+    }
+
+    // Step 2: Get stage info to get rounds
+    console.log(`Fetching stage data for: ${stageId}`);
+    const stageData = await fetchLeagueSpotStage(stageId);
+    const rounds = stageData.rounds || [];
+
+    if (rounds.length === 0) {
+      throw new Error("No rounds found for this stage");
+    }
+
+    console.log(`Found ${rounds.length} rounds in stage`);
+
+    // Step 3: Get all matches from all rounds
+    let allMatches: any[] = [];
+
+    for (const round of rounds) {
+      try {
+        console.log(`Fetching matches for round: ${round.id}`);
+        const roundMatches = await fetchLeagueSpotRoundMatches(round.id);
+        allMatches = allMatches.concat(roundMatches);
+        console.log(
+          `Found ${roundMatches.length} matches in round ${round.id}`,
+        );
+      } catch (error) {
+        console.warn(`Failed to fetch matches for round ${round.id}:`, error);
+        // Continue with other rounds even if one fails
+      }
+    }
+
+    console.log(`Total matches found: ${allMatches.length}`);
+
+    // Step 4: Get detailed match data and participants for each match
+    const detailedMatches = [];
+
+    // TESTING: Only process 1 match for now
+    const matchesToProcess = Math.min(allMatches.length);
+    // console.log(`TESTING MODE: Processing only ${matchesToProcess} match(es)`);
+
+    for (let i = 0; i < matchesToProcess; i++) {
+      const match = allMatches[i];
+      try {
+        console.log(
+          `Fetching details for match ${i + 1}/${allMatches.length}: ${match.id}`,
+        );
+
+        // Get detailed match data
+        const matchDetails = await fetchLeagueSpotMatch(match.id);
+
+        // Get participants data
+        const participants = await fetchLeagueSpotParticipants(match.id);
+
+        // Combine the data
+        detailedMatches.push({
+          ...matchDetails,
+          participants: participants,
+          // Keep original match data as backup
+          originalMatch: match,
+        });
+      } catch (error) {
+        console.warn(`Failed to fetch details for match ${match.id}:`, error);
+        // Add the basic match data even if details fail
+        detailedMatches.push({
+          ...match,
+          participants: [],
+          error: `Failed to fetch detailed data: ${error}`,
+        });
+      }
+    }
+
+    console.log(`Successfully processed ${detailedMatches.length} matches`);
+
+    const rawLeagueSpotData = {
+      season: seasonData,
+      stage: stageData,
+      matches: detailedMatches,
+      totalMatches: detailedMatches.length,
+    };
+
+    // Convert LeagueSpot data to our schema format (compatible with Faceit import flow)
+    const convertedData = convertLeagueSpotDataToSchema(rawLeagueSpotData);
+
+    console.log(
+      `Converted to schema format with ${convertedData.items.length} matches`,
+    );
+
+    return convertedData;
+  } catch (error) {
+    console.error("Error fetching Playfly matches via LeagueSpot:", error);
+    throw error;
+  }
 }
 
 function SelectLeagueOrEvent({
@@ -216,7 +446,7 @@ function MetadataForm({
           <Label htmlFor="eventId">
             {platform === "faceit"
               ? "Faceit Championship ID"
-              : "Playfly Event ID"}
+              : "Playfly Season ID (LeagueSpot)"}
           </Label>
           <Input
             id="eventId"
@@ -225,7 +455,7 @@ function MetadataForm({
             placeholder={
               platform === "faceit"
                 ? "Faceit Championship ID"
-                : "Playfly Event ID"
+                : "Playfly Season ID (LeagueSpot)"
             }
             className="max-w-xl"
           />
@@ -356,8 +586,22 @@ function ParticipantMatcher({
             Array.from(teamNames).map((name) => ({ name, selected: false })),
           );
         } else if (previewData && platform === "playfly") {
-          // Similar logic for playfly data
-          // Implement based on playfly data structure
+          // Extract unique team names from the converted LeagueSpot/Playfly data
+          const matches = previewData.items || [];
+          const teamNames = new Set<string>();
+
+          matches.forEach((match: any) => {
+            const teams = match.teams || {};
+            Object.values(teams).forEach((team: any) => {
+              if (team && team.name) {
+                teamNames.add(team.name);
+              }
+            });
+          });
+
+          setUnidentifiedTeams(
+            Array.from(teamNames).map((name) => ({ name, selected: false })),
+          );
         }
       } catch (err: any) {
         setError(
@@ -664,13 +908,14 @@ function ImportMatches() {
         if (platform === "faceit") {
           data = await fetchFaceitMatches(eventId);
         } else {
-          data = await fetchPlayflyMatches(eventId);
+          // Use LeagueSpot API for Playfly matches - eventId is now seasonId
+          data = await fetchPlayflyMatchesViaLeagueSpot(eventId);
         }
         setPreviewData(data);
       } catch (error) {
         console.error("Failed to fetch preview data:", error);
         alert(
-          "Failed to fetch preview data. Please check the event ID and try again.",
+          "Failed to fetch preview data. Please check the season/event ID and try again.",
         );
         setIsLoading(false);
         return;

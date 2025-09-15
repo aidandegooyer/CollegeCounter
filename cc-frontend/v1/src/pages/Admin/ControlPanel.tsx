@@ -31,7 +31,7 @@ function ControlPanel() {
   const handleUpdateElo = async () => {
     try {
       setIsUpdating(true);
-      const result = await updatePlayerElo();
+      const result = await updatePlayerElo(import.meta.env.VITE_FACEIT_API_KEY);
       showNotification(
         "success",
         "ELO Update Complete",
