@@ -5,7 +5,6 @@ import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import {
   usePublicMatches,
   usePublicSeasons,
-  usePublicTeams,
 } from "@/services/hooks";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";

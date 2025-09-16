@@ -33,6 +33,7 @@ services:
       context: ./cc-frontend/v1
       args:
         REACT_APP_API_URL: ${REACT_APP_API_URL}
+        VITE_CURRENT_SEASON_ID: "d7cac7de-2722-4083-8abc-96d2f878a4a3"
     environment:
       VIRTUAL_HOST: collegecounter.org,www.collegecounter.org
       LETSENCRYPT_HOST: collegecounter.org,www.collegecounter.org
@@ -48,6 +49,8 @@ services:
       SECRET_KEY: ${DJANGO_SECRET_KEY}
       DJANGO_DEBUG: ${DJANGO_DEBUG}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+      PLAYFLY_API_KEY: ${PLAYFLY_API_KEY}
+      FACEIT_API_KEY: ${FACEIT_API_KEY}
       DATABASE_URL: ${DATABASE_URL}
       GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}
       VIRTUAL_HOST: api.collegecounter.org

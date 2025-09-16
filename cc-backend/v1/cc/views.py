@@ -640,7 +640,7 @@ def update_player_elo(request):
     """
     try:
         # Get all players with faceit_id
-        players = Player.objects.filter(faceit_id__isnull=False)
+        players = Player.objects.filter(steam_id__isnull=False)
         updated_count = 0
         not_found_count = 0
         faceit_api_url = "https://open.faceit.com/data/v4/players"
@@ -649,8 +649,8 @@ def update_player_elo(request):
         api_key = request.data.get("api_key", "3c0ddd87-ff50-45df-8d56-3cf62ef5fbc8")
 
         for player in players:
-            if not player.faceit_id:
-                print(f"Skipping player {player.name} with no Faceit ID")
+            if not player.steam_id:
+                print(f"Skipping player {player.name} with no STEAM ID")
                 continue
 
             try:
@@ -670,7 +670,7 @@ def update_player_elo(request):
                         player.elo = cs_data["faceit_elo"]
                         player.skill_level = cs_data.get("skill_level", 1)
                         player.save()
-                        logger.info(
+                        print(
                             f"Updated ELO for player {player.name} to {player.elo}"
                         )
                         updated_count += 1
