@@ -73,7 +73,7 @@ export interface Match {
 }
 
 export interface ImportMatchesRequest {
-  platform: 'faceit' | 'playfly';
+  platform: 'faceit' | 'leaguespot';
   competition_name: string;
   season_id: string;
   data: any; // The raw API response data
@@ -188,6 +188,29 @@ export interface TeamEloResponse {
   teams_without_enough_players?: number;
 }
 
+export interface UpdateMatchesResponse {
+  message: string;
+  updated_count: number;
+  error_count: number;
+  total_processed: number;
+  results: Array<{
+    match_id: string;
+    status: 'updated' | 'no_changes' | 'error';
+    new_status?: string;
+    new_date?: string;
+    error?: string;
+  }>;
+}
+
+export interface RankingSnapshotResponse {
+  success: boolean;
+  ranking_id: string;
+  season_name: string;
+  teams_ranked: number;
+  snapshot_date: string;
+  message: string;
+}
+
 export const updatePlayerElo = async (
   apiKey?: string
 ): Promise<PlayerEloResponse> => {
@@ -210,6 +233,30 @@ export const resetPlayerElo = async (
 
 export const calculateTeamElos = async (): Promise<TeamEloResponse> => {
   const response = await api.post(`/team-elo/calculate/`);
+  return response.data;
+};
+
+export const updateMatches = async (options: {
+  match_ids?: string[];
+  platform?: 'faceit' | 'leaguespot';
+  status_filter?: 'scheduled' | 'in_progress' | 'completed';
+  auto_detect?: boolean;
+} = {}): Promise<UpdateMatchesResponse> => {
+  const response = await api.post(`/matches/update/`, {
+    match_ids: options.match_ids || [],
+    platform: options.platform || '',
+    status_filter: options.status_filter || '',
+    auto_detect: options.auto_detect !== undefined ? options.auto_detect : true
+  });
+  return response.data;
+};
+
+export const createRankingSnapshot = async (options: {
+  season_id?: string;
+} = {}): Promise<RankingSnapshotResponse> => {
+  const response = await api.post(`/rankings/snapshot/`, {
+    season_id: options.season_id || ''
+  });
   return response.data;
 };
 
