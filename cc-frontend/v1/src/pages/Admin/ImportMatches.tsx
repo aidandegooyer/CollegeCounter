@@ -220,7 +220,7 @@ async function fetchPlayflyMatchesViaLeagueSpot(
     const detailedMatches = [];
 
     // TESTING: Only process 1 match for now
-    const matchesToProcess = Math.min(allMatches.length, 1);
+    const matchesToProcess = Math.min(allMatches.length);
     // console.log(`TESTING MODE: Processing only ${matchesToProcess} match(es)`);
 
     for (let i = 0; i < matchesToProcess; i++) {
