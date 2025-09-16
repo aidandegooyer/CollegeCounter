@@ -3,6 +3,8 @@ import {
   updatePlayerElo,
   resetPlayerElo,
   calculateTeamElos,
+  updateMatches,
+  createRankingSnapshot,
 } from "@/services/api";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { useState } from "react";
@@ -12,6 +14,8 @@ function ControlPanel() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [isUpdatingMatches, setIsUpdatingMatches] = useState(false);
+  const [isCreatingSnapshot, setIsCreatingSnapshot] = useState(false);
   const [notification, setNotification] = useState<{
     type: "success" | "error";
     title: string;
@@ -25,7 +29,7 @@ function ControlPanel() {
   ) => {
     setNotification({ type, title, message });
     // Clear notification after 5 seconds
-    setTimeout(() => setNotification(null), 5000);
+    setTimeout(() => setNotification(null), 15000);
   };
 
   const handleUpdateElo = async () => {
@@ -109,6 +113,66 @@ function ControlPanel() {
     }
   };
 
+  const handleUpdateMatches = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to update match data? This will fetch the latest information from external APIs for scheduled and in-progress matches.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setIsUpdatingMatches(true);
+      const result = await updateMatches({
+        auto_detect: true, // This will update scheduled and in_progress matches
+      });
+      showNotification(
+        "success",
+        "Match Update Complete",
+        `${result.updated_count} matches updated, ${result.error_count} errors. ${result.total_processed} matches processed.`,
+      );
+    } catch (error) {
+      console.error("Error updating matches:", error);
+      showNotification(
+        "error",
+        "Error",
+        "There was an error updating match data.",
+      );
+    } finally {
+      setIsUpdatingMatches(false);
+    }
+  };
+
+  const handleCreateRankingSnapshot = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to create a ranking snapshot? This will capture the current team ELO rankings for historical tracking.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setIsCreatingSnapshot(true);
+      const result = await createRankingSnapshot();
+      showNotification(
+        "success",
+        "Ranking Snapshot Created",
+        `Successfully captured rankings for ${result.teams_ranked} teams in season "${result.season_name}".`,
+      );
+    } catch (error) {
+      console.error("Error creating ranking snapshot:", error);
+      showNotification(
+        "error",
+        "Error",
+        "There was an error creating the ranking snapshot.",
+      );
+    } finally {
+      setIsCreatingSnapshot(false);
+    }
+  };
+
   return (
     <div className="mt-4">
       <h2 className="text-4xl">Player Elo</h2>
@@ -153,21 +217,68 @@ function ControlPanel() {
             "Reset Player Elo"
           )}
         </Button>
-        <Button
-          className="cursor-pointer"
-          variant="secondary"
-          onClick={handleCalculateTeamElos}
-          disabled={isCalculating}
-        >
-          {isCalculating ? (
-            <>
-              <Spinner className="mr-2 h-4 w-4" />
-              Calculating...
-            </>
-          ) : (
-            "Calculate Team Elo"
-          )}
-        </Button>
+      </div>
+      <div className="mt-8">
+        <h2 className="text-4xl">Team Elo</h2>
+        <hr></hr>
+        <div className="mt-4 flex gap-4">
+          <Button
+            className="cursor-pointer"
+            variant="secondary"
+            onClick={handleCalculateTeamElos}
+            disabled={isCalculating}
+          >
+            {isCalculating ? (
+              <>
+                <Spinner className="mr-2 h-4 w-4" />
+                Calculating...
+              </>
+            ) : (
+              "Calculate Initial Team Elo"
+            )}
+          </Button>
+        </div>
+      </div>
+      <div className="mt-8">
+        <h2 className="text-4xl">Matches</h2>
+        <hr></hr>
+        <div className="mt-4 flex gap-4">
+          <Button
+            className="cursor-pointer text-white"
+            onClick={handleUpdateMatches}
+            disabled={isUpdatingMatches}
+          >
+            {isUpdatingMatches ? (
+              <>
+                <Spinner className="mr-2 h-4 w-4" />
+                Updating...
+              </>
+            ) : (
+              "Update Matches"
+            )}
+          </Button>
+        </div>
+      </div>
+      <div className="mt-8">
+        <h2 className="text-4xl">Rankings</h2>
+        <hr></hr>
+        <div className="mt-4 flex gap-4">
+          <Button
+            className="cursor-pointer"
+            variant="secondary"
+            onClick={handleCreateRankingSnapshot}
+            disabled={isCreatingSnapshot}
+          >
+            {isCreatingSnapshot ? (
+              <>
+                <Spinner className="mr-2 h-4 w-4" />
+                Creating...
+              </>
+            ) : (
+              "Create Ranking Snapshot"
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
