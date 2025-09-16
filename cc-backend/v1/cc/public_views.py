@@ -7,7 +7,7 @@ from django.utils.dateparse import parse_datetime
 from datetime import datetime
 import uuid
 
-from .models import Team, Player, Match, Season, Participant
+from .models import Team, Player, Match, Season, Participant, Ranking, RankingItem
 
 # Maximum items per page
 MAX_PAGE_SIZE = 100
@@ -550,6 +550,178 @@ def public_seasons(request):
                 "start_date": season.start_date,
                 "end_date": season.end_date,
                 "is_current": is_current,
+            }
+        )
+
+    return Response(result)
+
+
+@api_view(["GET"])
+def public_rankings(request):
+    """
+    Public API endpoint to fetch rankings with various filters.
+
+    Query Parameters:
+    - season_id: Filter by season ID (required for filtering)
+    - page: Page number (default: 1)
+    - page_size: Items per page (default: 20, max: 100)
+    - sort: Sort field (default: -date for most recent first)
+    - order: Sort order (asc or desc, default: desc)
+
+    Returns a paginated list of rankings.
+    """
+    # Parse query parameters
+    season_id = request.query_params.get("season_id", "")
+
+    page = int(request.query_params.get("page", "1"))
+    page_size = min(int(request.query_params.get("page_size", "20")), MAX_PAGE_SIZE)
+
+    sort_field = request.query_params.get("sort", "date")
+    sort_order = request.query_params.get("order", "desc")  # Default to most recent
+
+    # sort
+    valid_sort_fields = ["date"]
+    if sort_field not in valid_sort_fields:
+        sort_field = "date"
+
+    if sort_order.lower() == "desc":
+        sort_field = f"-{sort_field}"
+
+    # Build query and filter
+    query = Q()
+
+    if season_id:
+        try:
+            uuid.UUID(season_id)  # Validate UUID
+            query &= Q(season_id=season_id)
+        except ValueError:
+            return Response(
+                {"error": "Invalid season_id format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    rankings = Ranking.objects.filter(query).order_by(sort_field)
+
+    paginator = Paginator(rankings, page_size)
+
+    try:
+        paginated_rankings = paginator.page(page)
+    except Exception:
+        paginated_rankings = paginator.page(paginator.num_pages)
+
+    # Format response
+    result = {
+        "count": paginator.count,
+        "total_pages": paginator.num_pages,
+        "current_page": page,
+        "page_size": page_size,
+        "results": [],
+    }
+
+    for ranking in paginated_rankings:
+        result["results"].append(
+            {
+                "id": ranking.id,
+                "date": ranking.date,
+                "season": {
+                    "id": ranking.season.id,
+                    "name": ranking.season.name,
+                }
+                if ranking.season
+                else None,
+            }
+        )
+
+    return Response(result)
+
+
+@api_view(["GET"])
+def public_ranking_items(request):
+    """
+    Public API endpoint to fetch ranking items for a specific ranking.
+
+    Query Parameters:
+    - ranking_id: Filter by ranking ID (required)
+    - page: Page number (default: 1)
+    - page_size: Items per page (default: 20, max: 100)
+    - sort: Sort field (default: rank)
+    - order: Sort order (asc or desc, default: asc)
+
+    Returns a paginated list of ranking items.
+    """
+    # Parse query parameters
+    ranking_id = request.query_params.get("ranking_id", "")
+
+    if not ranking_id:
+        return Response(
+            {"error": "ranking_id parameter is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    page = int(request.query_params.get("page", "1"))
+    page_size = min(int(request.query_params.get("page_size", "20")), MAX_PAGE_SIZE)
+
+    sort_field = request.query_params.get("sort", "rank")
+    sort_order = request.query_params.get("order", "asc")  # Default to rank order
+
+    # sort
+    valid_sort_fields = ["rank", "elo"]
+    if sort_field not in valid_sort_fields:
+        sort_field = "rank"
+
+    if sort_order.lower() == "desc":
+        sort_field = f"-{sort_field}"
+
+    # Build query and filter
+    query = Q()
+
+    try:
+        uuid.UUID(ranking_id)  # Validate UUID
+        query &= Q(ranking_id=ranking_id)
+    except ValueError:
+        return Response(
+            {"error": "Invalid ranking_id format"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    ranking_items = (
+        RankingItem.objects.filter(query)
+        .select_related("team", "ranking")
+        .order_by(sort_field)
+    )
+
+    paginator = Paginator(ranking_items, page_size)
+
+    try:
+        paginated_items = paginator.page(page)
+    except Exception:
+        paginated_items = paginator.page(paginator.num_pages)
+
+    # Format response
+    result = {
+        "count": paginator.count,
+        "total_pages": paginator.num_pages,
+        "current_page": page,
+        "page_size": page_size,
+        "results": [],
+    }
+
+    for item in paginated_items:
+        result["results"].append(
+            {
+                "id": item.id,
+                "rank": item.rank,
+                "elo": item.elo,
+                "team": {
+                    "id": item.team.id,
+                    "name": item.team.name,
+                    "picture": item.team.picture,
+                    "school_name": item.team.school_name,
+                },
+                "ranking": {
+                    "id": item.ranking.id,
+                    "date": item.ranking.date,
+                },
             }
         )
 

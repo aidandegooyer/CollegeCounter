@@ -92,7 +92,6 @@ def update_match_elos(match):
         team1_result = 0.0
         team2_result = 1.0
     else:
-        # This shouldn't happen with current logic, but handle gracefully
         return False
 
     # Calculate new ELOs

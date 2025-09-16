@@ -458,6 +458,31 @@ export interface PublicSeason {
   is_current: boolean;
 }
 
+export interface PublicRanking {
+  id: string;
+  date: string;
+  season: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+export interface PublicRankingItem {
+  id: string;
+  rank: number;
+  elo: number;
+  team: {
+    id: string;
+    name: string;
+    picture?: string;
+    school_name?: string;
+  };
+  ranking: {
+    id: string;
+    date: string;
+  };
+}
+
 // Public API query parameters
 export interface TeamQueryParams {
   id?: string | string[];
@@ -510,6 +535,22 @@ export interface SeasonQueryParams {
   order?: 'asc' | 'desc';
 }
 
+export interface RankingQueryParams {
+  season_id?: string;
+  page?: number;
+  page_size?: number;
+  sort?: 'date';
+  order?: 'asc' | 'desc';
+}
+
+export interface RankingItemQueryParams {
+  ranking_id: string;
+  page?: number;
+  page_size?: number;
+  sort?: 'rank' | 'elo';
+  order?: 'asc' | 'desc';
+}
+
 // Helper function to convert query params to URL search params
 const convertToQueryString = (params: Record<string, any>): string => {
   const searchParams = new URLSearchParams();
@@ -551,6 +592,18 @@ export const fetchPublicMatches = async (params: MatchQueryParams = {}): Promise
 export const fetchPublicSeasons = async (params: SeasonQueryParams = {}): Promise<PaginatedResponse<PublicSeason>> => {
   const queryString = convertToQueryString(params);
   const response = await api.get(`/public/seasons${queryString ? `?${queryString}` : ''}`);
+  return response.data;
+};
+
+export const fetchPublicRankings = async (params: RankingQueryParams = {}): Promise<PaginatedResponse<PublicRanking>> => {
+  const queryString = convertToQueryString(params);
+  const response = await api.get(`/public/rankings${queryString ? `?${queryString}` : ''}`);
+  return response.data;
+};
+
+export const fetchPublicRankingItems = async (params: RankingItemQueryParams): Promise<PaginatedResponse<PublicRankingItem>> => {
+  const queryString = convertToQueryString(params);
+  const response = await api.get(`/public/ranking-items${queryString ? `?${queryString}` : ''}`);
   return response.data;
 };
 

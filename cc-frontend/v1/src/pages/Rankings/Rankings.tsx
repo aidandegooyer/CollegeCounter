@@ -7,6 +7,8 @@ import {
   usePublicPlayers,
   usePublicTeams,
   usePublicSeasons,
+  usePublicRankings,
+  usePublicRankingItems,
 } from "@/services/hooks";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import {
@@ -16,17 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
 
 function Rankings() {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [seasonFilter, setSeasonFilter] = useState<string | undefined>(
     import.meta.env.VITE_CURRENT_SEASON_ID || undefined,
   );
-  const [competitionFilter, setCompetitionFilter] = useState<
+  const [rankingWeekFilter, setRankingWeekFilter] = useState<
     string | undefined
-  >(import.meta.env.VITE_DEFAULT_COMPETITION_ID || undefined);
+  >(undefined);
 
   const getInitialRankingType = () => {
     const hash = window.location.hash.replace("#", "");
@@ -40,11 +39,6 @@ function Rankings() {
     getInitialRankingType() || "team",
   );
   window.location.hash = rankingType;
-
-  const resetFilters = () => {
-    setSeasonFilter(import.meta.env.VITE_DEFAULT_SEASON_ID || undefined);
-    setCompetitionFilter(undefined);
-  };
 
   return (
     <div className="app-container mx-4 flex justify-center">
@@ -89,41 +83,25 @@ function Rankings() {
             : "Based on current Faceit Elo"}
         </h2>
 
-        <div
-          className={`matches-filter mt-4 w-full rounded-xl border-2 p-4 md:mt-0 md:w-auto ${isExpanded ? "max-h-[1000px]" : "max-h-16"} transition-all duration-300`}
-        >
-          <div
-            className="mb-2 flex cursor-pointer items-center justify-between"
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
-            <h2 className="font-semibold">Filter Rankings</h2>
-
-            <Menu />
-          </div>
-          <div
-            className={`bg-background transition-all duration-200 ${isExpanded ? "opacity-100" : "pointer-events-none opacity-0"}`}
-          >
-            <RankingsFilter
-              expanded={isExpanded}
-              seasonFilter={seasonFilter}
-              setSeasonFilter={setSeasonFilter}
-              competitionFilter={competitionFilter}
-              setCompetitionFilter={setCompetitionFilter}
-              resetFilters={resetFilters}
-            />
-          </div>
+        {/* Clean Filter Box */}
+        <div className="mt-4 w-full rounded-xl border-2 p-4">
+          <RankingsFilter
+            rankingType={rankingType}
+            seasonFilter={seasonFilter}
+            setSeasonFilter={setSeasonFilter}
+            rankingWeekFilter={rankingWeekFilter}
+            setRankingWeekFilter={setRankingWeekFilter}
+          />
         </div>
+
         <div className="mt-2 flex w-full">
           <div className="flex-4 space-y-3">
             {rankingType === "player" ? (
-              <PlayerRankingBody
-                seasonFilter={seasonFilter}
-                competitionFilter={competitionFilter}
-              />
+              <PlayerRankingBody seasonFilter={seasonFilter} />
             ) : (
               <TeamRankingBody
                 seasonFilter={seasonFilter}
-                competitionFilter={competitionFilter}
+                rankingWeekFilter={rankingWeekFilter}
               />
             )}
           </div>
@@ -137,52 +115,100 @@ export default Rankings;
 
 interface RankingBodyProps {
   seasonFilter?: string;
-  competitionFilter?: string;
+  rankingWeekFilter?: string;
 }
 
 function TeamRankingBody({
   seasonFilter,
-  competitionFilter,
+  rankingWeekFilter,
 }: RankingBodyProps) {
   const [page, setPage] = useState(1);
   const [teams, setTeams] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
 
-  // Build query params with filters
-  const queryParams = {
+  // Determine if we're showing current rankings or a specific ranking snapshot
+  const isCurrentRankings =
+    !rankingWeekFilter || rankingWeekFilter === "current";
+
+  // Query for current team rankings (live ELO data)
+  const currentRankingsParams = {
     sort: "elo" as const,
     order: "desc" as const,
     page,
     page_size: 20,
     ...(seasonFilter &&
       seasonFilter !== "all_seasons" && { season_id: seasonFilter }),
-    ...(competitionFilter &&
-      competitionFilter !== "all_competitions" && {
-        competition_name: competitionFilter,
-      }),
   };
 
-  const { data, isLoading, error } = usePublicTeams(queryParams, {
+  // Query for historical ranking data
+  const historicalRankingsParams = {
+    ranking_id: rankingWeekFilter || "",
+    page,
+    page_size: 20,
+    sort: "rank" as const,
+    order: "asc" as const,
+  };
+
+  // Fetch current team data
+  const {
+    data: currentData,
+    isLoading: isLoadingCurrent,
+    error: currentError,
+  } = usePublicTeams(currentRankingsParams, {
     staleTime: 1000 * 60 * 5,
     keepPreviousData: true,
+    enabled: isCurrentRankings,
   });
+
+  // Fetch historical ranking items
+  const {
+    data: historicalData,
+    isLoading: isLoadingHistorical,
+    error: historicalError,
+  } = usePublicRankingItems(historicalRankingsParams, {
+    staleTime: 1000 * 60 * 5,
+    keepPreviousData: true,
+    enabled: !isCurrentRankings && !!rankingWeekFilter,
+  });
+
+  // Use the appropriate data source
+  const data = isCurrentRankings ? currentData : historicalData;
+  const isLoading = isCurrentRankings ? isLoadingCurrent : isLoadingHistorical;
+  const error = isCurrentRankings ? currentError : historicalError;
 
   // Reset pagination when filters change
   useEffect(() => {
     setPage(1);
     setTeams([]);
     setHasMore(true);
-  }, [seasonFilter, competitionFilter]);
+  }, [seasonFilter, rankingWeekFilter]);
 
   // Update teams when data changes
   useEffect(() => {
     if (data?.results) {
+      let processedResults;
+
+      if (isCurrentRankings) {
+        // For current rankings, use team data directly
+        processedResults = data.results;
+      } else {
+        // For historical rankings, extract team data from ranking items
+        processedResults = data.results.map((item: any) => ({
+          id: item.team.id,
+          name: item.team.name,
+          picture: item.team.picture,
+          school_name: item.team.school_name,
+          elo: item.elo, // Use historical ELO from ranking
+          rank: item.rank, // Historical rank
+        }));
+      }
+
       setTeams((prevTeams) =>
-        page === 1 ? data.results : [...prevTeams, ...data.results],
+        page === 1 ? processedResults : [...prevTeams, ...processedResults],
       );
-      setHasMore(data.results.length > 0 && data.results.length === 20);
+      setHasMore(processedResults.length > 0 && processedResults.length === 20);
     }
-  }, [data, page]);
+  }, [data, page, isCurrentRankings]);
 
   const loadMoreTeams = () => {
     if (!isLoading && hasMore) {
@@ -210,16 +236,17 @@ function TeamRankingBody({
       className="infinite-scroll-container space-y-2"
     >
       {teams.map((team, i) => (
-        <TeamRankingComponent key={team.id || i} team={team} rank={i} />
+        <TeamRankingComponent
+          key={team.id || i}
+          team={team}
+          rank={isCurrentRankings ? i : team.rank || i}
+        />
       ))}
     </InfiniteScroll>
   );
 }
 
-function PlayerRankingBody({
-  seasonFilter,
-  competitionFilter,
-}: RankingBodyProps) {
+function PlayerRankingBody({ seasonFilter }: RankingBodyProps) {
   const [page, setPage] = useState(1);
   const [players, setPlayers] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
@@ -232,10 +259,6 @@ function PlayerRankingBody({
     page_size: 20,
     ...(seasonFilter &&
       seasonFilter !== "all_seasons" && { season_id: seasonFilter }),
-    ...(competitionFilter &&
-      competitionFilter !== "all_competitions" && {
-        competition_id: competitionFilter,
-      }),
   };
 
   const { data, isLoading, error } = usePublicPlayers(queryParams, {
@@ -248,7 +271,7 @@ function PlayerRankingBody({
     setPage(1);
     setPlayers([]);
     setHasMore(true);
-  }, [seasonFilter, competitionFilter]);
+  }, [seasonFilter]);
 
   // Update teams when data changes
   useEffect(() => {
@@ -293,12 +316,11 @@ function PlayerRankingBody({
 }
 
 interface RankingsFilterProps {
-  expanded: boolean;
+  rankingType: string;
   seasonFilter?: string;
   setSeasonFilter: (value: string | undefined) => void;
-  competitionFilter?: string;
-  setCompetitionFilter: (value: string | undefined) => void;
-  resetFilters: () => void;
+  rankingWeekFilter?: string;
+  setRankingWeekFilter: (value: string | undefined) => void;
 }
 
 function RankingsFilter(props: RankingsFilterProps) {
@@ -309,20 +331,31 @@ function RankingsFilter(props: RankingsFilterProps) {
     page_size: 50,
   });
 
+  // Fetch rankings for the selected season
+  const { data: rankingsData } = usePublicRankings(
+    {
+      season_id: props.seasonFilter,
+      sort: "date",
+      order: "desc",
+      page_size: 100,
+    },
+    {
+      enabled: !!props.seasonFilter, // Only fetch if season is selected
+    },
+  );
+
   return (
-    <div
-      className={`mt-4 flex flex-wrap justify-center space-x-2 space-y-2 ${props.expanded ? "" : "pointer-events-none"}`}
-    >
+    <div className="flex flex-wrap justify-center gap-4">
+      {/* Season Filter - Always shown */}
       <div className="space-y-1">
         <Label htmlFor="season">Season</Label>
         <Select
           value={props.seasonFilter}
           onValueChange={props.setSeasonFilter}
         >
-          <SelectTrigger id="season">
+          <SelectTrigger id="season" className="w-48">
             <SelectValue placeholder="Select a season" />
           </SelectTrigger>
-
           <SelectContent>
             <SelectItem disabled value="x">
               Select a season
@@ -336,16 +369,35 @@ function RankingsFilter(props: RankingsFilterProps) {
         </Select>
       </div>
 
-      <div className="space-y-1">
-        <Label className="invisible">Reset</Label>
-        <Button
-          variant="destructive"
-          className="cursor-pointer"
-          onClick={props.resetFilters}
-        >
-          Reset Filters
-        </Button>
-      </div>
+      {/* Ranking Week Filter - Only for team rankings */}
+      {props.rankingType === "team" && (
+        <div className="space-y-1">
+          <Label htmlFor="rankingWeek">Ranking Week</Label>
+          <Select
+            value={props.rankingWeekFilter}
+            onValueChange={props.setRankingWeekFilter}
+          >
+            <SelectTrigger id="rankingWeek" className="w-48">
+              <SelectValue placeholder="Select a week" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem disabled value="x">
+                Select a week
+              </SelectItem>
+              <SelectItem value="current">Current Rankings</SelectItem>
+              {rankingsData?.results?.map((ranking) => (
+                <SelectItem key={ranking.id} value={ranking.id}>
+                  {new Date(ranking.date).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </div>
   );
 }

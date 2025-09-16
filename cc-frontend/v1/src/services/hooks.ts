@@ -4,12 +4,16 @@ import {
   fetchPublicPlayers, 
   fetchPublicMatches, 
   fetchPublicSeasons,
+  fetchPublicRankings,
+  fetchPublicRankingItems,
 } from '@/services/api';
 import type {
   TeamQueryParams,
   PlayerQueryParams,
   MatchQueryParams,
-  SeasonQueryParams
+  SeasonQueryParams,
+  RankingQueryParams,
+  RankingItemQueryParams
 } from '@/services/api';
 
 
@@ -51,6 +55,25 @@ export function usePublicSeasons(params: SeasonQueryParams = {}, options = {}) {
     queryKey: ['public', 'seasons', params],
     queryFn: () => fetchPublicSeasons(params),
     staleTime: DEFAULT_STALE_TIME,
+    ...options,
+  });
+}
+
+export function usePublicRankings(params: RankingQueryParams = {}, options = {}) {
+  return useQuery({
+    queryKey: ['public', 'rankings', params],
+    queryFn: () => fetchPublicRankings(params),
+    staleTime: DEFAULT_STALE_TIME,
+    ...options,
+  });
+}
+
+export function usePublicRankingItems(params: RankingItemQueryParams, options = {}) {
+  return useQuery({
+    queryKey: ['public', 'ranking-items', params],
+    queryFn: () => fetchPublicRankingItems(params),
+    staleTime: DEFAULT_STALE_TIME,
+    enabled: !!params.ranking_id, // Only fetch if ranking_id is provided
     ...options,
   });
 }
