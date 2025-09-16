@@ -49,12 +49,15 @@ export function calculateMatchStars(team1Elo: number, team2Elo: number): number 
   // Calculate final game score using multiplication
   // This naturally penalizes low scores in either dimension
   const gameScore = competitivenessScore * qualityScore;
+
+    // Clamp gameScore if avgElo is less than 2000
+    const clampedGameScore = avgElo < 2000 ? Math.min(gameScore, 0.55) : gameScore;
   
   // Map game score to 1-5 stars
-  if (gameScore >= FIVE_STAR_THRESHOLD) return 5;      // Exceptional matches
-  if (gameScore >= FOUR_STAR_THRESHOLD) return 4;      // Great matches  
-  if (gameScore >= THREE_STAR_THRESHOLD) return 3;     // Good matches
-  if (gameScore >= TWO_STAR_THRESHOLD) return 2;       // Decent matches
+  if (clampedGameScore >= FIVE_STAR_THRESHOLD) return 5;      // Exceptional matches
+  if (clampedGameScore >= FOUR_STAR_THRESHOLD) return 4;      // Great matches  
+  if (clampedGameScore >= THREE_STAR_THRESHOLD) return 3;     // Good matches
+  if (clampedGameScore >= TWO_STAR_THRESHOLD) return 2;       // Decent matches
   return 1;                                             // Poor matches
 }
 
