@@ -48,6 +48,70 @@ def safe_parse_datetime(dt):
     return None
 
 
+def calculate_new_elo(current_elo, opponent_elo, result):
+    """
+    Calculate new ELO rating after a match.
+
+    Args:
+        current_elo (int): Current ELO of the team
+        opponent_elo (int): ELO of the opponent team
+        result (float): Match result (1.0 for win, 0.0 for loss, 0.5 for draw)
+
+    Returns:
+        int: New ELO rating
+    """
+    k = 150  # K-factor, determines the maximum possible adjustment per game
+    expected_score = 1 / (1 + 10 ** ((opponent_elo - current_elo) / 600))
+    new_elo = current_elo + k * (result - expected_score)
+    return round(new_elo)
+
+
+def update_match_elos(match):
+    """
+    Update team ELOs based on match result.
+    Only updates if the match is completed and has a winner.
+
+    Args:
+        match (Match): The completed match to process
+
+    Returns:
+        bool: True if ELOs were updated, False otherwise
+    """
+    if match.status != "completed" or not match.winner:
+        return False
+
+    # Get current ELOs
+    team1_elo = match.team1.elo
+    team2_elo = match.team2.elo
+
+    # Determine results (1.0 for win, 0.0 for loss)
+    if match.winner == match.team1:
+        team1_result = 1.0
+        team2_result = 0.0
+    elif match.winner == match.team2:
+        team1_result = 0.0
+        team2_result = 1.0
+    else:
+        # This shouldn't happen with current logic, but handle gracefully
+        return False
+
+    # Calculate new ELOs
+    new_team1_elo = calculate_new_elo(team1_elo, team2_elo, team1_result)
+    new_team2_elo = calculate_new_elo(team2_elo, team1_elo, team2_result)
+
+    # Update teams
+    match.team1.elo = new_team1_elo
+    match.team2.elo = new_team2_elo
+    match.team1.save()
+    match.team2.save()
+
+    logger.info(
+        f"Updated ELOs for match {match.id}: {match.team1.name} {team1_elo}→{new_team1_elo}, {match.team2.name} {team2_elo}→{new_team2_elo}"
+    )
+
+    return True
+
+
 def index(request):
     return HttpResponse("Hello! This is the College Counter backend API.")
 
@@ -1201,6 +1265,10 @@ def update_faceit_match(match):
             match.save()
             logger.info(f"Updated Faceit match {match.id}")
 
+            # Update team ELOs if the match is now completed
+            if match.status == "completed":
+                update_match_elos(match)
+
         return updated
 
     except Exception as e:
@@ -1349,6 +1417,10 @@ def update_leaguespot_match(match):
         if updated:
             match.save()
             logger.info(f"Updated LeagueSpot match {match.id}")
+
+            # Update team ELOs if the match is now completed
+            if match.status == "completed":
+                update_match_elos(match)
 
         return updated
 
