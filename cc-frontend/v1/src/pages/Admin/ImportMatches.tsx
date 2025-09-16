@@ -43,8 +43,8 @@ function SelectPlatform({
           <Label htmlFor="faceit">Faceit</Label>
         </div>
         <div className="flex items-center space-x-2">
-          <RadioGroupItem value="playfly" id="playfly" />
-          <Label htmlFor="playfly">Playfly</Label>
+          <RadioGroupItem value="leaguespot" id="leaguespot" />
+          <Label htmlFor="leaguespot">Leaguespot</Label>
         </div>
       </RadioGroup>
     </div>
@@ -220,7 +220,7 @@ async function fetchPlayflyMatchesViaLeagueSpot(
     const detailedMatches = [];
 
     // TESTING: Only process 1 match for now
-    const matchesToProcess = Math.min(allMatches.length);
+    const matchesToProcess = Math.min(allMatches.length, 1);
     // console.log(`TESTING MODE: Processing only ${matchesToProcess} match(es)`);
 
     for (let i = 0; i < matchesToProcess; i++) {
@@ -585,7 +585,7 @@ function ParticipantMatcher({
           setUnidentifiedTeams(
             Array.from(teamNames).map((name) => ({ name, selected: false })),
           );
-        } else if (previewData && platform === "playfly") {
+        } else if (previewData && platform === "leaguespot") {
           // Extract unique team names from the converted LeagueSpot/Playfly data
           const matches = previewData.items || [];
           const teamNames = new Set<string>();
@@ -929,7 +929,7 @@ function ImportMatches() {
       try {
         // Include participant matches in the import request
         const result = await importMatches({
-          platform: platform as "faceit" | "playfly",
+          platform: platform as "faceit" | "leaguespot",
           competition_name: competitionName,
           season_id: selectedSeason,
           data: previewData,
