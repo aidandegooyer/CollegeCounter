@@ -11,11 +11,17 @@ urlpatterns = [
     path("teams/", views.list_teams, name="list_teams"),
     path("players/", views.list_players, name="list_players"),
     path("matches/", views.list_matches, name="list_matches"),
+    path("matches/update/", views.update_matches, name="update_matches"),
     path("clear-database/", views.clear_database, name="clear_database"),
     path("participants/", views.match_participants, name="match_participants"),
     path("player-elo/update/", views.update_player_elo, name="update_player_elo"),
     path("player-elo/reset/", views.reset_player_elo, name="reset_player_elo"),
     path("team-elo/calculate/", views.calculate_team_elos, name="calculate_team_elos"),
+    path(
+        "rankings/snapshot/",
+        views.create_ranking_snapshot,
+        name="create_ranking_snapshot",
+    ),
     # Image upload endpoints
     path(
         "teams/<uuid:team_id>/picture/",

@@ -26,6 +26,28 @@ import requests
 logger = logging.getLogger(__name__)
 
 
+def safe_parse_datetime(dt):
+    """
+    Parse a datetime from either a string (e.g. "2025-10-25T00:30:00Z")
+    or a unix timestamp (int/float, seconds since epoch).
+    Returns a timezone-aware datetime or None.
+    """
+    if isinstance(dt, str):
+        # Try to parse ISO format with Z
+        parsed = parse_datetime(dt)
+        if parsed:
+            return parsed
+        # If parse_datetime fails, try to parse as unix timestamp string
+        try:
+            ts = float(dt)
+            return datetime.fromtimestamp(ts)
+        except ValueError:
+            return None
+    if isinstance(dt, (int, float)):
+        return datetime.fromtimestamp(dt)
+    return None
+
+
 def index(request):
     return HttpResponse("Hello! This is the College Counter backend API.")
 
@@ -91,7 +113,7 @@ def import_matches(request):
                                     if platform_name == "faceit"
                                     else None,
                                     "playfly_id": team_name
-                                    if platform_name == "playfly"
+                                    if platform_name == "leaguespot"
                                     else None,
                                 },
                             )
@@ -107,9 +129,9 @@ def import_matches(request):
 
         # Process matches based on platform
         if platform == "faceit":
-            imported_matches = import_faceit_matches(api_data, competition, season)
-        elif platform == "playfly":
-            imported_matches = import_faceit_matches(api_data, competition, season)
+            imported_matches = import_match_data(api_data, competition, season)
+        elif platform == "leaguespot":
+            imported_matches = import_match_data(api_data, competition, season)
         else:
             return Response(
                 {"error": "Unsupported platform"}, status=status.HTTP_400_BAD_REQUEST
@@ -127,32 +149,10 @@ def import_matches(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-def import_faceit_matches(api_data, competition, season):
+def import_match_data(api_data, competition, season):
     """
     Process Faceit API data and import matches
     """
-
-    def safe_parse_datetime(dt):
-        """
-        Parse a datetime from either a string (e.g. "2025-10-25T00:30:00Z")
-        or a unix timestamp (int/float, seconds since epoch).
-        Returns a timezone-aware datetime or None.
-        """
-        if isinstance(dt, str):
-            # Try to parse ISO format with Z
-            parsed = parse_datetime(dt)
-            if parsed:
-                return parsed
-            # If parse_datetime fails, try to parse as unix timestamp string
-            try:
-                ts = float(dt)
-                return datetime.fromtimestamp(ts)
-            except ValueError:
-                return None
-        if isinstance(dt, (int, float)):
-            return datetime.fromtimestamp(dt)
-        return None
-
     imported_matches = []
 
     # Extract matches from the API response
@@ -160,7 +160,7 @@ def import_faceit_matches(api_data, competition, season):
 
     for match_data in matches:
         # Extract match details
-        # match_id = match_data.get("match_id")
+        match_id = match_data.get("match_id")
         faceit_url = match_data.get("faceit_url")
         status_value = match_data.get("status")
 
@@ -188,6 +188,8 @@ def import_faceit_matches(api_data, competition, season):
             match_date = scheduled_at
         else:
             match_date = None
+
+        platform = "faceit" if competition.name.lower() == "faceit" else "leaguespot"
 
         # Process teams data
         teams_data = match_data.get("teams", {})
@@ -228,6 +230,7 @@ def import_faceit_matches(api_data, competition, season):
 
         # Create the match
         match = Match.objects.create(
+            id=match_id,
             team1=team1,
             team2=team2,
             date=safe_parse_datetime(match_date) if match_date else None,
@@ -236,34 +239,12 @@ def import_faceit_matches(api_data, competition, season):
             winner=winner,
             score_team1=score_team1,
             score_team2=score_team2,
-            platform="faceit",
+            platform=platform,
             season=season,
             competition=competition,
         )
 
         imported_matches.append(str(match.id))
-
-    return imported_matches
-
-
-def import_playfly_matches(api_data, competition, season):
-    """
-    Process Playfly API data and import matches
-    Note: Implement based on Playfly API structure
-    """
-    # This is a placeholder - implement based on actual Playfly API structure
-    imported_matches = []
-
-    # Process matches similar to Faceit but adapted for Playfly's structure
-    # When creating Match objects, include season and competition:
-    # match = Match.objects.create(
-    #     team1=team1,
-    #     team2=team2,
-    #     ...other fields...
-    #     platform="playfly",
-    #     season=season,
-    #     competition=competition
-    # )
 
     return imported_matches
 
@@ -276,12 +257,38 @@ def get_or_create_team(team_data, competition, season):
     team_avatar = team_data.get("avatar")
     team_faceit_id = team_data.get("id")
 
+    # For LeagueSpot/Playfly data, get the team and participant IDs
+    team_playfly_id = team_data.get("faction_id") or team_data.get("teamId")
+    participant_id = team_data.get("participantId")
+
     # First, check if there's an existing participant for this team ID in this competition/season
     existing_participant = None
+
+    # Try Faceit ID first
     if team_faceit_id:
         try:
             existing_participant = Participant.objects.get(
                 faceit_id=team_faceit_id, competition=competition, season=season
+            )
+        except Participant.DoesNotExist:
+            pass
+
+    # Try Playfly team ID if Faceit lookup failed
+    if not existing_participant and team_playfly_id:
+        try:
+            existing_participant = Participant.objects.get(
+                playfly_id=team_playfly_id, competition=competition, season=season
+            )
+        except Participant.DoesNotExist:
+            pass
+
+    # Try Playfly participant ID if team ID lookup failed
+    if not existing_participant and participant_id:
+        try:
+            existing_participant = Participant.objects.get(
+                playfly_participant_id=participant_id,
+                competition=competition,
+                season=season,
             )
         except Participant.DoesNotExist:
             pass
@@ -299,14 +306,35 @@ def get_or_create_team(team_data, competition, season):
         team = Team.objects.create(name=team_name, picture=team_avatar)
 
     # Create participant record to link team to competition and season
+    participant_defaults = {}
+
+    # Set the appropriate platform ID based on what's available
+    if team_faceit_id:
+        participant_defaults["faceit_id"] = team_faceit_id
+    if team_playfly_id:
+        participant_defaults["playfly_id"] = team_playfly_id
+    if participant_id:
+        participant_defaults["playfly_participant_id"] = participant_id
+
     participant, created = Participant.objects.get_or_create(
-        team=team,
-        competition=competition,
-        season=season,
-        defaults={
-            "faceit_id": team_faceit_id  # Store the faceit ID
-        },
+        team=team, competition=competition, season=season, defaults=participant_defaults
     )
+
+    # If participant already existed but was missing some IDs, update them
+    if not created:
+        updated = False
+        if team_faceit_id and not participant.faceit_id:
+            participant.faceit_id = team_faceit_id
+            updated = True
+        if team_playfly_id and not participant.playfly_id:
+            participant.playfly_id = team_playfly_id
+            updated = True
+        if participant_id and not participant.playfly_participant_id:
+            participant.playfly_participant_id = participant_id
+            updated = True
+
+        if updated:
+            participant.save()
 
     # Process players if needed
     roster = team_data.get("roster", [])
@@ -670,9 +698,7 @@ def update_player_elo(request):
                         player.elo = cs_data["faceit_elo"]
                         player.skill_level = cs_data.get("skill_level", 1)
                         player.save()
-                        print(
-                            f"Updated ELO for player {player.name} to {player.elo}"
-                        )
+                        print(f"Updated ELO for player {player.name} to {player.elo}")
                         updated_count += 1
                     else:
                         not_found_count += 1
@@ -896,6 +922,439 @@ def calculate_team_elos(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["POST"])
+@firebase_auth_required
+def create_ranking_snapshot(request):
+    """
+    Create a ranking snapshot based on current team ELO values.
+    This captures the current state of team rankings for historical tracking.
+
+    Optional request format:
+    {
+        "season_id": "uuid", // Optional - specific season to capture rankings for
+        "name": "Custom Snapshot Name" // Optional - custom name for identification
+    }
+    """
+    try:
+        season_id = request.data.get("season_id")
+
+        # Get the season if specified, otherwise use the most recent season
+        season = None
+        if season_id:
+            try:
+                season = Season.objects.get(id=season_id)
+            except Season.DoesNotExist:
+                return Response(
+                    {"error": f"Season with ID {season_id} not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        else:
+            # Use the most recent season if no season specified
+            season = Season.objects.order_by("-start_date").first()
+            if not season:
+                return Response(
+                    {"error": "No seasons found in database"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Get all teams with their current ELO values, ordered by ELO descending
+        teams = Team.objects.filter(elo__gt=0).order_by("-elo")
+
+        if not teams.exists():
+            return Response(
+                {"error": "No teams found with ELO ratings"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Create the ranking record
+        ranking = Ranking.objects.create(season=season)
+
+        # Create ranking items for each team
+        ranking_items_created = 0
+        for rank, team in enumerate(teams, start=1):
+            RankingItem.objects.create(
+                ranking=ranking, team=team, rank=rank, elo=team.elo
+            )
+            ranking_items_created += 1
+
+        logger.info(
+            f"Created ranking snapshot with {ranking_items_created} teams for season {season.name}"
+        )
+
+        return Response(
+            {
+                "success": True,
+                "ranking_id": str(ranking.id),
+                "season_name": season.name,
+                "teams_ranked": ranking_items_created,
+                "snapshot_date": ranking.date.isoformat(),
+                "message": f"Ranking snapshot created successfully with {ranking_items_created} teams",
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error creating ranking snapshot: {str(e)}")
+        return Response(
+            {"error": "Failed to create ranking snapshot"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@firebase_auth_required
+def update_matches(request):
+    """
+    Update existing matches with fresh data from external APIs.
+    This will fetch updated information for rescheduled times and match results.
+
+    Expected request format:
+    {
+        "match_ids": ["uuid1", "uuid2", ...], // Optional - specific matches to update
+        "platform": "faceit" | "leaguespot", // Optional - filter by platform
+        "status_filter": "scheduled" | "in_progress" | "completed", // Optional - filter by status
+        "auto_detect": true // Optional - automatically detect what needs updating
+    }
+    """
+    try:
+        data = request.data
+        match_ids = data.get("match_ids", [])
+        platform_filter = data.get("platform", "").lower()
+        status_filter = data.get("status_filter", "")
+        auto_detect = data.get("auto_detect", True)
+
+        # Build query for matches to update
+        query = Match.objects.all()
+
+        if match_ids:
+            query = query.filter(id__in=match_ids)
+
+        if platform_filter:
+            query = query.filter(platform=platform_filter)
+
+        if status_filter:
+            query = query.filter(status=status_filter)
+        elif auto_detect:
+            # By default, update scheduled and in_progress matches
+            query = query.filter(status__in=["scheduled", "in_progress"])
+
+        matches = query
+        updated_count = 0
+        error_count = 0
+        results = []
+
+        for match in matches:
+            try:
+                updated = False
+
+                if match.platform == "faceit":
+                    updated = update_faceit_match(match)
+                elif match.platform == "leaguespot":
+                    updated = update_leaguespot_match(match)
+                else:
+                    logger.warning(
+                        f"Unsupported platform for match {match.id}: {match.platform}"
+                    )
+                    continue
+
+                if updated:
+                    updated_count += 1
+                    results.append(
+                        {
+                            "match_id": str(match.id),
+                            "status": "updated",
+                            "new_status": match.status,
+                            "new_date": match.date.isoformat() if match.date else None,
+                        }
+                    )
+                else:
+                    results.append({"match_id": str(match.id), "status": "no_changes"})
+
+            except Exception as e:
+                error_count += 1
+                logger.error(f"Error updating match {match.id}: {str(e)}")
+                results.append(
+                    {"match_id": str(match.id), "status": "error", "error": str(e)}
+                )
+
+        return Response(
+            {
+                "message": "Match update completed",
+                "updated_count": updated_count,
+                "error_count": error_count,
+                "total_processed": len(matches),
+                "results": results,
+            }
+        )
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+def update_faceit_match(match):
+    """
+    Update a single Faceit match with fresh data from the API
+    Returns True if the match was updated, False if no changes
+    """
+    if not match.url:
+        return False
+
+    try:
+        # Extract match ID from Faceit URL
+        # URLs are typically like: https://www.faceit.com/en/csgo/room/1-abc123-def456...
+        faceit_match_id = match.id
+
+        # Fetch match data from Faceit API
+        api_key = getattr(settings, "FACEIT_API_KEY", None)
+        if not api_key:
+            logger.error("FACEIT_API_KEY not configured")
+            return False
+
+        headers = {"Authorization": f"Bearer {api_key}"}
+        response = requests.get(
+            f"https://open.faceit.com/data/v4/matches/{faceit_match_id}",
+            headers=headers,
+            timeout=30,
+        )
+
+        if response.status_code != 200:
+            logger.warning(
+                f"Faceit API returned {response.status_code} for match {faceit_match_id}"
+            )
+            return False
+
+        match_data = response.json()
+
+        # Check if any updates are needed
+        updated = False
+
+        # Update status
+        status_mapping = {
+            "FINISHED": "completed",
+            "ONGOING": "in_progress",
+            "CANCELLED": "cancelled",
+            "READY": "scheduled",
+        }
+        new_status = status_mapping.get(match_data.get("status"), "scheduled")
+        if new_status != match.status:
+            match.status = new_status
+            updated = True
+
+        # Update date/time
+        scheduled_at = match_data.get("scheduled_at")
+        started_at = match_data.get("started_at")
+        finished_at = match_data.get("finished_at")
+
+        # Use the most appropriate timestamp
+        if finished_at:
+            new_date = finished_at
+        elif started_at:
+            new_date = started_at
+        elif scheduled_at:
+            new_date = scheduled_at
+        else:
+            new_date = None
+
+        if new_date:
+            parsed_date = safe_parse_datetime(new_date)
+            if parsed_date and parsed_date != match.date:
+                match.date = parsed_date
+                updated = True
+
+        # Update results if match is finished
+        if new_status == "completed":
+            results = match_data.get("results", {})
+            if results:
+                teams_data = match_data.get("teams", {})
+                team_keys = list(teams_data.keys())
+
+                if len(team_keys) >= 2:
+                    scores = results.get("score", {})
+                    team1_key = team_keys[0]
+                    team2_key = team_keys[1]
+
+                    new_score_team1 = scores.get(team1_key, 0)
+                    new_score_team2 = scores.get(team2_key, 0)
+
+                    if new_score_team1 != match.score_team1:
+                        match.score_team1 = new_score_team1
+                        updated = True
+
+                    if new_score_team2 != match.score_team2:
+                        match.score_team2 = new_score_team2
+                        updated = True
+
+                    # Update winner
+                    winner_key = results.get("winner")
+                    new_winner = None
+                    if winner_key == team1_key:
+                        new_winner = match.team1
+                    elif winner_key == team2_key:
+                        new_winner = match.team2
+
+                    if new_winner != match.winner:
+                        match.winner = new_winner
+                        updated = True
+
+        if updated:
+            match.save()
+            logger.info(f"Updated Faceit match {match.id}")
+
+        return updated
+
+    except Exception as e:
+        logger.error(f"Error updating Faceit match {match.id}: {str(e)}")
+        raise
+
+
+def update_leaguespot_match(match):
+    """
+    Update a single LeagueSpot match with fresh data from the API
+    Returns True if the match was updated, False if no changes
+    """
+    if not match.url:
+        return False
+
+    try:
+        # Extract match ID from LeagueSpot URL or use the stored match ID
+        leaguespot_match_id = match.id
+
+        # First, get the match data to check status and timing
+        headers = get_leaguespot_headers()
+        match_response = requests.get(
+            f"https://api.leaguespot.gg/api/v2/matches/{leaguespot_match_id}",
+            headers=headers,
+            timeout=30,
+        )
+
+        if match_response.status_code != 200:
+            logger.warning(
+                f"LeagueSpot API returned {match_response.status_code} for match {leaguespot_match_id}"
+            )
+            return False
+
+        match_data = match_response.json()
+
+        # Check if any updates are needed
+        updated = False
+
+        # Update status based on LeagueSpot status
+        status_mapping = {
+            "3": "completed",
+            "2": "in_progress",
+            "1": "scheduled",
+            "0": "scheduled",
+        }
+        api_status = match_data.get("status", "").lower()
+        new_status = status_mapping.get(api_status, "scheduled")
+        if new_status != match.status:
+            match.status = new_status
+            updated = True
+
+        # Update date/time
+        scheduled_time = match_data.get("scheduled_at") or match_data.get(
+            "startTimeUTC"
+        )
+        if scheduled_time:
+            parsed_date = safe_parse_datetime(scheduled_time)
+            if parsed_date and parsed_date != match.date:
+                match.date = parsed_date
+                updated = True
+
+        # Get participants data to check scores and winner
+        participants_response = requests.get(
+            f"https://api.leaguespot.gg/api/v1/matches/{leaguespot_match_id}/participants",
+            headers=headers,
+            timeout=30,
+        )
+
+        if participants_response.status_code == 200:
+            participants_data = participants_response.json()
+
+            if len(participants_data) >= 2:
+                # Extract scores and winner from participants
+                team1_score = 0
+                team2_score = 0
+                winner_team_id = None
+
+                # Find the participant that matches each team using the Participant model
+                for participant in participants_data:
+                    participant_team_id = participant.get("teamId")
+                    participant_id = participant.get("participantId")
+                    participant_score = participant.get("score", 0)
+                    is_winner = participant.get("isWinner", False)
+
+                    # Try to find our team through the Participant model
+                    try:
+                        # First try by playfly_participant_id
+                        db_participant = Participant.objects.get(
+                            playfly_participant_id=participant_id,
+                            competition=match.competition,
+                            season=match.season,
+                        )
+                        team = db_participant.team
+                    except Participant.DoesNotExist:
+                        # If not found by participant ID, try by playfly_id (team ID)
+                        try:
+                            db_participant = Participant.objects.get(
+                                playfly_id=participant_team_id,
+                                competition=match.competition,
+                                season=match.season,
+                            )
+                            team = db_participant.team
+                        except Participant.DoesNotExist:
+                            # Can't find this team, skip
+                            logger.warning(
+                                f"Could not find team for LeagueSpot participant {participant_id} or team {participant_team_id}"
+                            )
+                            continue
+
+                    # Check which team this matches
+                    if team and team.id == match.team1.id:
+                        team1_score = int(participant_score)
+                        if is_winner:
+                            winner_team_id = match.team1.id
+                    elif team and team.id == match.team2.id:
+                        team2_score = int(participant_score)
+                        if is_winner:
+                            winner_team_id = match.team2.id
+
+                # Update scores if they changed
+                if team1_score != match.score_team1:
+                    match.score_team1 = team1_score
+                    updated = True
+
+                if team2_score != match.score_team2:
+                    match.score_team2 = team2_score
+                    updated = True
+
+                # Update winner
+                new_winner = None
+                if winner_team_id:
+                    if winner_team_id == match.team1.id:
+                        new_winner = match.team1
+                    elif winner_team_id == match.team2.id:
+                        new_winner = match.team2
+
+                if new_winner != match.winner:
+                    match.winner = new_winner
+                    updated = True
+
+        else:
+            logger.warning(
+                f"LeagueSpot participants API returned {participants_response.status_code} for match {leaguespot_match_id}"
+            )
+
+        if updated:
+            match.save()
+            logger.info(f"Updated LeagueSpot match {match.id}")
+
+        return updated
+
+    except Exception as e:
+        logger.error(f"Error updating LeagueSpot match {match.id}: {str(e)}")
+        raise
 
 
 # LeagueSpot API Proxy Views
