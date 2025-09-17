@@ -29,7 +29,6 @@
   font-style: normal;
   font-display: swap;
   font-optical-sizing: auto;
-  
 }
 
 .inter-uniquifier {
@@ -157,12 +156,14 @@
 @layer base {
   * {
     @apply border-border outline-ring/50 font-display;
+    letter-spacing: -0.02em;
   }
   body {
     @apply bg-background text-foreground;
   }
   h1 {
     @apply text-5xl font-block;
+    letter-spacing: 0;
   }
   h2 {
     @apply text-xl font-semibold;
