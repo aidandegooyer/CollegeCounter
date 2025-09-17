@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ClearDatabase from "./ClearDatabase";
 import ControlPanel from "./ControlPanel";
 import EditTeamPlayer from "./EditTeamPlayer";
+import Graphic from "./Graphic";
 
 function Admin() {
   const auth = getAuth();
@@ -62,6 +63,12 @@ function Admin() {
           >
             Clear Database
           </TabsTrigger>
+          <TabsTrigger
+            value="graphic"
+            className="hover:text-foreground! cursor-pointer"
+          >
+            Graphic Generator
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="control-panel">
           <ControlPanel />
@@ -77,6 +84,9 @@ function Admin() {
         </TabsContent>
         <TabsContent value="clear-database">
           <ClearDatabase />
+        </TabsContent>
+        <TabsContent value="graphic">
+          <Graphic />
         </TabsContent>
       </Tabs>
     </div>

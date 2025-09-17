@@ -13,6 +13,7 @@ import Matches from "@/pages/Matches/Matches";
 import News from "@/pages/News/News";
 import Admin from "@/pages/Admin/Admin";
 import SignIn from "@/pages/Admin/SignIn";
+import Graphic from "@/pages/Admin/Graphic";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Article from "@/pages/News/Article";
 
@@ -69,6 +70,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Admin />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/graphic"
+              element={
+                <ProtectedRoute>
+                  <Graphic />
                 </ProtectedRoute>
               }
             />

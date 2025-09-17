@@ -20,16 +20,7 @@
     font-display: swap;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@8..144,100..900&display=swap');
-
-@font-face {
-  font-family: 'Inter';
-  src: url('https://fonts.gstatic.com/s/inter/v13/UcCO3H6m3s5wqk2w3x4p9Q.woff2') format('woff2');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-  font-optical-sizing: auto;
-}
+@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
 .inter-uniquifier {
   font-family: "Inter", sans-serif;
@@ -82,6 +73,7 @@
   --font-varsity: 'VarsityTeam', sans-serif;
   --font-block: 'Blockletter', sans-serif;
   --font-display: 'Inter', sans-serif;
+  --font-legible: 'Atkinson Hyperlegible', sans-serif;
 }
 
 :root {
@@ -156,7 +148,6 @@
 @layer base {
   * {
     @apply border-border outline-ring/50 font-display;
-    letter-spacing: -0.02em;
   }
   body {
     @apply bg-background text-foreground;
@@ -167,6 +158,9 @@
   }
   h2 {
     @apply text-xl font-semibold;
+  }
+  p {
+    @apply font-legible;
   }
 }
 
