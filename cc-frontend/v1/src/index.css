@@ -20,6 +20,25 @@
     font-display: swap;
 }
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@8..144,100..900&display=swap');
+
+@font-face {
+  font-family: 'Inter';
+  src: url('https://fonts.gstatic.com/s/inter/v13/UcCO3H6m3s5wqk2w3x4p9Q.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  font-optical-sizing: auto;
+  
+}
+
+.inter-uniquifier {
+  font-family: "Inter", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: var(--inter-weight, 400);
+  font-style: normal;
+}
+
 
 
 
@@ -63,6 +82,7 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --font-varsity: 'VarsityTeam', sans-serif;
   --font-block: 'Blockletter', sans-serif;
+  --font-display: 'Inter', sans-serif;
 }
 
 :root {
@@ -136,7 +156,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring/50 font-display;
   }
   body {
     @apply bg-background text-foreground;
