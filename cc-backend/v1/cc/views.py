@@ -1704,7 +1704,70 @@ def merge_teams(request):
                 )
                 logger.info(f"Merged participant for {comp_name}/{season_name}")
             else:
-                # Transfer participant to primary team
+                # Before transferring, check if there's already a participant with the same IDs
+                # that would cause a unique constraint violation
+                conflict_participant = None
+
+                # Check for faceit_id conflict
+                if secondary_participant.faceit_id:
+                    conflict_participant = (
+                        Participant.objects.filter(
+                            faceit_id=secondary_participant.faceit_id
+                        )
+                        .exclude(id=secondary_participant.id)
+                        .first()
+                    )
+
+                # Check for playfly_id conflict if no faceit conflict
+                if not conflict_participant and secondary_participant.playfly_id:
+                    conflict_participant = (
+                        Participant.objects.filter(
+                            playfly_id=secondary_participant.playfly_id
+                        )
+                        .exclude(id=secondary_participant.id)
+                        .first()
+                    )
+
+                # Check for playfly_participant_id conflict if no other conflicts
+                if (
+                    not conflict_participant
+                    and secondary_participant.playfly_participant_id
+                ):
+                    conflict_participant = (
+                        Participant.objects.filter(
+                            playfly_participant_id=secondary_participant.playfly_participant_id
+                        )
+                        .exclude(id=secondary_participant.id)
+                        .first()
+                    )
+
+                if conflict_participant:
+                    # There's a conflict - we need to clear the conflicting IDs before transfer
+                    logger.warning(
+                        f"Clearing conflicting IDs for participant transfer: "
+                        f"faceit_id={secondary_participant.faceit_id}, "
+                        f"playfly_id={secondary_participant.playfly_id}, "
+                        f"playfly_participant_id={secondary_participant.playfly_participant_id}"
+                    )
+
+                    # Clear the IDs that would cause conflicts
+                    if (
+                        conflict_participant.faceit_id
+                        == secondary_participant.faceit_id
+                    ):
+                        secondary_participant.faceit_id = None
+                    if (
+                        conflict_participant.playfly_id
+                        == secondary_participant.playfly_id
+                    ):
+                        secondary_participant.playfly_id = None
+                    if (
+                        conflict_participant.playfly_participant_id
+                        == secondary_participant.playfly_participant_id
+                    ):
+                        secondary_participant.playfly_participant_id = None
+
+                # Now transfer participant to primary team
                 secondary_participant.team = primary_team
                 secondary_participant.save()
                 comp_name = (
