@@ -613,3 +613,49 @@ export const fetchTeams = async (): Promise<Team[]> => {
   const response = await api.get(`/teams/`);
   return response.data;
 }
+
+// Admin API Functions
+export const fetchAdminTeams = async (): Promise<Team[]> => {
+  const response = await api.get(`/teams/`);
+  return response.data;
+}
+
+export const fetchAdminPlayers = async (): Promise<Player[]> => {
+  const response = await api.get(`/players/`);
+  return response.data;
+}
+
+export const fetchAdminMatches = async (): Promise<Match[]> => {
+  const response = await api.get(`/matches/`);
+  return response.data;
+}
+
+// Merge Teams API
+export interface MergeTeamsRequest {
+  primary_team_id: string;
+  secondary_team_id: string;
+}
+
+export interface MergeTeamsResponse {
+  message: string;
+  primary_team: {
+    id: string;
+    name: string;
+    player_count: number;
+  };
+  secondary_team: {
+    id: string;
+    name: string;
+    player_count: number;
+  };
+  merged_data: {
+    players_moved: number;
+    participants_merged: number;
+    matches_updated: number;
+  };
+}
+
+export const mergeTeams = async (data: MergeTeamsRequest): Promise<MergeTeamsResponse> => {
+  const response = await api.post(`/merge-teams/`, data);
+  return response.data;
+};

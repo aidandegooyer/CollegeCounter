@@ -22,6 +22,7 @@ urlpatterns = [
         views.create_ranking_snapshot,
         name="create_ranking_snapshot",
     ),
+    path("merge-teams/", views.merge_teams, name="merge_teams"),
     # Image upload endpoints
     path(
         "teams/<uuid:team_id>/picture/",

@@ -1592,3 +1592,195 @@ def proxy_leaguespot_participants(request, match_id):
             {"error": f"Failed to fetch participants data: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["POST"])
+@firebase_auth_required
+def merge_teams(request):
+    """
+    Merge two teams into one, combining rosters and transferring all match history.
+
+    Expected request format:
+    {
+        "primary_team_id": "uuid",    // Team to keep
+        "secondary_team_id": "uuid"   // Team to merge into primary (will be deleted)
+    }
+
+    This operation:
+    1. Moves all players from secondary team to primary team
+    2. Merges all participant records (preserving competition history)
+    3. Updates all matches to reference the primary team
+    4. Deletes the secondary team
+    """
+    try:
+        primary_team_id = request.data.get("primary_team_id")
+        secondary_team_id = request.data.get("secondary_team_id")
+
+        if not primary_team_id or not secondary_team_id:
+            return Response(
+                {"error": "Both primary_team_id and secondary_team_id are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if primary_team_id == secondary_team_id:
+            return Response(
+                {"error": "Cannot merge a team with itself"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get the teams
+        try:
+            primary_team = Team.objects.get(id=primary_team_id)
+        except Team.DoesNotExist:
+            return Response(
+                {"error": f"Primary team with id {primary_team_id} not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            secondary_team = Team.objects.get(id=secondary_team_id)
+        except Team.DoesNotExist:
+            return Response(
+                {"error": f"Secondary team with id {secondary_team_id} not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Count data before merge for response
+        players_to_move = Player.objects.filter(team=secondary_team).count()
+
+        # Start the merge process
+
+        # 1. Move all players from secondary team to primary team
+        players_moved = 0
+        for player in Player.objects.filter(team=secondary_team):
+            player.team = primary_team
+            player.save()
+            players_moved += 1
+            logger.info(
+                f"Moved player {player.name} from {secondary_team.name} to {primary_team.name}"
+            )
+
+        # 2. Merge participant records
+        participants_merged = 0
+        for secondary_participant in Participant.objects.filter(team=secondary_team):
+            # Check if primary team already has a participant for this competition/season
+            existing_participant = Participant.objects.filter(
+                team=primary_team,
+                competition=secondary_participant.competition,
+                season=secondary_participant.season,
+            ).first()
+
+            if existing_participant:
+                # Merge IDs from secondary participant into existing one
+                if (
+                    secondary_participant.faceit_id
+                    and not existing_participant.faceit_id
+                ):
+                    existing_participant.faceit_id = secondary_participant.faceit_id
+                if (
+                    secondary_participant.playfly_id
+                    and not existing_participant.playfly_id
+                ):
+                    existing_participant.playfly_id = secondary_participant.playfly_id
+                if (
+                    secondary_participant.playfly_participant_id
+                    and not existing_participant.playfly_participant_id
+                ):
+                    existing_participant.playfly_participant_id = (
+                        secondary_participant.playfly_participant_id
+                    )
+
+                existing_participant.save()
+                secondary_participant.delete()
+                comp_name = (
+                    secondary_participant.competition.name
+                    if secondary_participant.competition
+                    else "Unknown"
+                )
+                season_name = (
+                    secondary_participant.season.name
+                    if secondary_participant.season
+                    else "Unknown"
+                )
+                logger.info(f"Merged participant for {comp_name}/{season_name}")
+            else:
+                # Transfer participant to primary team
+                secondary_participant.team = primary_team
+                secondary_participant.save()
+                comp_name = (
+                    secondary_participant.competition.name
+                    if secondary_participant.competition
+                    else "Unknown"
+                )
+                season_name = (
+                    secondary_participant.season.name
+                    if secondary_participant.season
+                    else "Unknown"
+                )
+                logger.info(f"Transferred participant for {comp_name}/{season_name}")
+
+            participants_merged += 1
+
+        # 3. Update all matches to reference primary team
+        matches_updated = 0
+
+        # Update matches where secondary team is team1
+        for match in Match.objects.filter(team1=secondary_team):
+            match.team1 = primary_team
+            match.save()
+            matches_updated += 1
+            logger.info(
+                f"Updated match {match.id} team1 from {secondary_team.name} to {primary_team.name}"
+            )
+
+        # Update matches where secondary team is team2
+        for match in Match.objects.filter(team2=secondary_team):
+            match.team2 = primary_team
+            match.save()
+            matches_updated += 1
+            logger.info(
+                f"Updated match {match.id} team2 from {secondary_team.name} to {primary_team.name}"
+            )
+
+        # Update matches where secondary team is the winner
+        for match in Match.objects.filter(winner=secondary_team):
+            match.winner = primary_team
+            match.save()
+            logger.info(
+                f"Updated match {match.id} winner from {secondary_team.name} to {primary_team.name}"
+            )
+
+        # 4. Store secondary team info for response, then delete it
+        secondary_team_info = {
+            "id": str(secondary_team.id),
+            "name": secondary_team.name,
+            "player_count": players_to_move,
+        }
+
+        secondary_team.delete()
+        logger.info(f"Deleted secondary team {secondary_team_info['name']}")
+
+        # Prepare response
+        response_data = {
+            "message": f"Successfully merged {secondary_team_info['name']} into {primary_team.name}",
+            "primary_team": {
+                "id": str(primary_team.id),
+                "name": primary_team.name,
+                "player_count": Player.objects.filter(team=primary_team).count(),
+            },
+            "secondary_team": secondary_team_info,
+            "merged_data": {
+                "players_moved": players_moved,
+                "participants_merged": participants_merged,
+                "matches_updated": matches_updated,
+            },
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Error merging teams: {str(e)}")
+        return Response(
+            {"error": f"Failed to merge teams: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

@@ -7,6 +7,7 @@ import ClearDatabase from "./ClearDatabase";
 import ControlPanel from "./ControlPanel";
 import EditTeamPlayer from "./EditTeamPlayer";
 import Graphic from "./Graphic";
+import MergeTeams from "./MergeTeams";
 
 function Admin() {
   const auth = getAuth();
@@ -69,6 +70,12 @@ function Admin() {
           >
             Graphic Generator
           </TabsTrigger>
+          <TabsTrigger
+            value="merge-teams"
+            className="hover:text-foreground! cursor-pointer"
+          >
+            Merge Teams
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="control-panel">
           <ControlPanel />
@@ -87,6 +94,9 @@ function Admin() {
         </TabsContent>
         <TabsContent value="graphic">
           <Graphic />
+        </TabsContent>
+        <TabsContent value="merge-teams">
+          <MergeTeams />
         </TabsContent>
       </Tabs>
     </div>

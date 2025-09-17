@@ -6,6 +6,9 @@ import {
   fetchPublicSeasons,
   fetchPublicRankings,
   fetchPublicRankingItems,
+  fetchAdminTeams,
+  fetchAdminPlayers,
+  fetchAdminMatches,
 } from '@/services/api';
 import type {
   TeamQueryParams,
@@ -159,4 +162,35 @@ export function useUpcomingMatches(limit = 5, options = {}) {
     ...options,
   });
 }
+
+// Admin Hooks
+export function useAdminTeams(options = {}) {
+  return useQuery({
+    queryKey: ['admin', 'teams'],
+    queryFn: () => fetchAdminTeams(),
+    staleTime: DEFAULT_STALE_TIME,
+    ...options,
+  });
+}
+
+export function useAdminPlayers(options = {}) {
+  return useQuery({
+    queryKey: ['admin', 'players'],
+    queryFn: () => fetchAdminPlayers(),
+    staleTime: DEFAULT_STALE_TIME,
+    ...options,
+  });
+}
+
+export function useAdminMatches(options = {}) {
+  return useQuery({
+    queryKey: ['admin', 'matches'],
+    queryFn: () => fetchAdminMatches(),
+    staleTime: DEFAULT_STALE_TIME,
+    ...options,
+  });
+}
+
+// Legacy compatibility
+export const useTeams = useAdminTeams;
 
