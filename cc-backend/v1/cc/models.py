@@ -150,13 +150,13 @@ class Participant(models.Model):
         null=True,
     )
     faceit_id = models.CharField(
-        max_length=100, unique=True, blank=True, null=True, db_index=True
+        max_length=100, unique=False, blank=True, null=True, db_index=True
     )
     playfly_id = models.CharField(
-        max_length=100, unique=True, blank=True, null=True, db_index=True
+        max_length=100, unique=False, blank=True, null=True, db_index=True
     )
     playfly_participant_id = models.CharField(
-        max_length=100, unique=True, blank=True, null=True, db_index=True
+        max_length=100, unique=False, blank=True, null=True, db_index=True
     )
     season = models.ForeignKey(
         Season,
