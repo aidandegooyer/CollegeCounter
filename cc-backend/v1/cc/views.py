@@ -227,6 +227,10 @@ def import_match_data(api_data, competition, season):
         faceit_url = match_data.get("faceit_url")
         status_value = match_data.get("status")
 
+        # Remove "1-" prefix from match_id if present
+        if match_id and str(match_id).startswith("1-"):
+            match_id = str(match_id)[2:]
+
         # Convert Faceit status to our status format
         status_mapping = {
             "FINISHED": "completed",
