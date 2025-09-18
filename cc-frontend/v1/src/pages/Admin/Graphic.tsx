@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePublicTeams, usePublicSeasons } from "@/services/hooks";
 import { Upload, Link, Download, Palette } from "lucide-react";
+import Logo from "@/components/Logo";
 
 function Graphic() {
   const [backgroundImage, setBackgroundImage] = useState<string>("");
@@ -267,25 +268,37 @@ function Graphic() {
               <div
                 id="graphic-preview"
                 className="relative aspect-[2/3] w-full overflow-hidden rounded-lg border-2 border-dashed border-gray-300"
-                style={{
-                  backgroundImage: backgroundImage
-                    ? `url(${backgroundImage})`
-                    : undefined,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                  backgroundColor: backgroundImage ? undefined : "#f3f4f6",
-                }}
               >
+                {/* Background Image Layer */}
+                {backgroundImage ? (
+                  <div
+                    className="absolute inset-0 z-0"
+                    style={{
+                      backgroundImage: `url(${backgroundImage})`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                      filter: "blur(8px) brightness(75%)",
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="absolute inset-0 z-0"
+                    style={{
+                      backgroundColor: "#000000",
+                    }}
+                  />
+                )}
+
                 {/* Content Overlay */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-8">
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-8">
                   {/* Title */}
                   <div
-                    className="mb-8 rounded-lg px-6 py-3 text-center"
+                    className="mb-8 rounded-lg text-center"
                     style={{
                       color: titleColor,
                     }}
                   >
-                    <h1 className="font-block text-4xl tracking-wide">
+                    <h1 className="font-block text-6xl tracking-wide">
                       {titleText}
                     </h1>
                   </div>
@@ -312,7 +325,7 @@ function Graphic() {
                             />
                           )}
                           <div>
-                            <div className="text-xl font-semibold">
+                            <div className="text-2xl font-semibold">
                               {team.name}
                             </div>
                             {team.school_name && (
@@ -328,21 +341,22 @@ function Graphic() {
 
                   {/* Footer */}
                   <div
-                    className="mt-8 rounded px-4 py-2"
+                    className="mt-8 flex items-center"
                     style={{
-                      backgroundColor: backgroundColor,
                       color: teamTextColor,
                     }}
                   >
-                    <p className="text-sm opacity-80">
-                      College Counter Rankings
-                    </p>
+                    <Logo type="team" className="h-16 w-16 rounded-md"></Logo>
+                    <div className="ml-2">
+                      <h1 className="text-3xl!">College</h1>
+                      <h1 className="text-3xl!">Counter</h1>
+                    </div>
                   </div>
                 </div>
 
                 {/* Placeholder when no background */}
                 {!backgroundImage && (
-                  <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="absolute inset-0 z-20 flex items-center justify-center">
                     <p className="text-lg text-gray-500">
                       Upload or paste a background image
                     </p>

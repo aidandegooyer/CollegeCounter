@@ -27,17 +27,6 @@ urlpatterns = [
     # Team and player update endpoints (admin functionality)
     path("teams/<uuid:team_id>/", admin_views.update_team, name="update_team"),
     path("players/<uuid:player_id>/", admin_views.update_player, name="update_player"),
-    # Image upload endpoints for teams and players (admin functionality)
-    path(
-        "teams/<uuid:team_id>/picture/",
-        admin_views.upload_team_picture,
-        name="upload_team_picture",
-    ),
-    path(
-        "players/<uuid:player_id>/picture/",
-        admin_views.upload_player_picture,
-        name="upload_player_picture",
-    ),
     # LeagueSpot API proxy endpoints
     path(
         "proxy/leaguespot/seasons/<str:season_id>/",

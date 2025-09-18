@@ -279,16 +279,18 @@ function TeamEditForm({ team, setNotification }: TeamEditFormProps) {
     setSaving(true);
 
     try {
-      // Update team data
-      await updateTeam(team.id, {
+      const updateData = {
         name: formData.name,
         school_name: formData.school_name || undefined,
         elo: formData.elo,
-      });
+      };
 
-      // If there's a new image, upload it
+      // If there's a new image, upload it to Firebase and update all data in one call
       if (fileToUpload) {
-        await uploadTeamPicture(team.id, fileToUpload);
+        await uploadTeamPicture(team.id, fileToUpload, updateData);
+      } else {
+        // If no new image, just update the team data
+        await updateTeam(team.id, updateData);
       }
 
       // Show success notification
@@ -464,8 +466,7 @@ function PlayerEditForm({
     setSaving(true);
 
     try {
-      // Update player data
-      await updatePlayer(player.id, {
+      const updateData = {
         name: formData.name,
         steam_id: formData.steam_id || undefined,
         faceit_id: formData.faceit_id || undefined,
@@ -474,11 +475,14 @@ function PlayerEditForm({
         team_id: formData.team_id || null,
         benched: formData.benched,
         visible: formData.visible,
-      });
+      };
 
-      // If there's a new image, upload it
+      // If there's a new image, upload it to Firebase and update all data in one call
       if (fileToUpload) {
-        await uploadPlayerPicture(player.id, fileToUpload);
+        await uploadPlayerPicture(player.id, fileToUpload, updateData);
+      } else {
+        // If no new image, just update the player data
+        await updatePlayer(player.id, updateData);
       }
 
       // Show success notification

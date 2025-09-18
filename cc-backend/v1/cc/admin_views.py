@@ -1,10 +1,6 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
-import os
-import uuid
 from .models import Team, Player
 from .middleware import firebase_auth_required
 import logging
@@ -28,6 +24,11 @@ def update_team(request, team_id):
             team.school_name = request.data["school_name"]
         if "elo" in request.data:
             team.elo = int(request.data["elo"])
+        if "picture" in request.data:
+            picture_url = request.data["picture"]
+            if picture_url and "&token=" in picture_url:
+                picture_url = picture_url.split("&token=")[0]
+            team.picture = picture_url
 
         team.save()
 
@@ -49,7 +50,7 @@ def update_team(request, team_id):
             "captain": captain,
         }
 
-        return Response({"team": team_data}, status=status.HTTP_200_OK)
+        return Response({"team": team_data})
 
     except Team.DoesNotExist:
         return Response(
@@ -60,52 +61,6 @@ def update_team(request, team_id):
         logger.error(f"Error updating team {team_id}: {str(e)}")
         return Response(
             {"error": f"Failed to update team: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-
-
-@api_view(["POST"])
-@firebase_auth_required
-def upload_team_picture(request, team_id):
-    """
-    Upload team picture
-    """
-    try:
-        team = Team.objects.get(id=team_id)
-
-        if "picture" not in request.FILES:
-            return Response(
-                {"error": "No picture file provided"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        picture_file = request.FILES["picture"]
-
-        # Generate a unique filename
-        file_extension = os.path.splitext(picture_file.name)[1]
-        filename = f"teams/{team_id}_{uuid.uuid4()}{file_extension}"
-
-        # Save the file
-        file_path = default_storage.save(filename, ContentFile(picture_file.read()))
-
-        # Update team picture URL
-        team.picture = f"/media/{file_path}"
-        team.save()
-
-        return Response(
-            {"picture_url": team.picture},
-            status=status.HTTP_200_OK,
-        )
-
-    except Team.DoesNotExist:
-        return Response(
-            {"error": f"Team with id {team_id} not found"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-    except Exception as e:
-        logger.error(f"Error uploading team picture {team_id}: {str(e)}")
-        return Response(
-            {"error": f"Failed to upload picture: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
@@ -147,6 +102,10 @@ def update_player(request, player_id):
             player.benched = bool(request.data["benched"])
         if "visible" in request.data:
             player.visible = bool(request.data["visible"])
+            picture_url = request.data["picture"]
+            if picture_url and "&token=" in picture_url:
+                picture_url = picture_url.split("&token=")[0]
+            player.picture = picture_url
 
         player.save()
 
@@ -183,51 +142,5 @@ def update_player(request, player_id):
         logger.error(f"Error updating player {player_id}: {str(e)}")
         return Response(
             {"error": f"Failed to update player: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-
-
-@api_view(["POST"])
-@firebase_auth_required
-def upload_player_picture(request, player_id):
-    """
-    Upload player picture
-    """
-    try:
-        player = Player.objects.get(id=player_id)
-
-        if "picture" not in request.FILES:
-            return Response(
-                {"error": "No picture file provided"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        picture_file = request.FILES["picture"]
-
-        # Generate a unique filename
-        file_extension = os.path.splitext(picture_file.name)[1]
-        filename = f"players/{player_id}_{uuid.uuid4()}{file_extension}"
-
-        # Save the file
-        file_path = default_storage.save(filename, ContentFile(picture_file.read()))
-
-        # Update player picture URL
-        player.picture = f"/media/{file_path}"
-        player.save()
-
-        return Response(
-            {"picture_url": player.picture},
-            status=status.HTTP_200_OK,
-        )
-
-    except Player.DoesNotExist:
-        return Response(
-            {"error": f"Player with id {player_id} not found"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-    except Exception as e:
-        logger.error(f"Error uploading player picture {player_id}: {str(e)}")
-        return Response(
-            {"error": f"Failed to upload picture: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
