@@ -1180,7 +1180,7 @@ def update_faceit_match(match):
 
         headers = {"Authorization": f"Bearer {api_key}"}
         response = requests.get(
-            f"https://open.faceit.com/data/v4/matches/{faceit_match_id}",
+            f"https://open.faceit.com/data/v4/matches/1-{faceit_match_id}",
             headers=headers,
             timeout=30,
         )
