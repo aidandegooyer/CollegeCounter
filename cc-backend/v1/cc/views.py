@@ -1235,36 +1235,21 @@ def update_faceit_match(match):
         if new_status == "completed":
             results = match_data.get("results", {})
             if results:
-                teams_data = match_data.get("teams", {})
-                team_keys = list(teams_data.keys())
+                scores = results.get("score", {})
+                winner = results.get("winner")
 
-                if len(team_keys) >= 2:
-                    scores = results.get("score", {})
-                    team1_key = team_keys[0]
-                    team2_key = team_keys[1]
+                if winner == "faction1":
+                    match.winner_id = match.team1_id
+                elif winner == "faction2":
+                    match.winner_id = match.team2_id
+                else:
+                    match.winner = None
 
-                    new_score_team1 = scores.get(team1_key, 0)
-                    new_score_team2 = scores.get(team2_key, 0)
+                team1_score = scores.get("faction1", 0)
+                team2_score = scores.get("faction2", 0)
 
-                    if new_score_team1 != match.score_team1:
-                        match.score_team1 = new_score_team1
-                        updated = True
-
-                    if new_score_team2 != match.score_team2:
-                        match.score_team2 = new_score_team2
-                        updated = True
-
-                    # Update winner
-                    winner_key = results.get("winner")
-                    new_winner = None
-                    if winner_key == team1_key:
-                        new_winner = match.team1
-                    elif winner_key == team2_key:
-                        new_winner = match.team2
-
-                    if new_winner != match.winner:
-                        match.winner = new_winner
-                        updated = True
+                match.score_team1 = team1_score
+                match.score_team2 = team2_score
 
         if updated:
             match.save()
