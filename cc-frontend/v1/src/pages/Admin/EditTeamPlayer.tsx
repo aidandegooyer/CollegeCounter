@@ -125,11 +125,13 @@ function EditTeamPlayer() {
                       <SelectValue placeholder="Select a team" />
                     </SelectTrigger>
                     <SelectContent>
-                      {teams.map((team) => (
-                        <SelectItem key={team.id} value={team.id}>
-                          {team.name}
-                        </SelectItem>
-                      ))}
+                      {[...teams]
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((team) => (
+                          <SelectItem key={team.id} value={team.id}>
+                            {team.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 )}
