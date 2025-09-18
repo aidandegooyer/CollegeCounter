@@ -346,10 +346,10 @@ function Graphic() {
                       color: teamTextColor,
                     }}
                   >
-                    <Logo type="team" className="h-16 w-16 rounded-md"></Logo>
+                    <Logo type="team" className="h-24 w-24 rounded-md"></Logo>
                     <div className="ml-2">
-                      <h1 className="text-3xl!">College</h1>
-                      <h1 className="text-3xl!">Counter</h1>
+                      <h1 className="text-5xl!">College</h1>
+                      <h1 className="text-5xl!">Counter</h1>
                     </div>
                   </div>
                 </div>
