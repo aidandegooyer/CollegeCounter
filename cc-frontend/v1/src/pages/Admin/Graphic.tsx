@@ -112,7 +112,7 @@ function Graphic() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="gap-6">
         {/* Controls Panel */}
         <div className="space-y-6">
           {/* Background Controls */}
@@ -266,7 +266,7 @@ function Graphic() {
             <CardContent>
               <div
                 id="graphic-preview"
-                className="relative aspect-[3/2] w-full overflow-hidden rounded-lg border-2 border-dashed border-gray-300"
+                className="relative aspect-[2/3] w-full overflow-hidden rounded-lg border-2 border-dashed border-gray-300"
                 style={{
                   backgroundImage: backgroundImage
                     ? `url(${backgroundImage})`
@@ -282,23 +282,21 @@ function Graphic() {
                   <div
                     className="mb-8 rounded-lg px-6 py-3 text-center"
                     style={{
-                      backgroundColor: backgroundColor,
                       color: titleColor,
                     }}
                   >
-                    <h1 className="font-block text-4xl font-bold tracking-wide">
+                    <h1 className="font-block text-4xl tracking-wide">
                       {titleText}
                     </h1>
                   </div>
 
                   {/* Teams List */}
-                  <div className="w-full max-w-md space-y-2">
+                  <div className="w-150 max-w-md space-y-2">
                     {topTeams.map((team, index) => (
                       <div
                         key={team.id}
-                        className="flex items-center justify-between rounded-lg px-4 py-3"
+                        className="bg-background flex items-center justify-between rounded-lg border-2 px-4 py-3"
                         style={{
-                          backgroundColor: backgroundColor,
                           color: teamTextColor,
                         }}
                       >
@@ -314,17 +312,16 @@ function Graphic() {
                             />
                           )}
                           <div>
-                            <div className="text-lg font-semibold">
+                            <div className="text-xl font-semibold">
                               {team.name}
                             </div>
                             {team.school_name && (
-                              <div className="text-sm opacity-80">
+                              <div className="text-2xl opacity-80">
                                 {team.school_name}
                               </div>
                             )}
                           </div>
                         </div>
-                        <div className="text-xl font-bold">{team.elo}</div>
                       </div>
                     ))}
                   </div>

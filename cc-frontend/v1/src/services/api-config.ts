@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { getAuth } from 'firebase/auth';
 
-// base API URL
-const API_BASE_URL = 'https://api.collegecounter.org/v1';  // Adjust this according to your setup
+// Use Vite's import.meta.env for environment variables in frontend
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.collegecounter.org/v1';
 
 export const api = axios.create({
   baseURL: API_BASE_URL

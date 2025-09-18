@@ -1,7 +1,7 @@
 from django.urls import path, include
 
 from . import views
-from . import image_views
+from . import admin_views
 
 urlpatterns = [
     path("", views.index, name="index"),
@@ -23,19 +23,20 @@ urlpatterns = [
         name="create_ranking_snapshot",
     ),
     path("merge-teams/", views.merge_teams, name="merge_teams"),
-    # Image upload endpoints
+    # Team and player update endpoints (admin functionality)
+    path("teams/<uuid:team_id>/", admin_views.update_team, name="update_team"),
+    path("players/<uuid:player_id>/", admin_views.update_player, name="update_player"),
+    # Image upload endpoints for teams and players (admin functionality)
     path(
         "teams/<uuid:team_id>/picture/",
-        image_views.upload_team_picture,
+        admin_views.upload_team_picture,
         name="upload_team_picture",
     ),
     path(
         "players/<uuid:player_id>/picture/",
-        image_views.upload_player_picture,
+        admin_views.upload_player_picture,
         name="upload_player_picture",
     ),
-    path("teams/<uuid:team_id>/", image_views.update_team, name="update_team"),
-    path("players/<uuid:player_id>/", image_views.update_player, name="update_player"),
     # LeagueSpot API proxy endpoints
     path(
         "proxy/leaguespot/seasons/<str:season_id>/",

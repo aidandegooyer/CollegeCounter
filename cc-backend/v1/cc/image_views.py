@@ -3,12 +3,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
 from .models import Team, Player
+from .middleware import firebase_auth_required
 import uuid
 import json
 import os
 import firebase_admin
 from firebase_admin import credentials, storage
-import datetime
 
 # Initialize Firebase Storage (this would typically be done in your app's initialization)
 # This assumes you've added the Firebase credentials to your Django settings
@@ -21,6 +21,7 @@ if not firebase_admin._apps:
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@firebase_auth_required
 def upload_team_picture(request, team_id):
     """
     Upload a team picture to Firebase Storage and update the team's picture URL
@@ -73,6 +74,7 @@ def upload_team_picture(request, team_id):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@firebase_auth_required
 def upload_player_picture(request, player_id):
     """
     Upload a player picture to Firebase Storage and update the player's picture URL
@@ -125,6 +127,7 @@ def upload_player_picture(request, player_id):
 
 @csrf_exempt
 @require_http_methods(["PUT"])
+@firebase_auth_required
 def update_team(request, team_id):
     """
     Update a team's details
@@ -164,6 +167,7 @@ def update_team(request, team_id):
 
 @csrf_exempt
 @require_http_methods(["PUT"])
+@firebase_auth_required
 def update_player(request, player_id):
     """
     Update a player's details
