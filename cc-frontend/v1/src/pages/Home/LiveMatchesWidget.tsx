@@ -13,7 +13,7 @@ function LiveMatchesWidget() {
       sort: "date",
       order: "asc",
       page: 1,
-      page_size: 10,
+      page_size: 4,
       status: "in_progress",
     },
     {
@@ -106,18 +106,31 @@ function Match(match: PublicMatch) {
       <div className="flex-1 space-y-2 text-end">
         <span className="flex justify-end">
           <p
-            className={`font-mono ${match.score_team1 && match.score_team1 > (match.score_team2 || 0) ? "text-green-500" : "text-red-500"}`}
+            className={`font-mono ${
+              match.score_team1 === match.score_team2
+                ? "text-muted-foreground"
+                : match.score_team1 &&
+                    match.score_team1 > (match.score_team2 || 0)
+                  ? "text-green-500"
+                  : "text-red-500"
+            }`}
           >
             {match.score_team1 || 0}
           </p>
+        </span>
+        <span className="flex justify-end">
           <p
-            className={`bg-muted ml-2 rounded-sm px-1 font-mono ${match.score_team2 && match.score_team2 > (match.score_team1 || 0) ? "text-green-500" : "text-red-500"}`}
+            className={`font-mono ${
+              match.score_team1 === match.score_team2
+                ? "text-muted-foreground"
+                : match.score_team2 &&
+                    match.score_team2 > (match.score_team1 || 0)
+                  ? "text-green-500"
+                  : "text-red-500"
+            }`}
           >
             {match.score_team2 || 0}
           </p>
-        </span>
-        <span className="flex justify-end">
-          <p className="text-muted-foreground text-xs">LIVE</p>
         </span>
       </div>
     </li>

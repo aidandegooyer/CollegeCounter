@@ -113,7 +113,7 @@ function ControlPanel() {
     }
   };
 
-  const handleUpdateMatches = async () => {
+  async function handleUpdateMatches(live?: boolean): Promise<void> {
     if (
       !window.confirm(
         "Are you sure you want to update match data? This will fetch the latest information from external APIs for scheduled and in-progress matches.",
@@ -125,7 +125,8 @@ function ControlPanel() {
     try {
       setIsUpdatingMatches(true);
       const result = await updateMatches({
-        auto_detect: true, // This will update scheduled and in_progress matches
+        auto_detect: !live,
+        status_filter: live ? "in_progress" : "",
       });
       showNotification(
         "success",
@@ -142,7 +143,7 @@ function ControlPanel() {
     } finally {
       setIsUpdatingMatches(false);
     }
-  };
+  }
 
   const handleCreateRankingSnapshot = async () => {
     if (
@@ -245,7 +246,7 @@ function ControlPanel() {
         <div className="mt-4 flex gap-4">
           <Button
             className="cursor-pointer text-white"
-            onClick={handleUpdateMatches}
+            onClick={() => handleUpdateMatches(false)}
             disabled={isUpdatingMatches}
           >
             {isUpdatingMatches ? (
@@ -255,6 +256,20 @@ function ControlPanel() {
               </>
             ) : (
               "Update Matches"
+            )}
+          </Button>
+          <Button
+            className="cursor-pointer text-white"
+            onClick={() => handleUpdateMatches(true)}
+            disabled={isUpdatingMatches}
+          >
+            {isUpdatingMatches ? (
+              <>
+                <Spinner className="mr-2 h-4 w-4" />
+                Updating...
+              </>
+            ) : (
+              "Update Live Matches"
             )}
           </Button>
         </div>

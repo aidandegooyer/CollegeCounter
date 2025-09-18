@@ -2,10 +2,7 @@ import { ArrowRight, Menu, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
-import {
-  usePublicMatches,
-  usePublicSeasons,
-} from "@/services/hooks";
+import { usePublicMatches, usePublicSeasons } from "@/services/hooks";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { PublicMatch, MatchQueryParams } from "@/services/api";
@@ -142,6 +139,7 @@ interface LiveMatchProps {
 }
 
 function LiveMatch({ match }: LiveMatchProps) {
+  const useableUrl = match.url?.replace("{lang}", "en");
   return (
     <li className="rounded-xl border-2 p-4 py-2">
       <div className="flex">
@@ -181,7 +179,7 @@ function LiveMatch({ match }: LiveMatchProps) {
           className="bg-secondary text-foreground group mt-2 flex w-full cursor-pointer items-center"
           asChild
         >
-          <a href={match.url} target="_blank" rel="noopener noreferrer">
+          <a href={useableUrl} target="_blank" rel="noopener noreferrer">
             View
             <ArrowRight
               size={16}

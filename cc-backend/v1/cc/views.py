@@ -123,7 +123,7 @@ def import_matches(request):
     Import matches from an external API (Faceit or Playfly) into the database.
     Expected request format:
     {
-        "platform": "faceit" | "playfly",
+        "platform": "faceit" | "leaguespot",
         "competition_name": "string",
         "season_id": "uuid",
         "data": {...}, // API response data
@@ -192,9 +192,13 @@ def import_matches(request):
 
         # Process matches based on platform
         if platform == "faceit":
-            imported_matches = import_match_data(api_data, competition, season)
+            imported_matches = import_match_data(
+                api_data, competition, season, platform
+            )
         elif platform == "leaguespot":
-            imported_matches = import_match_data(api_data, competition, season)
+            imported_matches = import_match_data(
+                api_data, competition, season, platform
+            )
         else:
             return Response(
                 {"error": "Unsupported platform"}, status=status.HTTP_400_BAD_REQUEST
@@ -212,7 +216,7 @@ def import_matches(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-def import_match_data(api_data, competition, season):
+def import_match_data(api_data, competition, season, platform):
     """
     Process Faceit API data and import matches
     """
@@ -255,8 +259,6 @@ def import_match_data(api_data, competition, season):
             match_date = scheduled_at
         else:
             match_date = None
-
-        platform = "faceit" if competition.name.lower() == "faceit" else "leaguespot"
 
         # Process teams data
         teams_data = match_data.get("teams", {})

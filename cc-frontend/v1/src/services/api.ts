@@ -239,7 +239,7 @@ export const calculateTeamElos = async (): Promise<TeamEloResponse> => {
 export const updateMatches = async (options: {
   match_ids?: string[];
   platform?: 'faceit' | 'leaguespot';
-  status_filter?: 'scheduled' | 'in_progress' | 'completed';
+  status_filter?: 'scheduled' | 'in_progress' | 'completed' | '';
   auto_detect?: boolean;
 } = {}): Promise<UpdateMatchesResponse> => {
   const response = await api.post(`/matches/update/`, {
