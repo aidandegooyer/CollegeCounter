@@ -188,6 +188,27 @@ export interface TeamEloResponse {
   teams_without_enough_players?: number;
 }
 
+export interface RecalculateEloResponse {
+  message: string;
+  summary: {
+    total_matches: number;
+    processed_count: number;
+    error_count: number;
+    reset_to_default: boolean;
+    default_elo?: number;
+  };
+  elo_changes: Array<{
+    match_id: string;
+    date: string | null;
+    team1: string;
+    team2: string;
+    winner: string;
+    team1_elo_change: string;
+    team2_elo_change: string;
+  }>;
+  total_elo_changes: number;
+}
+
 export interface UpdateMatchesResponse {
   message: string;
   updated_count: number;
@@ -233,6 +254,17 @@ export const resetPlayerElo = async (
 
 export const calculateTeamElos = async (): Promise<TeamEloResponse> => {
   const response = await api.post(`/team-elo/calculate/`);
+  return response.data;
+};
+
+export const recalculateAllElos = async (options: {
+  reset_to_default?: boolean;
+  default_elo?: number;
+} = {}): Promise<RecalculateEloResponse> => {
+  const response = await api.post(`/team-elo/recalculate/`, {
+    reset_to_default: options.reset_to_default !== undefined ? options.reset_to_default : true,
+    default_elo: options.default_elo || 1000
+  });
   return response.data;
 };
 

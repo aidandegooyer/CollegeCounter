@@ -5,6 +5,7 @@ import {
   calculateTeamElos,
   updateMatches,
   createRankingSnapshot,
+  recalculateAllElos,
 } from "@/services/api";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { useState } from "react";
@@ -14,6 +15,7 @@ function ControlPanel() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
   const [isUpdatingMatches, setIsUpdatingMatches] = useState(false);
   const [isCreatingSnapshot, setIsCreatingSnapshot] = useState(false);
   const [notification, setNotification] = useState<{
@@ -110,6 +112,38 @@ function ControlPanel() {
       );
     } finally {
       setIsCalculating(false);
+    }
+  };
+
+  const handleRecalculateAllElos = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to recalculate ALL ELOs from scratch? This will reset all team ELOs to 1000 and recalculate them based on all completed matches in chronological order. This process may take several minutes for large datasets.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setIsRecalculating(true);
+      const result = await recalculateAllElos({
+        reset_to_default: false,
+        default_elo: 1000,
+      });
+      showNotification(
+        "success",
+        "ELO Recalculation Complete",
+        `${result.summary.processed_count} matches processed successfully. ${result.summary.error_count} errors occurred. ${result.total_elo_changes} total ELO changes made.`,
+      );
+    } catch (error) {
+      console.error("Error recalculating ELOs:", error);
+      showNotification(
+        "error",
+        "Error",
+        "There was an error recalculating ELO values.",
+      );
+    } finally {
+      setIsRecalculating(false);
     }
   };
 
@@ -236,6 +270,21 @@ function ControlPanel() {
               </>
             ) : (
               "Calculate Initial Team Elo"
+            )}
+          </Button>
+          <Button
+            className="cursor-pointer"
+            variant="destructive"
+            onClick={handleRecalculateAllElos}
+            disabled={isRecalculating}
+          >
+            {isRecalculating ? (
+              <>
+                <Spinner className="mr-2 h-4 w-4" />
+                Recalculating...
+              </>
+            ) : (
+              "Recalculate All ELOs"
             )}
           </Button>
         </div>

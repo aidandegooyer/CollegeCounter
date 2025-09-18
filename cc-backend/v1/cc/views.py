@@ -111,6 +111,75 @@ def update_match_elos(match):
     return True
 
 
+def recalculate_all_elos(reset_to_default=False, default_elo=1000):
+    """
+    Recalculate ELO ratings for all teams based on completed matches in chronological order.
+    This is useful when importing historical match data.
+
+    Args:
+        reset_to_default (bool): Whether to reset all team ELOs to default before recalculating
+        default_elo (int): Default ELO to reset teams to if reset_to_default is True
+
+    Returns:
+        dict: Summary of the recalculation process
+    """
+    # Reset all team ELOs to default if requested
+    if reset_to_default:
+        Team.objects.all().update(elo=default_elo)
+        logger.info(f"Reset all team ELOs to {default_elo}")
+
+    # Get all completed matches with winners, ordered by date
+    completed_matches = Match.objects.filter(
+        status="completed", winner__isnull=False
+    ).order_by("date")
+
+    processed_count = 0
+    error_count = 0
+    elo_changes = []
+
+    for match in completed_matches:
+        try:
+            # Store ELOs before update for logging
+            old_team1_elo = match.team1.elo
+            old_team2_elo = match.team2.elo
+
+            # Update ELOs for this match
+            if update_match_elos(match):
+                processed_count += 1
+
+                # Log the change
+                elo_changes.append(
+                    {
+                        "match_id": str(match.id),
+                        "date": match.date.isoformat() if match.date else None,
+                        "team1": match.team1.name,
+                        "team2": match.team2.name,
+                        "winner": match.winner.name if match.winner else "Unknown",
+                        "team1_elo_change": f"{old_team1_elo} → {match.team1.elo}",
+                        "team2_elo_change": f"{old_team2_elo} → {match.team2.elo}",
+                    }
+                )
+
+                logger.info(
+                    f"Processed match {match.id}: {match.team1.name} vs {match.team2.name}, "
+                    f"winner: {match.winner.name if match.winner else 'Unknown'}, "
+                    f"ELO changes: {match.team1.name} {old_team1_elo}→{match.team1.elo}, "
+                    f"{match.team2.name} {old_team2_elo}→{match.team2.elo}"
+                )
+        except Exception as e:
+            error_count += 1
+            logger.error(f"Error processing match {match.id}: {str(e)}")
+
+    return {
+        "total_matches": completed_matches.count(),
+        "processed_count": processed_count,
+        "error_count": error_count,
+        "reset_to_default": reset_to_default,
+        "default_elo": default_elo if reset_to_default else None,
+        "elo_changes": elo_changes,
+    }
+
+
 def index(request):
     return HttpResponse("Hello! This is the College Counter backend API.")
 
@@ -933,6 +1002,52 @@ def match_participants(request):
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+@api_view(["POST"])
+@firebase_auth_required
+def recalculate_elos(request):
+    """
+    Recalculate ELO ratings for all teams based on completed matches in chronological order.
+    This is useful when importing historical match data.
+
+    Expected request format:
+    {
+        "reset_to_default": true, // Optional - default true
+        "default_elo": 1000 // Optional - default 1000
+    }
+    """
+    try:
+        reset_to_default = request.data.get("reset_to_default", True)
+        default_elo = request.data.get("default_elo", 1000)
+
+        result = recalculate_all_elos(
+            reset_to_default=reset_to_default, default_elo=default_elo
+        )
+
+        return Response(
+            {
+                "message": "ELO recalculation completed successfully",
+                "summary": {
+                    "total_matches": result["total_matches"],
+                    "processed_count": result["processed_count"],
+                    "error_count": result["error_count"],
+                    "reset_to_default": result["reset_to_default"],
+                    "default_elo": result["default_elo"],
+                },
+                "elo_changes": result["elo_changes"][:10]
+                if len(result["elo_changes"]) > 10
+                else result["elo_changes"],  # Limit to first 10 for response size
+                "total_elo_changes": len(result["elo_changes"]),
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error in recalculate_elos: {str(e)}")
+        return Response(
+            {"error": f"Failed to recalculate ELOs: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(["POST"])

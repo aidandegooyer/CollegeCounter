@@ -17,6 +17,7 @@ urlpatterns = [
     path("player-elo/update/", views.update_player_elo, name="update_player_elo"),
     path("player-elo/reset/", views.reset_player_elo, name="reset_player_elo"),
     path("team-elo/calculate/", views.calculate_team_elos, name="calculate_team_elos"),
+    path("team-elo/recalculate/", views.recalculate_elos, name="recalculate_elos"),
     path(
         "rankings/snapshot/",
         views.create_ranking_snapshot,
