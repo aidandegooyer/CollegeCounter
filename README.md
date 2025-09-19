@@ -48,15 +48,10 @@ Postgres
 
 ## Important files
 
-- Modern frontend (v1): [cc-frontend/v1/src](cc-frontend/v1/src)
-- v1 backend API: [cc-backend/v1/cc/views.py](cc-backend/v1/cc/views.py)
+- Frontend (v1): [cc-frontend/v1/src](cc-frontend/v1/src)
+- Backend API (v1): [cc-backend/v1/cc/views.py](cc-backend/v1/cc/views.py)
 
 ## Contributing
 
 - Create an issue describing the change or bug.
 - Open a feature branch and submit a PR with tests or manual verification steps.
-
-## License & Contact
-
-- Include your preferred license here.
-- For questions, contact the
