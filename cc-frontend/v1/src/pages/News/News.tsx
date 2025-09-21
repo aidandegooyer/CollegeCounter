@@ -30,6 +30,8 @@ function News() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  document.title = "News - College Counter";
+
   useEffect(() => {
     const fetchPosts = async (start: number, amount: number) => {
       try {

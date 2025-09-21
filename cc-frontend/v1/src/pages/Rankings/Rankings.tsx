@@ -35,6 +35,8 @@ function Rankings() {
     return "team";
   };
 
+  document.title = "Rankings - College Counter";
+
   const [rankingType, setRankingType] = useState(
     getInitialRankingType() || "team",
   );

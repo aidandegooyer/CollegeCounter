@@ -30,6 +30,8 @@ function Matches() {
   const [matchType, setMatchType] = useState(getInitialMatchType() || "live");
   window.location.hash = matchType;
 
+  document.title = "Matches - College Counter";
+
   return (
     <div className="app-container mx-4 flex justify-center">
       <div className="matches w-full max-w-[1000px]">

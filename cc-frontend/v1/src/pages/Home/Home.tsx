@@ -6,6 +6,7 @@ import TeamRankingsWidget from "./TeamRankingsWidget";
 import UpcomingMatchesWidget from "./UpcomingMatchesWidget";
 
 function Home() {
+  document.title = "College Counter";
   return (
     <div className="app-container mx-4 mt-2 flex justify-center">
       <div className="home w-full max-w-[1200px]">
