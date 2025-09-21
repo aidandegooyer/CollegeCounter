@@ -2,6 +2,7 @@ import Logo from "@/components/Logo";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import type { PublicMatch } from "@/services/api";
+import { calculateMatchStars } from "@/services/elo";
 import { usePublicMatches } from "@/services/hooks";
 import { ChevronRight, Star } from "lucide-react";
 import { NavLink } from "react-router";
@@ -46,7 +47,14 @@ function UpcomingMatchesWidget() {
     return (
       <>
         {data.results.map((match, index) => (
-          <Match key={index} {...match} />
+          <Match
+            key={index}
+            match={match}
+            stars={calculateMatchStars(
+              match.team1?.elo || 1000,
+              match.team2?.elo || 1000,
+            )}
+          />
         ))}
       </>
     );
@@ -69,8 +77,13 @@ function UpcomingMatchesWidget() {
   );
 }
 
-function Match(match: PublicMatch) {
-  const scheduledDate = new Date(match.date);
+interface MatchProps {
+  match: PublicMatch;
+  stars: number;
+}
+
+function Match(props: MatchProps) {
+  const scheduledDate = new Date(props.match.date);
   const dateString = scheduledDate.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -84,24 +97,24 @@ function Match(match: PublicMatch) {
       <div className="flex-3 space-y-3">
         <div className="flex items-center space-x-2">
           <Logo
-            src={match.team1.picture}
+            src={props.match.team1.picture}
             className="h-6 w-6 rounded-sm"
             alt="Logo"
             type="team"
           />
           <span className="max-w-[120px] truncate overflow-ellipsis whitespace-nowrap">
-            {match.team1.name}
+            {props.match.team1.name}
           </span>
         </div>
         <div className="flex items-center space-x-2 overflow-ellipsis">
           <Logo
-            src={match.team2.picture}
+            src={props.match.team2.picture}
             className="h-6 w-6 rounded-sm"
             alt="Logo"
             type="team"
           />
           <span className="max-w-[120px] truncate overflow-ellipsis whitespace-nowrap">
-            {match.team2.name}
+            {props.match.team2.name}
           </span>
         </div>
       </div>
@@ -112,11 +125,12 @@ function Match(match: PublicMatch) {
         <br />
 
         <span className="text-muted-foreground space-x-.5 mt-1 flex items-center justify-end">
-          <Star size={14} />
-          <Star size={14} />
-          <Star size={14} />
-          <Star size={14} />
-          <Star size={14} />
+          {Array.from({ length: props.stars }).map((_, i) => (
+            <Star key={i} size={14} className="fill-muted-foreground" />
+          ))}
+          {Array.from({ length: 5 - props.stars }).map((_, i) => (
+            <Star key={i} size={14} className="text-gray-700" />
+          ))}
         </span>
       </div>
     </li>
