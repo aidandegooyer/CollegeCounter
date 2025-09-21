@@ -6,6 +6,9 @@ from rest_framework.response import Response
 from django.conf import settings
 from rest_framework import status
 from datetime import datetime
+from datetime import timedelta
+from django.utils import timezone
+from django.db import models
 from .models import (
     Team,
     Player,
@@ -1223,6 +1226,20 @@ def update_matches(request):
             # By default, update scheduled and in_progress matches
             query = query.filter(status__in=["scheduled", "in_progress"])
 
+        # Filter to only include matches that happened in the past or are within the next week
+        now = timezone.now()
+        one_week_from_now = now + timedelta(weeks=1)
+
+        # Include matches that:
+        # 1. Have no date (null dates)
+        # 2. Are in the past or within the next week
+        # 3. Are currently in progress (regardless of date)
+        query = query.filter(
+            models.Q(date__isnull=True)  # Matches with no date
+            | models.Q(date__lte=one_week_from_now)  # Past matches or within next week
+            | models.Q(status="in_progress")  # Currently in progress matches
+        )
+
         matches = query
         updated_count = 0
         error_count = 0
@@ -1386,8 +1403,6 @@ def update_leaguespot_match(match):
     Update a single LeagueSpot match with fresh data from the API
     Returns True if the match was updated, False if no changes
     """
-    if not match.url:
-        return False
 
     try:
         # Extract match ID from LeagueSpot URL or use the stored match ID
@@ -1402,7 +1417,7 @@ def update_leaguespot_match(match):
         )
 
         if match_response.status_code != 200:
-            logger.warning(
+            print(
                 f"LeagueSpot API returned {match_response.status_code} for match {leaguespot_match_id}"
             )
             return False
@@ -1414,13 +1429,16 @@ def update_leaguespot_match(match):
 
         # Update status based on LeagueSpot status
         status_mapping = {
-            "3": "completed",
-            "2": "in_progress",
-            "1": "scheduled",
-            "0": "scheduled",
+            3: "completed",
+            2: "in_progress",
+            1: "scheduled",
+            0: "scheduled",
         }
-        api_status = match_data.get("status", "").lower()
-        new_status = status_mapping.get(api_status, "scheduled")
+        api_status = match_data.get("currentState", 0)
+        new_status = (
+            status_mapping[api_status] if api_status in status_mapping else "scheduled"
+        )
+        print(f"LeagueSpot match {match.id} status from {match.status} to {new_status}")
         if new_status != match.status:
             match.status = new_status
             updated = True
@@ -1435,6 +1453,13 @@ def update_leaguespot_match(match):
                 match.date = parsed_date
                 updated = True
 
+        if match.status != "completed":
+            # If match is not completed, no need to update scores/winner
+            match.save()
+            print(f"Updated scheduled LeagueSpot match {match.id}")
+            return updated
+
+        print(f"Fetching participants for completed LeagueSpot match {match.id}")
         # Get participants data to check scores and winner
         participants_response = requests.get(
             f"https://api.leaguespot.gg/api/v1/matches/{leaguespot_match_id}/participants",
@@ -1450,6 +1475,7 @@ def update_leaguespot_match(match):
                 team1_score = 0
                 team2_score = 0
                 winner_team_id = None
+                participant_score = 0
 
                 # Find the participant that matches each team using the Participant model
                 for participant in participants_data:
@@ -1679,7 +1705,6 @@ def proxy_leaguespot_match(request, match_id):
 def proxy_leaguespot_participants(request, match_id):
     """Proxy LeagueSpot match participants API to avoid CORS issues"""
     headers = get_leaguespot_headers()
-
     try:
         response = requests.get(
             f"https://api.leaguespot.gg/api/v1/matches/{match_id}/participants",
