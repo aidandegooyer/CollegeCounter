@@ -45,6 +45,7 @@ else:
     CORS_ALLOWED_ORIGINS = [
         "https://www.collegecounter.org",
         "https://collegecounter.org",
+        "http://localhost:5173"
     ]
 
 
