@@ -40,7 +40,7 @@ export function calculateMatchStars(team1Elo: number, team2Elo: number): number 
 
   // Calculate competitiveness score (0-1, where 1 is perfectly matched)
   // Use exponential decay to punish large differences
-  const competitivenessScore = Math.exp(-eloDiff / COMPETITIVENESS_DECAY_RATE) + .3;
+  const competitivenessScore = Math.exp(-eloDiff / COMPETITIVENESS_DECAY_RATE) + .15;
 
   // Calculate team quality score (0-1, where 1 is elite teams)
   // Use sigmoid function to normalize ELO to 0-1 range
