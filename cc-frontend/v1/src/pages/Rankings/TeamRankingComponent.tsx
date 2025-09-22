@@ -59,9 +59,7 @@ function TeamRankingComponent(props: TeamRankingComponentProps) {
     >
       <div className="flex justify-between">
         <div className="flex items-center space-x-2">
-          <span className="mr-3 text-end font-mono text-xl">
-            {props.rank + 1}
-          </span>
+          <span className="mr-3 text-end font-mono text-xl">{props.rank}</span>
           <Logo
             src={props.team.picture}
             className="h-8 w-8 rounded-sm"

@@ -241,7 +241,7 @@ function TeamRankingBody({
         <TeamRankingComponent
           key={team.id || i}
           team={team}
-          rank={isCurrentRankings ? i : team.rank || i}
+          rank={isCurrentRankings ? i + 1 : team.rank || i}
         />
       ))}
     </InfiniteScroll>
