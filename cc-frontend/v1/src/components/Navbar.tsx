@@ -92,7 +92,7 @@ export default Navbar;
 function SearchInput() {
   return (
     <div>
-      <Input placeholder="Search" autoComplete="off" />
+      <Input placeholder="Search (coming soon)" autoComplete="off" disabled />
     </div>
   );
 }
