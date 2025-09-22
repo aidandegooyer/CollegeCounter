@@ -198,9 +198,10 @@ function Upcoming() {
   // Get upcoming matches for today
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
-  const tomorrowStr = new Date(today.getTime() + 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
+  // Set end of today (23:59:59) as the cutoff for today's matches
+  const endOfToday = new Date(today);
+  endOfToday.setHours(23, 59, 59, 999);
+  const endOfTodayStr = endOfToday.toISOString().split("T")[0];
 
   // Get matches for this week (next 7 days)
   const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -216,7 +217,7 @@ function Upcoming() {
     error: todayError,
   } = usePublicMatches({
     date_from: todayStr,
-    date_to: tomorrowStr,
+    date_to: todayStr,
     status: "scheduled",
     sort: "date",
     order: "asc",
@@ -227,11 +228,12 @@ function Upcoming() {
     isLoading: weekLoading,
     error: weekError,
   } = usePublicMatches({
-    date_from: tomorrowStr,
+    date_from: endOfTodayStr,
     date_to: weekStr,
     status: "scheduled",
     sort: "date",
     order: "asc",
+    page_size: 50,
   });
 
   const {
