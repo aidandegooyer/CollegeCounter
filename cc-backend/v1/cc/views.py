@@ -64,7 +64,7 @@ def calculate_new_elo(current_elo, opponent_elo, result):
         int: New ELO rating
     """
     k = 150  # K-factor, determines the maximum possible adjustment per game
-    expected_score = 1 / (1 + 10 ** ((opponent_elo - current_elo) / 600))
+    expected_score = 1 / (1 + 10 ** ((opponent_elo - current_elo) / 400))
     new_elo = current_elo + k * (result - expected_score)
     return round(new_elo)
 
