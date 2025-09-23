@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://collegecounter.org/</loc>
+  </url>
+  <url>
+    <loc>https://collegecounter.org/news</loc>
+  </url>
+  <url>
+    <loc>https://collegecounter.org/rankings</loc>
+  </url>
+  <url>
+    <loc>https://collegecounter.org/matches</loc>
+  </url>
+  <url>
+    <loc>https://collegecounter.org/events</loc>
+  </url>
+  <!-- Add more <url> entries for each static news article if desired -->
+</urlset>
