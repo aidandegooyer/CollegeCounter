@@ -90,17 +90,17 @@ export function calculateEloChanges(teamElo: number, opponentElo: number): {
 } {
   // Use same constants as backend (views.py calculate_new_elo function)
   const K_FACTOR = 150;  // Maximum possible adjustment per game
-  const RATING_DIVISOR = 600;  // Controls how much rating difference affects expected score
-  
+  const RATING_DIVISOR = 800;  // Controls how much rating difference affects expected score
+
   // Calculate expected score (win probability)
   const expectedScore = 1 / (1 + Math.pow(10, (opponentElo - teamElo) / RATING_DIVISOR));
-  
+
   // Calculate ELO change for a win (actual result = 1.0)
   const winChange = Math.round(K_FACTOR * (1.0 - expectedScore));
-  
+
   // Calculate ELO change for a loss (actual result = 0.0)
   const lossChange = Math.round(K_FACTOR * (0.0 - expectedScore));
-  
+
   return {
     winChange,
     lossChange,
