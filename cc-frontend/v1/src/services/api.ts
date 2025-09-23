@@ -186,6 +186,9 @@ export interface TeamEloResponse {
   message: string;
   updated_teams: number;
   teams_without_enough_players?: number;
+  only_default_elo?: boolean;
+  default_elo_value?: number;
+  total_teams_processed?: number;
 }
 
 export interface RecalculateEloResponse {
@@ -252,8 +255,14 @@ export const resetPlayerElo = async (
   return response.data;
 };
 
-export const calculateTeamElos = async (): Promise<TeamEloResponse> => {
-  const response = await api.post(`/team-elo/calculate/`);
+export const calculateTeamElos = async (options: {
+  only_default_elo?: boolean;
+  default_elo?: number;
+} = {}): Promise<TeamEloResponse> => {
+  const response = await api.post(`/team-elo/calculate/`, {
+    only_default_elo: options.only_default_elo || false,
+    default_elo: options.default_elo || 1000
+  });
   return response.data;
 };
 

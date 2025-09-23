@@ -84,24 +84,31 @@ function ControlPanel() {
     }
   };
 
-  const handleCalculateTeamElos = async () => {
-    if (
-      !window.confirm(
-        "Are you sure you want to calculate team ELOs based on player ELOs? This will override existing team ELO values.",
-      )
-    ) {
+  const handleCalculateTeamElos = async (onlyDefaultElo: boolean = false) => {
+    const confirmMessage = onlyDefaultElo
+      ? "Are you sure you want to calculate team ELOs for teams with default ELO (1000) based on player ELOs?"
+      : "Are you sure you want to calculate team ELOs based on player ELOs? This will override existing team ELO values.";
+
+    if (!window.confirm(confirmMessage)) {
       return;
     }
 
     try {
       setIsCalculating(true);
-      const result = await calculateTeamElos();
+      const result = await calculateTeamElos({
+        only_default_elo: onlyDefaultElo,
+        default_elo: 1000,
+      });
+
+      const actionType = onlyDefaultElo
+        ? "for teams with default ELO"
+        : "for all teams";
       showNotification(
         "success",
         "Team ELO Calculation Complete",
-        `${result.updated_teams} teams updated. ${
+        `${result.updated_teams} teams updated ${actionType}. ${
           result.teams_without_enough_players || 0
-        } teams without enough players.`,
+        } teams without enough players. Total teams processed: ${result.total_teams_processed || 0}.`,
       );
     } catch (error) {
       console.error("Error calculating team ELOs:", error);
@@ -260,7 +267,7 @@ function ControlPanel() {
           <Button
             className="cursor-pointer"
             variant="secondary"
-            onClick={handleCalculateTeamElos}
+            onClick={() => handleCalculateTeamElos(false)}
             disabled={isCalculating}
           >
             {isCalculating ? (
@@ -269,7 +276,22 @@ function ControlPanel() {
                 Calculating...
               </>
             ) : (
-              "Calculate Initial Team Elo"
+              "Calculate All Team ELOs"
+            )}
+          </Button>
+          <Button
+            className="cursor-pointer"
+            variant="outline"
+            onClick={() => handleCalculateTeamElos(true)}
+            disabled={isCalculating}
+          >
+            {isCalculating ? (
+              <>
+                <Spinner className="mr-2 h-4 w-4" />
+                Calculating...
+              </>
+            ) : (
+              "Calculate Default ELO Teams Only"
             )}
           </Button>
           <Button

@@ -1073,12 +1073,26 @@ def calculate_team_elos(request):
     """
     Calculate team ELOs based on player ELOs.
     Formula: team_elo = mean(top 5 player ELOs) - 0.1 * std_dev(top 5 player ELOs)
+
+    Expected request format:
+    {
+        "only_default_elo": true, // Optional - only calculate for teams with default ELO (1000)
+        "default_elo": 1000 // Optional - what is considered the default ELO value
+    }
     """
     try:
         import statistics
 
-        # Get all teams
-        teams = Team.objects.all()
+        # Get request parameters
+        only_default_elo = request.data.get("only_default_elo", False)
+        default_elo = request.data.get("default_elo", 1000)
+
+        # Get teams based on filter
+        if only_default_elo:
+            teams = Team.objects.filter(elo=default_elo)
+        else:
+            teams = Team.objects.all()
+
         updated_count = 0
         no_players_count = 0
 
@@ -1118,6 +1132,9 @@ def calculate_team_elos(request):
                 "message": "Team ELO calculation completed",
                 "updated_teams": updated_count,
                 "teams_without_enough_players": no_players_count,
+                "only_default_elo": only_default_elo,
+                "default_elo_value": default_elo,
+                "total_teams_processed": teams.count(),
             }
         )
 
