@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Logo from "@/components/Logo";
-import { calculateMatchStars } from "@/services/elo";
+import { calculateEloChanges, calculateMatchStars } from "@/services/elo";
 
 function Matches() {
   const getInitialMatchType = () => {
@@ -294,7 +294,7 @@ function Upcoming() {
           <Spinner />
         </div>
       ) : todayMatches?.results && todayMatches.results.length > 0 ? (
-        <ul className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
           {sortMatchesByDateAndStars(todayMatches.results).map((match) => (
             <UpcomingMatch
               key={match.id}
@@ -319,7 +319,7 @@ function Upcoming() {
           <Spinner />
         </div>
       ) : weekMatches?.results && weekMatches.results.length > 0 ? (
-        <ul className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
           {sortMatchesByDateAndStars(weekMatches.results).map((match) => (
             <UpcomingMatch
               key={match.id}
@@ -344,7 +344,7 @@ function Upcoming() {
           <Spinner />
         </div>
       ) : laterMatches?.results && laterMatches.results.length > 0 ? (
-        <ul className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
           {sortMatchesByDateAndStars(laterMatches.results).map((match) => (
             <UpcomingMatch
               key={match.id}
@@ -371,6 +371,14 @@ interface UpcomingMatchProps {
 }
 
 function UpcomingMatch({ match, stars }: UpcomingMatchProps) {
+  const changes_team1 = calculateEloChanges(
+    match.team1?.elo || 1000,
+    match.team2?.elo || 1000,
+  );
+  const changes_team2 = calculateEloChanges(
+    match.team2?.elo || 1000,
+    match.team1?.elo || 1000,
+  );
   // Format date and time
   const matchDate = new Date(match.date || "");
   const dateStr = matchDate.toLocaleDateString([], {
@@ -393,10 +401,22 @@ function UpcomingMatch({ match, stars }: UpcomingMatchProps) {
             {match.team1?.name || "Unknown Team"}
           </span>
           {/* Show platform or competition info instead of ELO since it's not available */}
-          <span className="bg-muted ml-2 flex items-center justify-end rounded-sm text-xs">
-            <p className="text-muted-foreground px-1 font-mono text-xs">
-              {match.team1?.elo}
-            </p>
+          <span className="ml-2 flex items-center justify-end text-xs">
+            <div className="text-muted-foreground bg-muted flex rounded-sm px-1 font-mono text-xs">
+              <div className="text-muted-foreground border-r-2 pr-1 font-mono">
+                {match.team1?.elo}
+              </div>
+              <div className="border-r-2 border-dotted px-1 font-mono text-green-600">
+                {changes_team1.winChange >= 0
+                  ? `+${changes_team1.winChange}`
+                  : changes_team1.winChange}
+              </div>
+              <div className="border-foreground-muted pl-1 font-mono text-red-600">
+                {changes_team1.lossChange >= 0
+                  ? `+${changes_team1.lossChange}`
+                  : changes_team1.lossChange}
+              </div>
+            </div>
           </span>
         </div>
         <div className="flex items-center space-x-2 overflow-ellipsis">
@@ -404,10 +424,22 @@ function UpcomingMatch({ match, stars }: UpcomingMatchProps) {
           <span className="truncate overflow-ellipsis whitespace-nowrap">
             {match.team2?.name || "Unknown Team"}
           </span>
-          <span className="bg-muted ml-2 flex items-center justify-end rounded-sm text-xs">
-            <p className="text-muted-foreground px-1 font-mono text-xs">
-              {match.team2.elo}
-            </p>
+          <span className="ml-2 flex items-center justify-end text-xs">
+            <div className="text-muted-foreground bg-muted flex rounded-sm px-1 font-mono text-xs">
+              <div className="text-muted-foreground border-r-2 pr-1 font-mono">
+                {match.team2?.elo}
+              </div>
+              <div className="border-r-2 border-dotted px-1 font-mono text-green-600">
+                {changes_team2.winChange >= 0
+                  ? `+${changes_team2.winChange}`
+                  : changes_team2.winChange}
+              </div>
+              <div className="border-foreground-muted pl-1 font-mono text-red-600">
+                {changes_team2.lossChange >= 0
+                  ? `+${changes_team2.lossChange}`
+                  : changes_team2.lossChange}
+              </div>
+            </div>
           </span>
         </div>
       </div>

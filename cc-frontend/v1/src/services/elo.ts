@@ -74,3 +74,38 @@ export function calculateWinProbability(team1Elo: number, team2Elo: number): num
   return 1 / (1 + Math.pow(10, -eloDiff / 400));
 }
 
+/**
+ * Calculate ELO changes for a team for both win and loss scenarios
+ * Uses the same formula as the backend: K-factor of 150 and rating difference scaling of 600
+ * 
+ * @param teamElo - Current ELO rating of the team
+ * @param opponentElo - Current ELO rating of the opponent
+ * @returns Object containing ELO changes for win and loss scenarios
+ */
+export function calculateEloChanges(teamElo: number, opponentElo: number): {
+  winChange: number;
+  lossChange: number;
+  newEloIfWin: number;
+  newEloIfLoss: number;
+} {
+  // Use same constants as backend (views.py calculate_new_elo function)
+  const K_FACTOR = 150;  // Maximum possible adjustment per game
+  const RATING_DIVISOR = 600;  // Controls how much rating difference affects expected score
+  
+  // Calculate expected score (win probability)
+  const expectedScore = 1 / (1 + Math.pow(10, (opponentElo - teamElo) / RATING_DIVISOR));
+  
+  // Calculate ELO change for a win (actual result = 1.0)
+  const winChange = Math.round(K_FACTOR * (1.0 - expectedScore));
+  
+  // Calculate ELO change for a loss (actual result = 0.0)
+  const lossChange = Math.round(K_FACTOR * (0.0 - expectedScore));
+  
+  return {
+    winChange,
+    lossChange,
+    newEloIfWin: teamElo + winChange,
+    newEloIfLoss: teamElo + lossChange,
+  };
+}
+
