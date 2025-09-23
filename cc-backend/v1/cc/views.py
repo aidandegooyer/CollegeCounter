@@ -346,8 +346,8 @@ def import_match_data(api_data, competition, season, platform):
         team2_data = teams_data.get(team2_key, {})
 
         # Get or create teams
-        team1, _ = get_or_create_team(team1_data, competition, season)
-        team2, _ = get_or_create_team(team2_data, competition, season)
+        team1, _ = get_or_create_team(team1_data, competition, season, platform)
+        team2, _ = get_or_create_team(team2_data, competition, season, platform)
 
         if not team1 or not team2:
             continue  # Skip if teams could not be created
@@ -368,6 +368,10 @@ def import_match_data(api_data, competition, season, platform):
                 winner = team1
             elif winner_key == team2_key:
                 winner = team2
+
+        # Check if match already exists
+        if Match.objects.filter(id=match_id).exists():
+            continue  # Skip existing matches
 
         # Create the match
         match = Match.objects.create(
@@ -390,17 +394,22 @@ def import_match_data(api_data, competition, season, platform):
     return imported_matches
 
 
-def get_or_create_team(team_data, competition, season):
+def get_or_create_team(team_data, competition, season, platform):
     """
     Helper function to get or create a team from API data
     """
     team_name = team_data.get("name", "Unknown Team")
     team_avatar = team_data.get("avatar")
-    team_faceit_id = team_data.get("id")
+    team_faceit_id = team_data.get("faction_id")
 
-    # For LeagueSpot/Playfly data, get the team and participant IDs
-    team_playfly_id = team_data.get("faction_id") or team_data.get("teamId")
-    participant_id = team_data.get("participantId")
+    # Only process LeagueSpot/Playfly IDs if we're actually importing from those platforms
+    team_playfly_id = None
+    participant_id = None
+
+    # Check if this is LeagueSpot/Playfly data (not Faceit)
+    if platform == "leaguespot":
+        team_playfly_id = team_data.get("faction_id") or team_data.get("teamId")
+        participant_id = team_data.get("participantId")
 
     # First, check if there's an existing participant for this team ID in this competition/season
     existing_participant = None
@@ -408,8 +417,13 @@ def get_or_create_team(team_data, competition, season):
     # Try Faceit ID first
     if team_faceit_id:
         try:
-            existing_participant = Participant.objects.get(
-                faceit_id=team_faceit_id, competition=competition, season=season
+            existing_participant = (
+                Participant.objects.filter(competition=competition, season=season)
+                .filter(
+                    models.Q(faceit_id=team_faceit_id)
+                    | models.Q(faceit_id=team_playfly_id)
+                )
+                .first()
             )
         except Participant.DoesNotExist:
             pass
