@@ -233,7 +233,7 @@ function Upcoming() {
     status: "scheduled",
     sort: "date",
     order: "asc",
-    page_size: 50,
+    page_size: 100,
   });
 
   const {
@@ -246,7 +246,7 @@ function Upcoming() {
     status: "scheduled",
     sort: "date",
     order: "asc",
-    page_size: 50,
+    page_size: 100,
   });
 
   // Helper function to sort matches by date then by stars (descending)
