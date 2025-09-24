@@ -15,33 +15,25 @@ class SanityWebhookView(APIView):
             payload = request.data
 
             # Pull values from projection you set in Sanity webhook
-            doc_id = payload.get("_id")
-            doc_type = payload.get("_type")
             title = payload.get("title", "Untitled")
             slug = payload.get("slug")
             author = payload.get("author", "Unknown")
             author_link = payload.get("authorLink")
-            published_at = payload.get("publishedAt")
             image_url = payload.get("imageUrl")
 
             # Build article URL
             article_url = f"https://collegecounter.org/news/{slug}" if slug else None
 
             embed = {
-                "title": f"📝 {title}",
+                "title": f"{title}",
                 "url": article_url,  # Makes the title clickable
                 "description": (
-                    f"A new article has been published by [{author}]({author_link})"
+                    f"By [{author}]({author_link})"
                     if author_link
-                    else f"A new article has been published by **{author}**."
+                    else f"By **{author}**."
                 ),
                 "color": 0x00FF00,
-                "fields": [
-                    {"name": "Title", "value": title, "inline": False},
-                    {"name": "Author", "value": author, "inline": True},
-                    {"name": "Published At", "value": published_at, "inline": False},
-                ]
-                + (
+                "fields": (
                     [
                         {
                             "name": "🔗 Read Article",
@@ -53,8 +45,7 @@ class SanityWebhookView(APIView):
                     else []
                 ),
                 "image": {"url": image_url} if image_url else None,
-                "timestamp": published_at,
-                "footer": {"text": "College Counter CMS"},
+                "footer": {"text": "College Counter News"},
             }
 
             # Discord expects {"embeds": [embed]}
