@@ -297,11 +297,6 @@ function Upcoming() {
     };
   }, [allMatches, today, tomorrow, weekFromNow]);
 
-  // Auto-select all competitions when they become available
-  useEffect(() => {
-    setSelectedCompetitions(availableCompetitions);
-  }, [availableCompetitions]);
-
   // tomorrowMatches is available for future use when adding tomorrow section
 
   // Helper function to filter matches by selected competitions and minimum star count
@@ -576,7 +571,7 @@ function Upcoming() {
             </ul>
           ) : (
             <div className="text-muted-foreground my-4 text-center">
-              No matches scheduled for today
+              No matches scheduled for tomorrow
             </div>
           );
         })()
