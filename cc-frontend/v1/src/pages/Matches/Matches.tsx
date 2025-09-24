@@ -332,9 +332,9 @@ function Upcoming() {
 
       // If stars are the same, sort by combined ELO (highest first)
       return (
-        (a.team1.elo || 1000) +
-        (a.team2.elo || 1000) -
-        ((b.team1.elo || 1000) + (b.team2.elo || 1000))
+        (b.team1.elo || 1000) +
+        (b.team2.elo || 1000) -
+        ((a.team1.elo || 1000) + (a.team2.elo || 1000))
       );
     });
   };
