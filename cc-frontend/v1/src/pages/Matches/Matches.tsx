@@ -319,7 +319,7 @@ function Upcoming() {
         b.team2?.elo || 1000,
       );
 
-      if (starsA === starsB) {
+      if (starsA !== starsB) {
         return starsB - starsA; // Higher stars first
       }
 
