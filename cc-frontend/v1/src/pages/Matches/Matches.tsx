@@ -288,6 +288,13 @@ function Upcoming() {
     laterLoading,
   ]);
 
+  // Auto-select all competitions when they become available
+  useEffect(() => {
+    if (availableCompetitions.length > 0 && selectedCompetitions.length === 0) {
+      setSelectedCompetitions(availableCompetitions);
+    }
+  }, [availableCompetitions]);
+
   // Helper function to filter matches by selected competitions
   const filterMatchesByCompetition = (matches: PublicMatch[]) => {
     if (selectedCompetitions.length === 0) return matches;
