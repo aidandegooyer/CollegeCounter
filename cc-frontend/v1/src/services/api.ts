@@ -175,6 +175,51 @@ export const clearDatabase = async (
   return response.data;
 };
 
+// Competition management functions
+export interface Competition {
+  id: string;
+  name: string;
+  participants_count: number;
+  matches_count: number;
+  teams_count: number;
+}
+
+export interface CompetitionsResponse {
+  competitions: Competition[];
+  total_competitions: number;
+}
+
+export interface DeleteCompetitionResponse {
+  message: string;
+  competition_name: string;
+  competition_id: string;
+  deleted_data: {
+    participants: number;
+    matches: number;
+    events: number;
+    event_matches: number;
+    competition: number;
+  };
+  total_records_deleted: number;
+}
+
+export const listCompetitions = async (): Promise<CompetitionsResponse> => {
+  const response = await api.get(`/competitions/`);
+  return response.data;
+};
+
+export const deleteCompetition = async (
+  competitionId: string,
+  securityKey: string
+): Promise<DeleteCompetitionResponse> => {
+  const response = await api.delete(`/competitions/${competitionId}/`, {
+    data: {
+      security_key: securityKey
+    }
+  });
+  return response.data;
+};
+
 // Player ELO management functions
 export interface PlayerEloResponse {
   message: string;

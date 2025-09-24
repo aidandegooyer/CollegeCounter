@@ -3,7 +3,7 @@ import ImportMatches from "./ImportMatches";
 import DatabaseViewer from "./DatabaseViewer";
 import { getAuth, signOut } from "firebase/auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import ClearDatabase from "./ClearDatabase";
+import DeleteData from "./DeleteData";
 import ControlPanel from "./ControlPanel";
 import EditTeamPlayer from "./EditTeamPlayer";
 import Graphic from "./Graphic";
@@ -59,10 +59,10 @@ function Admin() {
             Database Viewer
           </TabsTrigger>
           <TabsTrigger
-            value="clear-database"
+            value="delete-data"
             className="hover:text-foreground! cursor-pointer"
           >
-            Clear Database
+            Delete Data
           </TabsTrigger>
           <TabsTrigger
             value="graphic"
@@ -89,8 +89,8 @@ function Admin() {
         <TabsContent value="database">
           <DatabaseViewer />
         </TabsContent>
-        <TabsContent value="clear-database">
-          <ClearDatabase />
+        <TabsContent value="delete-data">
+          <DeleteData />
         </TabsContent>
         <TabsContent value="graphic">
           <Graphic />

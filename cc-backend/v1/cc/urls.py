@@ -24,6 +24,12 @@ urlpatterns = [
         name="create_ranking_snapshot",
     ),
     path("merge-teams/", views.merge_teams, name="merge_teams"),
+    path("competitions/", views.list_competitions, name="list_competitions"),
+    path(
+        "competitions/<uuid:competition_id>/",
+        views.delete_competition,
+        name="delete_competition",
+    ),
     # Team and player update endpoints (admin functionality)
     path("teams/<uuid:team_id>/", admin_views.update_team, name="update_team"),
     path("players/<uuid:player_id>/", admin_views.update_player, name="update_player"),
