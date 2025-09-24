@@ -200,6 +200,7 @@ function Upcoming() {
   const [selectedCompetitions, setSelectedCompetitions] = useState<string[]>(
     [],
   );
+  const [minStarCount, setMinStarCount] = useState<number>(0);
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 
   // Get upcoming matches for today
@@ -208,101 +209,119 @@ function Upcoming() {
   // Set end of today (23:59:59) as the cutoff for today's matches
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split("T")[0];
+  tomorrow.setHours(0, 0, 0, 0); // Set to 00:00:00
 
   // Get matches for this week (next 7 days)
   const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const weekStr = weekFromNow.toISOString().split("T")[0];
 
   // Get later matches (beyond this week)
   const monthFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
   const monthStr = monthFromNow.toISOString().split("T")[0];
 
+  // Single API call to get all upcoming matches
   const {
-    data: todayMatches,
-    isLoading: todayLoading,
-    error: todayError,
+    data: allMatches,
+    isLoading: allMatchesLoading,
+    error: allMatchesError,
   } = usePublicMatches({
     date_from: todayStr,
-    date_to: todayStr,
-    status: "scheduled",
-    sort: "date",
-    order: "asc",
-    page_size: 100,
-  });
-
-  const {
-    data: weekMatches,
-    isLoading: weekLoading,
-    error: weekError,
-  } = usePublicMatches({
-    date_from: tomorrowStr,
-    date_to: weekStr,
-    status: "scheduled",
-    sort: "date",
-    order: "asc",
-    page_size: 100,
-  });
-
-  const {
-    data: laterMatches,
-    isLoading: laterLoading,
-    error: laterError,
-  } = usePublicMatches({
-    date_from: weekStr,
     date_to: monthStr,
     status: "scheduled",
     sort: "date",
     order: "asc",
-    page_size: 100,
+    page_size: 200,
   });
 
-  // Merge all matches and extract unique competitions
-  const { availableCompetitions, allUpcomingLoading } = React.useMemo(() => {
-    const allMatches: PublicMatch[] = [];
-    const isLoading = todayLoading || weekLoading || laterLoading;
+  // Split matches into different time periods and extract competitions
+  const {
+    todayMatches,
+    tomorrowMatches,
+    weekMatches,
+    laterMatches,
+    availableCompetitions,
+  } = React.useMemo(() => {
+    if (!allMatches?.results) {
+      return {
+        todayMatches: [],
+        tomorrowMatches: [],
+        weekMatches: [],
+        laterMatches: [],
+        availableCompetitions: [],
+      };
+    }
 
-    // Combine all match results
-    if (todayMatches?.results) allMatches.push(...todayMatches.results);
-    if (weekMatches?.results) allMatches.push(...weekMatches.results);
-    if (laterMatches?.results) allMatches.push(...laterMatches.results);
+    const matches = allMatches.results;
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const tomorrowEnd = new Date(tomorrow);
+    tomorrowEnd.setHours(23, 59, 59, 999);
+
+    const weekEnd = new Date(weekFromNow);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    // Split matches by time period
+    const todayMatchList: PublicMatch[] = [];
+    const tomorrowMatchList: PublicMatch[] = [];
+    const weekMatchList: PublicMatch[] = [];
+    const laterMatchList: PublicMatch[] = [];
+
+    matches.forEach((match) => {
+      const matchDate = new Date(match.date || "");
+
+      if (matchDate <= todayEnd) {
+        todayMatchList.push(match);
+      } else if (matchDate <= tomorrowEnd) {
+        tomorrowMatchList.push(match);
+      } else if (matchDate <= weekEnd) {
+        weekMatchList.push(match);
+      } else {
+        laterMatchList.push(match);
+      }
+    });
 
     // Extract unique competitions
     const competitions = new Set<string>();
-    allMatches.forEach((match) => {
+    matches.forEach((match) => {
       if (match.competition?.name) {
         competitions.add(match.competition.name);
       }
     });
 
     return {
+      todayMatches: todayMatchList,
+      tomorrowMatches: tomorrowMatchList,
+      weekMatches: weekMatchList,
+      laterMatches: laterMatchList,
       availableCompetitions: Array.from(competitions).sort(),
-      allUpcomingLoading: isLoading,
     };
-  }, [
-    todayMatches,
-    weekMatches,
-    laterMatches,
-    todayLoading,
-    weekLoading,
-    laterLoading,
-  ]);
+  }, [allMatches, today, tomorrow, weekFromNow]);
 
   // Auto-select all competitions when they become available
   useEffect(() => {
-    if (availableCompetitions.length > 0 && selectedCompetitions.length === 0) {
-      setSelectedCompetitions(availableCompetitions);
-    }
+    setSelectedCompetitions(availableCompetitions);
   }, [availableCompetitions]);
 
-  // Helper function to filter matches by selected competitions
-  const filterMatchesByCompetition = (matches: PublicMatch[]) => {
-    if (selectedCompetitions.length === 0) return matches;
-    return matches.filter(
-      (match) =>
-        match.competition?.name &&
-        selectedCompetitions.includes(match.competition.name),
-    );
+  // tomorrowMatches is available for future use when adding tomorrow section
+
+  // Helper function to filter matches by selected competitions and minimum star count
+  const filterMatches = (matches: PublicMatch[]) => {
+    return matches.filter((match) => {
+      // Filter by competition
+      const passesCompetitionFilter =
+        selectedCompetitions.length === 0 ||
+        (match.competition?.name &&
+          selectedCompetitions.includes(match.competition.name));
+
+      // Filter by minimum star count
+      const matchStars = calculateMatchStars(
+        match.team1?.elo || 1000,
+        match.team2?.elo || 1000,
+      );
+      const passesStarFilter = matchStars >= minStarCount;
+
+      return passesCompetitionFilter && passesStarFilter;
+    });
   };
 
   // Helper function to sort matches by date then by stars (descending)
@@ -339,7 +358,7 @@ function Upcoming() {
     });
   };
 
-  if (todayError || weekError || laterError) {
+  if (allMatchesError) {
     return (
       <Alert variant="destructive" className="mt-4">
         <AlertTitle className="text-lg">Error</AlertTitle>
@@ -353,7 +372,7 @@ function Upcoming() {
   return (
     <>
       {/* Competition Filter */}
-      {(allUpcomingLoading || availableCompetitions.length > 0) && (
+      {(allMatchesLoading || availableCompetitions.length > 0) && (
         <div
           className={`competition-filter mb-4 w-full cursor-pointer rounded-xl border-2 p-4 ${
             isFilterExpanded ? "max-h-[1000px]" : "max-h-16"
@@ -361,7 +380,7 @@ function Upcoming() {
           onClick={() => setIsFilterExpanded(!isFilterExpanded)}
         >
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-semibold">Filter by Competition</h2>
+            <h2 className="font-semibold">Filter Matches</h2>
             <Menu />
           </div>
           <div
@@ -369,7 +388,7 @@ function Upcoming() {
               isFilterExpanded ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
           >
-            {allUpcomingLoading ? (
+            {allMatchesLoading ? (
               <div className="flex h-10 items-center justify-center">
                 <Spinner />
               </div>
@@ -433,6 +452,68 @@ function Upcoming() {
                     Clear All
                   </Button>
                 </div>
+
+                {/* Minimum Star Count Filter */}
+                <div
+                  className="mt-6 border-t pt-4"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Label
+                    htmlFor="min-star-count"
+                    className="text-sm font-semibold"
+                  >
+                    Minimum Star Rating
+                  </Label>
+                  <div className="mt-2 flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      {[0, 1, 2, 3, 4, 5].map((starCount) => (
+                        <button
+                          key={starCount}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMinStarCount(starCount);
+                          }}
+                          className={`flex items-center space-x-1 rounded-md px-2 py-1 text-xs transition-colors ${
+                            minStarCount === starCount
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                        >
+                          <span>
+                            {starCount === 0 ? "Any" : `${starCount}+`}
+                          </span>
+                          {starCount > 0 && (
+                            <div className="flex">
+                              {Array.from({ length: starCount }).map((_, i) => (
+                                <Star
+                                  key={i}
+                                  size={10}
+                                  className="fill-current"
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reset All Filters */}
+                <div className="mt-4 flex justify-center border-t pt-4">
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedCompetitions(availableCompetitions);
+                      setMinStarCount(0);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="text-muted-foreground"
+                  >
+                    Reset All Filters
+                  </Button>
+                </div>
               </>
             )}
           </div>
@@ -441,15 +522,13 @@ function Upcoming() {
 
       <h1>Today</h1>
       <hr />
-      {todayLoading ? (
+      {allMatchesLoading ? (
         <div className="flex h-20 items-center justify-center">
           <Spinner />
         </div>
       ) : (
         (() => {
-          const filteredTodayMatches = todayMatches?.results
-            ? filterMatchesByCompetition(todayMatches.results)
-            : [];
+          const filteredTodayMatches = filterMatches(todayMatches);
           return filteredTodayMatches.length > 0 ? (
             <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
               {sortMatchesByDateAndStars(filteredTodayMatches).map((match) => (
@@ -471,17 +550,47 @@ function Upcoming() {
         })()
       )}
 
-      <h1 className="mt-8">This Week</h1>
+      <h1 className="mt-8">Tomorrow</h1>
       <hr />
-      {weekLoading ? (
+      {allMatchesLoading ? (
         <div className="flex h-20 items-center justify-center">
           <Spinner />
         </div>
       ) : (
         (() => {
-          const filteredWeekMatches = weekMatches?.results
-            ? filterMatchesByCompetition(weekMatches.results)
-            : [];
+          const filteredTomorrowMatches = filterMatches(tomorrowMatches);
+          return filteredTomorrowMatches.length > 0 ? (
+            <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {sortMatchesByDateAndStars(filteredTomorrowMatches).map(
+                (match) => (
+                  <UpcomingMatch
+                    key={match.id}
+                    match={match}
+                    stars={calculateMatchStars(
+                      match.team1?.elo || 1000,
+                      match.team2?.elo || 1000,
+                    )}
+                  />
+                ),
+              )}
+            </ul>
+          ) : (
+            <div className="text-muted-foreground my-4 text-center">
+              No matches scheduled for today
+            </div>
+          );
+        })()
+      )}
+
+      <h1 className="mt-8">This Week</h1>
+      <hr />
+      {allMatchesLoading ? (
+        <div className="flex h-20 items-center justify-center">
+          <Spinner />
+        </div>
+      ) : (
+        (() => {
+          const filteredWeekMatches = filterMatches(weekMatches);
           return filteredWeekMatches.length > 0 ? (
             <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
               {sortMatchesByDateAndStars(filteredWeekMatches).map((match) => (
@@ -505,15 +614,13 @@ function Upcoming() {
 
       <h1 className="mt-8">This Month</h1>
       <hr />
-      {laterLoading ? (
+      {allMatchesLoading ? (
         <div className="flex h-20 items-center justify-center">
           <Spinner />
         </div>
       ) : (
         (() => {
-          const filteredLaterMatches = laterMatches?.results
-            ? filterMatchesByCompetition(laterMatches.results)
-            : [];
+          const filteredLaterMatches = filterMatches(laterMatches);
           return filteredLaterMatches.length > 0 ? (
             <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
               {sortMatchesByDateAndStars(filteredLaterMatches).map((match) => (
