@@ -2,6 +2,7 @@ from django.urls import path, include
 
 from . import views
 from . import admin_views
+from . import webhooks
 
 urlpatterns = [
     path("", views.index, name="index"),
@@ -58,6 +59,11 @@ urlpatterns = [
         "proxy/leaguespot/matches/<str:match_id>/participants/",
         views.proxy_leaguespot_participants,
         name="proxy_leaguespot_participants",
+    ),
+    path(
+        "sanity-webhook/",
+        webhooks.SanityWebhookView.as_view(),
+        name="sanity_webhook",
     ),
     # Include public API endpoints
     path("public/", include("cc.urls_public")),
