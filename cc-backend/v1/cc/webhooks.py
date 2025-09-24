@@ -26,7 +26,6 @@ class SanityWebhookView(APIView):
 
             embed = {
                 "title": f"{title}",
-                "url": article_url,  # Makes the title clickable
                 "description": (
                     f"By [{author}]({author_link})"
                     if author_link
