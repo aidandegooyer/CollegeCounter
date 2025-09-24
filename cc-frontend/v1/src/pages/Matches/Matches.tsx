@@ -1,5 +1,5 @@
 import { ArrowRight, Menu, Star } from "lucide-react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { usePublicMatches, usePublicSeasons } from "@/services/hooks";
@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import Logo from "@/components/Logo";
 import { calculateEloChanges, calculateMatchStars } from "@/services/elo";
 
@@ -195,13 +196,19 @@ function LiveMatch({ match }: LiveMatchProps) {
 }
 
 function Upcoming() {
+  // Competition filter state
+  const [selectedCompetitions, setSelectedCompetitions] = useState<string[]>(
+    [],
+  );
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+
   // Get upcoming matches for today
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
   // Set end of today (23:59:59) as the cutoff for today's matches
-  const endOfToday = new Date(today);
-  endOfToday.setHours(23, 59, 59, 999);
-  const endOfTodayStr = endOfToday.toISOString().split("T")[0];
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split("T")[0];
 
   // Get matches for this week (next 7 days)
   const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -221,6 +228,7 @@ function Upcoming() {
     status: "scheduled",
     sort: "date",
     order: "asc",
+    page_size: 100,
   });
 
   const {
@@ -228,7 +236,7 @@ function Upcoming() {
     isLoading: weekLoading,
     error: weekError,
   } = usePublicMatches({
-    date_from: endOfTodayStr,
+    date_from: tomorrowStr,
     date_to: weekStr,
     status: "scheduled",
     sort: "date",
@@ -248,6 +256,47 @@ function Upcoming() {
     order: "asc",
     page_size: 100,
   });
+
+  // Merge all matches and extract unique competitions
+  const { availableCompetitions, allUpcomingLoading } = React.useMemo(() => {
+    const allMatches: PublicMatch[] = [];
+    const isLoading = todayLoading || weekLoading || laterLoading;
+
+    // Combine all match results
+    if (todayMatches?.results) allMatches.push(...todayMatches.results);
+    if (weekMatches?.results) allMatches.push(...weekMatches.results);
+    if (laterMatches?.results) allMatches.push(...laterMatches.results);
+
+    // Extract unique competitions
+    const competitions = new Set<string>();
+    allMatches.forEach((match) => {
+      if (match.competition?.name) {
+        competitions.add(match.competition.name);
+      }
+    });
+
+    return {
+      availableCompetitions: Array.from(competitions).sort(),
+      allUpcomingLoading: isLoading,
+    };
+  }, [
+    todayMatches,
+    weekMatches,
+    laterMatches,
+    todayLoading,
+    weekLoading,
+    laterLoading,
+  ]);
+
+  // Helper function to filter matches by selected competitions
+  const filterMatchesByCompetition = (matches: PublicMatch[]) => {
+    if (selectedCompetitions.length === 0) return matches;
+    return matches.filter(
+      (match) =>
+        match.competition?.name &&
+        selectedCompetitions.includes(match.competition.name),
+    );
+  };
 
   // Helper function to sort matches by date then by stars (descending)
   const sortMatchesByDateAndStars = (matches: PublicMatch[]) => {
@@ -270,7 +319,16 @@ function Upcoming() {
         b.team2?.elo || 1000,
       );
 
-      return starsB - starsA; // Higher stars first
+      if (starsA === starsB) {
+        return starsB - starsA; // Higher stars first
+      }
+
+      // If stars are the same, sort by combined ELO (highest first)
+      return (
+        (a.team1.elo || 1000) +
+        (a.team2.elo || 1000) -
+        ((b.team1.elo || 1000) + (b.team2.elo || 1000))
+      );
     });
   };
 
@@ -287,29 +345,123 @@ function Upcoming() {
 
   return (
     <>
+      {/* Competition Filter */}
+      {(allUpcomingLoading || availableCompetitions.length > 0) && (
+        <div
+          className={`competition-filter mb-4 w-full cursor-pointer rounded-xl border-2 p-4 ${
+            isFilterExpanded ? "max-h-[1000px]" : "max-h-16"
+          } transition-all duration-300`}
+          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-semibold">Filter by Competition</h2>
+            <Menu />
+          </div>
+          <div
+            className={`transition-all duration-200 ${
+              isFilterExpanded ? "opacity-100" : "pointer-events-none opacity-0"
+            }`}
+          >
+            {allUpcomingLoading ? (
+              <div className="flex h-10 items-center justify-center">
+                <Spinner />
+              </div>
+            ) : (
+              <>
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+                  {availableCompetitions.map((competition) => (
+                    <div
+                      key={competition}
+                      className="flex items-center space-x-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Checkbox
+                        id={`competition-${competition}`}
+                        checked={selectedCompetitions.includes(competition)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedCompetitions([
+                              ...selectedCompetitions,
+                              competition,
+                            ]);
+                          } else {
+                            setSelectedCompetitions(
+                              selectedCompetitions.filter(
+                                (c) => c !== competition,
+                              ),
+                            );
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <Label
+                        htmlFor={`competition-${competition}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {competition}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex space-x-2">
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedCompetitions(availableCompetitions);
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedCompetitions([]);
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Clear All
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       <h1>Today</h1>
       <hr />
       {todayLoading ? (
         <div className="flex h-20 items-center justify-center">
           <Spinner />
         </div>
-      ) : todayMatches?.results && todayMatches.results.length > 0 ? (
-        <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {sortMatchesByDateAndStars(todayMatches.results).map((match) => (
-            <UpcomingMatch
-              key={match.id}
-              match={match}
-              stars={calculateMatchStars(
-                match.team1?.elo || 1000,
-                match.team2?.elo || 1000,
-              )}
-            />
-          ))}
-        </ul>
       ) : (
-        <div className="text-muted-foreground my-4 text-center">
-          No matches scheduled for today
-        </div>
+        (() => {
+          const filteredTodayMatches = todayMatches?.results
+            ? filterMatchesByCompetition(todayMatches.results)
+            : [];
+          return filteredTodayMatches.length > 0 ? (
+            <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {sortMatchesByDateAndStars(filteredTodayMatches).map((match) => (
+                <UpcomingMatch
+                  key={match.id}
+                  match={match}
+                  stars={calculateMatchStars(
+                    match.team1?.elo || 1000,
+                    match.team2?.elo || 1000,
+                  )}
+                />
+              ))}
+            </ul>
+          ) : (
+            <div className="text-muted-foreground my-4 text-center">
+              No matches scheduled for today
+            </div>
+          );
+        })()
       )}
 
       <h1 className="mt-8">This Week</h1>
@@ -318,23 +470,30 @@ function Upcoming() {
         <div className="flex h-20 items-center justify-center">
           <Spinner />
         </div>
-      ) : weekMatches?.results && weekMatches.results.length > 0 ? (
-        <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {sortMatchesByDateAndStars(weekMatches.results).map((match) => (
-            <UpcomingMatch
-              key={match.id}
-              match={match}
-              stars={calculateMatchStars(
-                match.team1?.elo || 1000,
-                match.team2?.elo || 1000,
-              )}
-            />
-          ))}
-        </ul>
       ) : (
-        <div className="text-muted-foreground my-4 text-center">
-          No matches scheduled for this week
-        </div>
+        (() => {
+          const filteredWeekMatches = weekMatches?.results
+            ? filterMatchesByCompetition(weekMatches.results)
+            : [];
+          return filteredWeekMatches.length > 0 ? (
+            <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {sortMatchesByDateAndStars(filteredWeekMatches).map((match) => (
+                <UpcomingMatch
+                  key={match.id}
+                  match={match}
+                  stars={calculateMatchStars(
+                    match.team1?.elo || 1000,
+                    match.team2?.elo || 1000,
+                  )}
+                />
+              ))}
+            </ul>
+          ) : (
+            <div className="text-muted-foreground my-4 text-center">
+              No matches scheduled for this week
+            </div>
+          );
+        })()
       )}
 
       <h1 className="mt-8">This Month</h1>
@@ -343,23 +502,30 @@ function Upcoming() {
         <div className="flex h-20 items-center justify-center">
           <Spinner />
         </div>
-      ) : laterMatches?.results && laterMatches.results.length > 0 ? (
-        <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {sortMatchesByDateAndStars(laterMatches.results).map((match) => (
-            <UpcomingMatch
-              key={match.id}
-              match={match}
-              stars={calculateMatchStars(
-                match.team1?.elo || 1000,
-                match.team2?.elo || 1000,
-              )}
-            />
-          ))}
-        </ul>
       ) : (
-        <div className="text-muted-foreground my-4 text-center">
-          No matches scheduled for this month
-        </div>
+        (() => {
+          const filteredLaterMatches = laterMatches?.results
+            ? filterMatchesByCompetition(laterMatches.results)
+            : [];
+          return filteredLaterMatches.length > 0 ? (
+            <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {sortMatchesByDateAndStars(filteredLaterMatches).map((match) => (
+                <UpcomingMatch
+                  key={match.id}
+                  match={match}
+                  stars={calculateMatchStars(
+                    match.team1?.elo || 1000,
+                    match.team2?.elo || 1000,
+                  )}
+                />
+              ))}
+            </ul>
+          ) : (
+            <div className="text-muted-foreground my-4 text-center">
+              No matches scheduled for this month
+            </div>
+          );
+        })()
       )}
     </>
   );
