@@ -32,12 +32,11 @@ class SanityWebhookView(APIView):
                     if author_link
                     else f"By **{author}**."
                 ),
-                "color": 0x00FF00,
+                "color": 0xD5872B,
                 "fields": (
                     [
                         {
-                            "name": "🔗 Read Article",
-                            "value": f"[View on College Counter]({article_url})",
+                            "name": f"[🔗 Read Article]({article_url})",
                             "inline": False,
                         }
                     ]
