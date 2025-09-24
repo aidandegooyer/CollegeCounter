@@ -2,6 +2,7 @@
 .DS_Store
 deploy_instructions.txt
 deploy.sh
+link_api_certs.sh
 .env
 credentials
 
