@@ -102,6 +102,7 @@ def update_player(request, player_id):
             player.benched = bool(request.data["benched"])
         if "visible" in request.data:
             player.visible = bool(request.data["visible"])
+        if "picture" in request.data:
             picture_url = request.data["picture"]
             if picture_url and "&token=" in picture_url:
                 picture_url = picture_url.split("&token=")[0]

@@ -18,13 +18,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import SearchSelect, {
+  useSearchSelectOptions,
+} from "@/components/SearchSelect";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { AlertCircle, Check, Upload } from "lucide-react";
 import imageCompression from "browser-image-compression";
@@ -117,23 +113,18 @@ function EditTeamPlayer() {
                     <Spinner />
                   </div>
                 ) : (
-                  <Select
+                  <SearchSelect
+                    options={useSearchSelectOptions(
+                      [...teams].sort((a, b) => a.name.localeCompare(b.name)),
+                      "name",
+                      "id",
+                    )}
                     value={selectedTeamId || ""}
                     onValueChange={setSelectedTeamId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a team" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[...teams]
-                        .sort((a, b) => a.name.localeCompare(b.name))
-                        .map((team) => (
-                          <SelectItem key={team.id} value={team.id}>
-                            {team.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select a team"
+                    searchPlaceholder="Search teams..."
+                    allowClear
+                  />
                 )}
               </CardContent>
             </Card>
@@ -174,24 +165,19 @@ function EditTeamPlayer() {
                     <Spinner />
                   </div>
                 ) : (
-                  <Select
+                  <SearchSelect
+                    options={[...players]
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((player) => ({
+                        value: player.id,
+                        label: `${player.name}${player.team ? ` (${player.team.name})` : ""}`,
+                      }))}
                     value={selectedPlayerId || ""}
                     onValueChange={setSelectedPlayerId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a player" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[...players]
-                        .sort((a, b) => a.name.localeCompare(b.name))
-                        .map((player) => (
-                          <SelectItem key={player.id} value={player.id}>
-                            {player.name}
-                            {player.team ? ` (${player.team.name})` : ""}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select a player"
+                    searchPlaceholder="Search players..."
+                    allowClear
+                  />
                 )}
               </CardContent>
             </Card>
@@ -242,6 +228,17 @@ function TeamEditForm({ team, setNotification }: TeamEditFormProps) {
     team.picture || null,
   );
   const [saving, setSaving] = useState(false);
+
+  // Update form data when team changes
+  useEffect(() => {
+    setFormData({
+      name: team.name,
+      school_name: team.school_name || "",
+      elo: team.elo,
+    });
+    setPreviewUrl(team.picture || null);
+    setFileToUpload(null);
+  }, [team]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -418,6 +415,22 @@ function PlayerEditForm({
   );
   const [saving, setSaving] = useState(false);
 
+  // Update form data when player changes
+  useEffect(() => {
+    setFormData({
+      name: player.name,
+      steam_id: player.steam_id || "",
+      faceit_id: player.faceit_id || "",
+      elo: player.elo,
+      skill_level: player.skill_level,
+      team_id: player.team?.id || "",
+      benched: player.benched,
+      visible: player.visible,
+    });
+    setPreviewUrl(player.picture || null);
+    setFileToUpload(null);
+  }, [player]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -549,22 +562,17 @@ function PlayerEditForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="team_id">Team</Label>
-            <Select
+            <SearchSelect
+              options={[
+                { value: "", label: "No Team" },
+                ...useSearchSelectOptions(teams, "name", "id"),
+              ]}
               value={formData.team_id}
               onValueChange={(value) => handleSelectChange(value, "team_id")}
-            >
-              <SelectTrigger id="team_id">
-                <SelectValue placeholder="Select a team" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No Team</SelectItem>
-                {teams.map((team) => (
-                  <SelectItem key={team.id} value={team.id}>
-                    {team.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Select a team"
+              searchPlaceholder="Search teams..."
+              allowClear
+            />
           </div>
         </div>
 
