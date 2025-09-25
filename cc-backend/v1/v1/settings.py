@@ -35,6 +35,7 @@ DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
 
 PLAYFLY_API_KEY = os.getenv("PLAYFLY_API_KEY", "")
 FACEIT_API_KEY = os.getenv("FACEIT_API_KEY", "")
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
 
 
 if DEBUG:

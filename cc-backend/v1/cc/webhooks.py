@@ -2,13 +2,15 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 import requests
+from django.conf import settings
 
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1420471133488021546/ZmUPidHr54isrBj_-8mRsgqsyO7y3Cn0tfMC2VrkI5wdXjf20awDVt1kOkPMO0ADJcsn"
 
 
 class SanityWebhookView(APIView):
     authentication_classes = []
     permission_classes = []
+
+    webhook = getattr(settings, "DISCORD_WEBHOOK_URL", None)
 
     def post(self, request, *args, **kwargs):
         try:
@@ -35,7 +37,8 @@ class SanityWebhookView(APIView):
                 "fields": (
                     [
                         {
-                            "name": f"[🔗 Read Article]({article_url})",
+                            "name": f"🔗 Read Article",
+                            "value": f"[View on College Counter]({article_url})",
                             "inline": False,
                         }
                     ]
@@ -45,9 +48,10 @@ class SanityWebhookView(APIView):
                 "image": {"url": image_url} if image_url else None,
                 "footer": {"text": "College Counter News"},
             }
+            print("posting to discord:", embed)
 
             # Discord expects {"embeds": [embed]}
-            requests.post(DISCORD_WEBHOOK_URL, json={"embeds": [embed]})
+            response = requests.post(self.webhook, json={"embeds": [embed]})
 
             return Response({"status": "ok"}, status=status.HTTP_200_OK)
 

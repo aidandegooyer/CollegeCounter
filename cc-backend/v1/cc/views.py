@@ -1401,18 +1401,72 @@ def update_faceit_match(match):
                 scores = results.get("score", {})
                 winner = results.get("winner")
 
+                # Get the teams data to map factions to actual teams
+                teams_data = match_data.get("teams", {})
+                faction1_data = teams_data.get("faction1", {})
+                faction2_data = teams_data.get("faction2", {})
+                
+                faction1_id = faction1_data.get("faction_id")
+                faction2_id = faction2_data.get("faction_id")
+
+                # Find which of our teams corresponds to each faction
+                team1_is_faction1 = False
+                team2_is_faction1 = False
+                
+                # Check if team1 matches faction1 or faction2
+                if hasattr(match.team1, 'participant_set'):
+                    for participant in match.team1.participant_set.filter(
+                        competition=match.competition, season=match.season
+                    ):
+                        if participant.faceit_id == faction1_id:
+                            team1_is_faction1 = True
+                            break
+                        elif participant.faceit_id == faction2_id:
+                            team1_is_faction1 = False
+                            break
+
+                # Check if team2 matches faction1 or faction2  
+                if hasattr(match.team2, 'participant_set'):
+                    for participant in match.team2.participant_set.filter(
+                        competition=match.competition, season=match.season
+                    ):
+                        if participant.faceit_id == faction1_id:
+                            team2_is_faction1 = True
+                            break
+                        elif participant.faceit_id == faction2_id:
+                            team2_is_faction1 = False
+                            break
+
+                # Assign winner based on correct faction mapping
                 if winner == "faction1":
-                    match.winner_id = match.team1_id
+                    if team1_is_faction1:
+                        match.winner = match.team1
+                    elif team2_is_faction1:
+                        match.winner = match.team2
+                    else:
+                        match.winner = None
                 elif winner == "faction2":
-                    match.winner_id = match.team2_id
+                    if not team1_is_faction1:  # team1 is faction2
+                        match.winner = match.team1
+                    elif not team2_is_faction1:  # team2 is faction2
+                        match.winner = match.team2
+                    else:
+                        match.winner = None
                 else:
                     match.winner = None
 
-                team1_score = scores.get("faction1", 0)
-                team2_score = scores.get("faction2", 0)
+                # Assign scores based on correct faction mapping
+                faction1_score = scores.get("faction1", 0)
+                faction2_score = scores.get("faction2", 0)
+                
+                if team1_is_faction1:
+                    match.score_team1 = faction1_score
+                    match.score_team2 = faction2_score
+                else:
+                    match.score_team1 = faction2_score
+                    match.score_team2 = faction1_score
 
-                match.score_team1 = team1_score
-                match.score_team2 = team2_score
+                updated = True
 
         if updated:
             match.save()

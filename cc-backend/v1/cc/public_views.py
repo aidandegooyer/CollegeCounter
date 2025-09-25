@@ -403,6 +403,8 @@ def public_matches(request):
         # Filter by competition name using the relationship
         query &= Q(competition__name__icontains=competition_name)
 
+    query &= ~Q(team1__name__icontains="bye") & ~Q(team2__name__icontains="bye")
+
     matches = Match.objects.filter(query).order_by(sort_field)
 
     # Paginate
