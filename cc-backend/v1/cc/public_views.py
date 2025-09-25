@@ -730,3 +730,99 @@ def public_ranking_items(request):
         )
 
     return Response(result)
+
+
+@api_view(["GET"])
+def public_team_current_ranking(request):
+    """
+    Public API endpoint to fetch a team's current ranking by team ID.
+
+    Query Parameters:
+    - team_id: Team ID (required)
+    - season_id: Season ID (optional, defaults to current season)
+
+    Returns the team's current ranking item for the specified season.
+    """
+    team_id = request.query_params.get("team_id", "")
+    season_id = request.query_params.get("season_id", "")
+
+    if not team_id:
+        return Response(
+            {"error": "team_id parameter is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        uuid.UUID(team_id)
+    except ValueError:
+        return Response(
+            {"error": "Invalid team_id format"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Determine season
+    if not season_id:
+        today = datetime.now().date()
+        current_season = (
+            Season.objects.filter(start_date__lte=today, end_date__gte=today)
+            .order_by("-start_date")
+            .first()
+        )
+        if not current_season:
+            return Response(
+                {"error": "No current season found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        season_id = str(current_season.id)
+    else:
+        try:
+            uuid.UUID(season_id)
+        except ValueError:
+            return Response(
+                {"error": "Invalid season_id format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    # Get latest ranking for season
+    ranking = Ranking.objects.filter(season_id=season_id).order_by("-date").first()
+    if not ranking:
+        return Response(
+            {"error": "No ranking found for this season"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # Get ranking item for team
+    item = (
+        RankingItem.objects.filter(ranking_id=ranking.id, team_id=team_id)
+        .select_related("team", "ranking")
+        .first()
+    )
+    if not item:
+        return Response(
+            {"error": "No ranking item found for this team in the current ranking"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    result = {
+        "id": item.id,
+        "rank": item.rank,
+        "elo": item.elo,
+        "team": {
+            "id": item.team.id,
+            "name": item.team.name,
+            "picture": item.team.picture,
+            "school_name": item.team.school_name,
+        },
+        "ranking": {
+            "id": item.ranking.id,
+            "date": item.ranking.date,
+        },
+        "season": {
+            "id": ranking.season.id,
+            "name": ranking.season.name,
+        }
+        if ranking.season
+        else None,
+    }
+
+    return Response(result)

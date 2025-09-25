@@ -7,9 +7,21 @@ import { usePublicMatches } from "@/services/hooks";
 import { ChevronRight, Star } from "lucide-react";
 import { NavLink } from "react-router";
 
-function UpcomingMatchesWidget() {
+interface UpcomingMatchesWidgetProps {
+  teamId?: string;
+  limit?: number;
+}
+
+function UpcomingMatchesWidget({ teamId, limit }: UpcomingMatchesWidgetProps) {
   const { data, isLoading, error } = usePublicMatches(
-    { sort: "date", order: "asc", page: 1, page_size: 4, status: "scheduled" },
+    {
+      sort: "date",
+      order: "asc",
+      page: 1,
+      page_size: limit || 4,
+      status: "scheduled",
+      team_id: teamId,
+    },
     {
       staleTime: 1000 * 60 * 5,
     },

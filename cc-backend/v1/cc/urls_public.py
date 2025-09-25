@@ -16,4 +16,9 @@ urlpatterns = [
     path(
         "ranking-items", public_views.public_ranking_items, name="public_ranking_items"
     ),
+    path(
+        "team-current-ranking",
+        public_views.public_team_current_ranking,
+        name="public_team_current_ranking",
+    ),
 ]

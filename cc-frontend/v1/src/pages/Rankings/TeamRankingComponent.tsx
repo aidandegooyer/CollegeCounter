@@ -3,6 +3,7 @@ import type { PublicTeam } from "@/services/api";
 import { usePublicPlayers } from "@/services/hooks";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import Logo from "@/components/Logo";
+import { NavLink } from "react-router";
 
 interface TeamRankingComponentProps {
   team: PublicTeam;
@@ -66,9 +67,11 @@ function TeamRankingComponent(props: TeamRankingComponentProps) {
             alt="pfp"
             type="team"
           />
-          <span className="truncate overflow-ellipsis whitespace-nowrap text-xl">
-            {props.team.name}
-          </span>
+          <NavLink to={`/teams/${props.team.id}`}>
+            <span className="truncate overflow-ellipsis whitespace-nowrap text-xl underline transition-colors hover:text-blue-400">
+              {props.team.name}
+            </span>
+          </NavLink>
         </div>
         <div>
           <div className="bg-secondary drop-shadow-secondary drop-shadow-lg/50 rounded-md p-1 px-2 font-mono text-lg">

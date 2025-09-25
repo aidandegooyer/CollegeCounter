@@ -745,3 +745,34 @@ export const mergeTeams = async (data: MergeTeamsRequest): Promise<MergeTeamsRes
   const response = await api.post(`/merge-teams/`, data);
   return response.data;
 };
+
+export interface PublicTeamRankingRequest {
+  season_id?: string;
+  team_id?: string;
+}
+
+export interface PublicTeamRankingResponse {
+  id: string;
+  rank: number;
+  elo: number;
+  team: {
+    id: string;
+    name: string;
+    picture?: string;
+    school_name?: string;
+  };
+  ranking: {
+    id: string;
+    date: string;
+  };
+  season?: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+export const fetchPublicTeamRanking = async (params: PublicTeamRankingRequest): Promise<PublicTeamRankingResponse> => {
+  const queryString = convertToQueryString(params);
+  const response = await api.get(`/public/team-current-ranking${queryString ? `?${queryString}` : ''}`);
+  return response.data;
+};

@@ -88,18 +88,21 @@ function RankingItem(props: RankingItemProps) {
 
   return (
     <li className="flex justify-between">
-      <div className="flex items-center space-x-2">
-        <span className="mr-3 w-4 text-end font-mono">{rank}</span>
-        <Logo
-          src={props.team.picture}
-          className="h-6 w-6 rounded-sm"
-          alt="pfp"
-          type="team"
-        />
-        <div className="max-w-[128px] truncate overflow-ellipsis whitespace-nowrap">
-          {props.team.name}
+      <NavLink to={`/teams/${props.team.id}`} className="group cursor-pointer">
+        <div className="flex items-center space-x-2">
+          <span className="mr-3 w-4 text-end font-mono">{rank}</span>
+          <Logo
+            src={props.team.picture}
+            className="h-6 w-6 rounded-sm"
+            alt="pfp"
+            type="team"
+          />
+          <div className="max-w-[128px] truncate overflow-ellipsis whitespace-nowrap transition-colors group-hover:text-blue-400">
+            {props.team.name}
+          </div>
         </div>
-      </div>
+      </NavLink>
+
       <div>
         <span className="bg-secondary drop-shadow-secondary drop-shadow-lg/50 rounded-md p-1 font-mono text-sm">
           {props.team.elo}

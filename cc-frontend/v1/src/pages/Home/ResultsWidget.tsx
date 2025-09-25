@@ -6,9 +6,21 @@ import { usePublicMatches } from "@/services/hooks";
 import { ChevronRight } from "lucide-react";
 import { NavLink } from "react-router";
 
-function ResultsWidget() {
+interface ResultsWidgetProps {
+  teamId?: string;
+  limit?: number;
+}
+
+function ResultsWidget({ teamId, limit }: ResultsWidgetProps) {
   const { data, isLoading, error } = usePublicMatches(
-    { sort: "date", order: "desc", page: 1, page_size: 4, status: "completed" },
+    {
+      sort: "date",
+      order: "desc",
+      page: 1,
+      page_size: limit || 4,
+      status: "completed",
+      team_id: teamId,
+    },
     {
       staleTime: 1000 * 60 * 5,
     },

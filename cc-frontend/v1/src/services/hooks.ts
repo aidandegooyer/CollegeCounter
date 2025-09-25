@@ -9,6 +9,7 @@ import {
   fetchAdminTeams,
   fetchAdminPlayers,
   fetchAdminMatches,
+  fetchPublicTeamRanking,
 } from '@/services/api';
 import type {
   TeamQueryParams,
@@ -16,7 +17,8 @@ import type {
   MatchQueryParams,
   SeasonQueryParams,
   RankingQueryParams,
-  RankingItemQueryParams
+  RankingItemQueryParams,
+  PublicTeamRankingRequest
 } from '@/services/api';
 
 
@@ -194,3 +196,11 @@ export function useAdminMatches(options = {}) {
 // Legacy compatibility
 export const useTeams = useAdminTeams;
 
+export function useTeamRanking(params: PublicTeamRankingRequest, options = {}) {
+  return useQuery({
+    queryKey: ['public', 'team-ranking', params],
+    queryFn: () => fetchPublicTeamRanking(params),
+    staleTime: DEFAULT_STALE_TIME,
+    ...options,
+  });
+}
