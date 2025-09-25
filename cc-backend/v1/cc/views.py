@@ -25,6 +25,7 @@ from .middleware import firebase_auth_required
 
 import logging
 import requests
+import statistics
 
 logger = logging.getLogger(__name__)
 
@@ -505,7 +506,8 @@ def get_or_create_team(team_data, competition, season, platform):
 
 def process_player(player_data, team, season):
     """
-    Process player data and associate with team
+    Process player data and associate with team.
+    Handles player transfers between teams and avoids unique constraint violations.
     """
     player_id = player_data.get("player_id")
     game_player_id = player_data.get("game_player_id")
@@ -517,94 +519,135 @@ def process_player(player_data, team, season):
 
     elo = 1000
 
-    player_exists = (
-        Player.objects.filter(steam_id=game_player_id).exists()
-        if game_player_id
-        else False
-    )
-
-    if not player_exists:
-        try:
-            print(f"Processing player {nickname} with game_player_id {game_player_id}")
-            # If we have a game_player_id (steam_id), fetch Faceit player ID from Faceit API
-            if game_player_id:
-                faceit_api_url = "https://open.faceit.com/data/v4/players"
-                api_key = getattr(settings, "FACEIT_API_KEY", None)
-                if api_key:
-                    headers = {"Authorization": f"Bearer {api_key}"}
-                    params = {"game": "cs2", "game_player_id": game_player_id}
-                    response = requests.get(
-                        faceit_api_url, headers=headers, params=params
+    # Try to fetch updated player data from Faceit API if we have a game_player_id
+    try:
+        print(f"Processing player {nickname} with game_player_id {game_player_id}")
+        # If we have a game_player_id (steam_id), fetch Faceit player ID from Faceit API
+        if game_player_id:
+            faceit_api_url = "https://open.faceit.com/data/v4/players"
+            api_key = getattr(settings, "FACEIT_API_KEY", None)
+            if api_key:
+                headers = {"Authorization": f"Bearer {api_key}"}
+                params = {"game": "cs2", "game_player_id": game_player_id}
+                response = requests.get(faceit_api_url, headers=headers, params=params)
+                if response.status_code == 200:
+                    faceit_data = response.json()
+                    player_id = faceit_data.get("player_id", player_id)
+                    nickname = faceit_data.get("nickname", nickname)
+                    avatar = faceit_data.get("avatar", avatar)
+                    elo = (
+                        faceit_data.get("games", {})
+                        .get("cs2", {})
+                        .get("faceit_elo", 1000)
                     )
-                    if response.status_code == 200:
-                        faceit_data = response.json()
-                        player_id = faceit_data.get("player_id", player_id)
-                        nickname = faceit_data.get("nickname", nickname)
-                        avatar = faceit_data.get("avatar", avatar)
-                        elo = (
-                            faceit_data.get("games", {})
-                            .get("cs2", {})
-                            .get("faceit_elo", 1000)
-                        )
-                        print(f"Fetched Faceit ID {player_id} for player {nickname}")
-                        print(f"Player ELO is {elo}")
-                    else:
-                        print(
-                            f"Failed to fetch Faceit player for game_player_id {game_player_id}: {response.status_code}"
-                        )
-        except Exception as e:
-            logger.warning(f"Could not fetch Faceit player ID for {nickname}: {str(e)}")
+                    print(f"Fetched Faceit ID {player_id} for player {nickname}")
+                    print(f"Player ELO is {elo}")
+                else:
+                    print(
+                        f"Failed to fetch Faceit player for game_player_id {game_player_id}: {response.status_code}"
+                    )
+    except Exception as e:
+        logger.warning(f"Could not fetch Faceit player ID for {nickname}: {str(e)}")
 
-    # Try to find player by steam_id first, then by faceit_id
+    # Try to find existing player by multiple criteria
     player = None
 
-    # First, try to find by steam_id if available
+    # Priority 1: Find by steam_id if available
     if game_player_id:
         try:
             player = Player.objects.get(steam_id=game_player_id)
-            # Update player info if found by steam_id
-            player.name = nickname
-            player.picture = avatar
-            player.faceit_id = player_id
-            player.elo = elo
-            player.team = team
-            player.benched = False
-            player.seasons.add(season)
-            player.save()
-            return player
+            print(
+                f"Found existing player by steam_id: {player.name} -> moving to {team.name}"
+            )
         except Player.DoesNotExist:
             pass
 
-    # If not found by steam_id, try to find by faceit_id
-    if player_id:
+    # Priority 2: Find by faceit_id if not found by steam_id
+    if not player and player_id:
         try:
             player = Player.objects.get(faceit_id=player_id)
-            # Update steam_id if it was missing
-            if game_player_id and not player.steam_id:
-                player.steam_id = game_player_id
-            player.name = nickname
-            player.picture = avatar
-            player.elo = elo
-            player.team = team
-            player.benched = False
-            player.seasons.add(season)
-            player.save()
-            return player
+            print(
+                f"Found existing player by faceit_id: {player.name} -> moving to {team.name}"
+            )
         except Player.DoesNotExist:
             pass
 
-    # If player not found by either ID, create new player
-    player = Player.objects.create(
-        name=nickname,
-        picture=avatar,
-        faceit_id=player_id,
-        team=team,
-        elo=elo,
-        steam_id=game_player_id,
-    )
-    player.seasons.set([season])
+    # Priority 3: Find by name if no unique identifiers found a match
+    if not player and nickname and nickname != "Unknown Player":
+        try:
+            # Look for player with same name (case insensitive)
+            player = Player.objects.get(name__iexact=nickname)
+            print(
+                f"Found existing player by name: {player.name} -> moving to {team.name}"
+            )
+        except Player.DoesNotExist:
+            pass
+        except Player.MultipleObjectsReturned:
+            # If multiple players with same name, don't risk picking the wrong one
+            print(f"Multiple players found with name {nickname}, creating new player")
+            pass
 
-    return player
+    if player:
+        # Update existing player with new information and move to new team
+        old_team_name = player.team.name if player.team else "No team"
+
+        # Update player information
+        player.name = nickname
+        if avatar:
+            player.picture = avatar
+        if player_id and not player.faceit_id:
+            player.faceit_id = player_id
+        if game_player_id and not player.steam_id:
+            player.steam_id = game_player_id
+        player.elo = elo
+        player.team = team  # Move to new team
+        player.benched = False
+        player.seasons.add(season)
+
+        player.save()
+
+        print(f"Updated player {nickname}: {old_team_name} -> {team.name}")
+        return player
+
+    # If no existing player found, create a new one
+    try:
+        player = Player.objects.create(
+            name=nickname,
+            picture=avatar,
+            faceit_id=player_id,
+            team=team,
+            elo=elo,
+            steam_id=game_player_id,
+        )
+        player.seasons.set([season])
+        print(f"Created new player: {nickname} for team {team.name}")
+        return player
+    except Exception as e:
+        # If creation fails due to unique constraint, try one more time to find existing player
+        logger.error(f"Failed to create player {nickname}: {str(e)}")
+
+        # Last resort: try to find by any available identifier
+        if player_id:
+            try:
+                player = Player.objects.get(faceit_id=player_id)
+                print(f"Found existing player on retry by faceit_id: {player.name}")
+                # Update and move to new team
+                player.name = nickname
+                if avatar:
+                    player.picture = avatar
+                if game_player_id and not player.steam_id:
+                    player.steam_id = game_player_id
+                player.elo = elo
+                player.team = team
+                player.benched = False
+                player.seasons.add(season)
+                player.save()
+                return player
+            except Player.DoesNotExist:
+                pass
+
+        # If still failing, raise the original error
+        raise e
 
 
 @api_view(["GET"])
@@ -1085,8 +1128,6 @@ def calculate_team_elos(request):
     }
     """
     try:
-        import statistics
-
         # Get request parameters
         only_default_elo = request.data.get("only_default_elo", False)
         default_elo = request.data.get("default_elo", 1000)
