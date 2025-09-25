@@ -857,8 +857,8 @@ def update_player_elo(request):
                         player.elo = cs_data["faceit_elo"]
                         player.skill_level = cs_data.get("skill_level", 1)
                         player.save()
-                        print(f"Updated ELO for player {player.name} to {player.elo}")
                         updated_count += 1
+                        print(f"Updated {updated_count} of {players.count()} players")
                     else:
                         not_found_count += 1
                 else:
