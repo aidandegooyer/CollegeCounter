@@ -1398,75 +1398,90 @@ def update_faceit_match(match):
         if new_status == "completed":
             results = match_data.get("results", {})
             if results:
-                scores = results.get("score", {})
-                winner = results.get("winner")
-
-                # Get the teams data to map factions to actual teams
+                # Get team data to map factions to our teams using Faceit IDs
                 teams_data = match_data.get("teams", {})
                 faction1_data = teams_data.get("faction1", {})
                 faction2_data = teams_data.get("faction2", {})
-                
+
                 faction1_id = faction1_data.get("faction_id")
                 faction2_id = faction2_data.get("faction_id")
 
-                # Find which of our teams corresponds to each faction
-                team1_is_faction1 = False
-                team2_is_faction1 = False
-                
-                # Check if team1 matches faction1 or faction2
-                if hasattr(match.team1, 'participant_set'):
-                    for participant in match.team1.participant_set.filter(
-                        competition=match.competition, season=match.season
-                    ):
-                        if participant.faceit_id == faction1_id:
-                            team1_is_faction1 = True
-                            break
-                        elif participant.faceit_id == faction2_id:
-                            team1_is_faction1 = False
-                            break
+                # Look up teams by Faceit ID in participant table
+                team1_faction = None
+                team2_faction = None
 
-                # Check if team2 matches faction1 or faction2  
-                if hasattr(match.team2, 'participant_set'):
-                    for participant in match.team2.participant_set.filter(
-                        competition=match.competition, season=match.season
-                    ):
-                        if participant.faceit_id == faction1_id:
-                            team2_is_faction1 = True
-                            break
-                        elif participant.faceit_id == faction2_id:
-                            team2_is_faction1 = False
-                            break
+                try:
+                    # Find which faction corresponds to team1
+                    team1_participant = Participant.objects.get(
+                        team=match.team1,
+                        competition=match.competition,
+                        season=match.season,
+                        faceit_id__isnull=False,
+                    )
+                    if team1_participant.faceit_id == faction1_id:
+                        team1_faction = "faction1"
+                        team2_faction = "faction2"
+                    elif team1_participant.faceit_id == faction2_id:
+                        team1_faction = "faction2"
+                        team2_faction = "faction1"
+                except Participant.DoesNotExist:
+                    logger.warning(
+                        f"Could not find participant for team1 {match.team1.name} in match {match.id}"
+                    )
 
-                # Assign winner based on correct faction mapping
-                if winner == "faction1":
-                    if team1_is_faction1:
-                        match.winner = match.team1
-                    elif team2_is_faction1:
-                        match.winner = match.team2
-                    else:
-                        match.winner = None
-                elif winner == "faction2":
-                    if not team1_is_faction1:  # team1 is faction2
-                        match.winner = match.team1
-                    elif not team2_is_faction1:  # team2 is faction2
-                        match.winner = match.team2
-                    else:
-                        match.winner = None
+                # Double-check with team2 if we haven't found a mapping yet
+                if not team1_faction:
+                    try:
+                        team2_participant = Participant.objects.get(
+                            team=match.team2,
+                            competition=match.competition,
+                            season=match.season,
+                            faceit_id__isnull=False,
+                        )
+                        if team2_participant.faceit_id == faction1_id:
+                            team2_faction = "faction1"
+                            team1_faction = "faction2"
+                        elif team2_participant.faceit_id == faction2_id:
+                            team2_faction = "faction2"
+                            team1_faction = "faction1"
+                    except Participant.DoesNotExist:
+                        logger.warning(
+                            f"Could not find participant for team2 {match.team2.name} in match {match.id}"
+                        )
+
+                if team1_faction and team2_faction:
+                    logger.info(
+                        f"Match {match.id}: {match.team1.name} -> {team1_faction}, {match.team2.name} -> {team2_faction}"
+                    )
+
+                    # Get scores
+                    scores = results.get("score", {})
+                    new_score_team1 = scores.get(team1_faction, 0)
+                    new_score_team2 = scores.get(team2_faction, 0)
+
+                    # Update scores if they changed
+                    if new_score_team1 != match.score_team1:
+                        match.score_team1 = new_score_team1
+                        updated = True
+                    if new_score_team2 != match.score_team2:
+                        match.score_team2 = new_score_team2
+                        updated = True
+
+                    # Determine winner
+                    winner_faction = results.get("winner")
+                    new_winner = None
+                    if winner_faction == team1_faction:
+                        new_winner = match.team1
+                    elif winner_faction == team2_faction:
+                        new_winner = match.team2
+
+                    if new_winner != match.winner:
+                        match.winner = new_winner
+                        updated = True
                 else:
-                    match.winner = None
-
-                # Assign scores based on correct faction mapping
-                faction1_score = scores.get("faction1", 0)
-                faction2_score = scores.get("faction2", 0)
-                
-                if team1_is_faction1:
-                    match.score_team1 = faction1_score
-                    match.score_team2 = faction2_score
-                else:
-                    match.score_team1 = faction2_score
-                    match.score_team2 = faction1_score
-
-                updated = True
+                    logger.warning(
+                        f"Could not map factions to teams for match {match.id}. Team1: {match.team1.name}, Team2: {match.team2.name}, Faction1: {faction1_id}, Faction2: {faction2_id}"
+                    )
 
         if updated:
             match.save()

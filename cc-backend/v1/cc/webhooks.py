@@ -5,7 +5,6 @@ import requests
 from django.conf import settings
 
 
-
 class SanityWebhookView(APIView):
     authentication_classes = []
     permission_classes = []
@@ -37,7 +36,7 @@ class SanityWebhookView(APIView):
                 "fields": (
                     [
                         {
-                            "name": f"🔗 Read Article",
+                            "name": "🔗 Read Article",
                             "value": f"[View on College Counter]({article_url})",
                             "inline": False,
                         }
@@ -51,7 +50,12 @@ class SanityWebhookView(APIView):
             print("posting to discord:", embed)
 
             # Discord expects {"embeds": [embed]}
-            response = requests.post(self.webhook, json={"embeds": [embed]})
+            if not self.webhook:
+                return Response(
+                    {"error": "Discord webhook URL not configured."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            requests.post(self.webhook, json={"embeds": [embed]})
 
             return Response({"status": "ok"}, status=status.HTTP_200_OK)
 
