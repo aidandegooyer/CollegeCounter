@@ -2,15 +2,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { SearchSelect } from "@/components/SearchSelect";
 import { useTeams } from "@/services/hooks";
 import { mergeTeams } from "@/services/api";
 import { AlertTriangle, Users, ArrowRight, CheckCircle } from "lucide-react";
@@ -44,6 +38,22 @@ function MergeTeams() {
 
   const { data: teamsData } = useTeams();
   const teams: any[] = teamsData || [];
+
+  // Create options for SearchSelect
+  const teamOptions = teams.map((team: any) => ({
+    value: team.id,
+    label: team.school_name ? `${team.name} (${team.school_name})` : team.name,
+  }));
+
+  const primaryTeamOptions = teamOptions.map((option) => ({
+    ...option,
+    disabled: option.value === secondaryTeamId,
+  }));
+
+  const secondaryTeamOptions = teamOptions.map((option) => ({
+    ...option,
+    disabled: option.value === primaryTeamId,
+  }));
 
   const primaryTeam = teams.find((team: any) => team.id === primaryTeamId);
   const secondaryTeam = teams.find((team: any) => team.id === secondaryTeamId);
@@ -142,36 +152,16 @@ function MergeTeams() {
               <Label htmlFor="primary-team">
                 Primary Team (will keep this team)
               </Label>
-              <Select value={primaryTeamId} onValueChange={setPrimaryTeamId}>
-                <SelectTrigger id="primary-team">
-                  <SelectValue placeholder="Select primary team" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teams.map((team: any) => (
-                    <SelectItem
-                      key={team.id}
-                      value={team.id}
-                      disabled={team.id === secondaryTeamId}
-                    >
-                      <div className="flex items-center gap-2">
-                        {team.picture && (
-                          <img
-                            src={team.picture}
-                            alt={team.name}
-                            className="h-6 w-6 rounded object-cover"
-                          />
-                        )}
-                        <span>{team.name}</span>
-                        {team.school_name && (
-                          <span className="text-sm text-gray-500">
-                            ({team.school_name})
-                          </span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchSelect
+                options={primaryTeamOptions}
+                value={primaryTeamId}
+                onValueChange={setPrimaryTeamId}
+                placeholder="Select primary team"
+                searchPlaceholder="Search teams..."
+                emptyText="No teams found"
+                allowClear
+                clearText="Clear selection"
+              />
             </div>
 
             {/* Secondary Team */}
@@ -179,39 +169,16 @@ function MergeTeams() {
               <Label htmlFor="secondary-team">
                 Secondary Team (will be deleted)
               </Label>
-              <Select
+              <SearchSelect
+                options={secondaryTeamOptions}
                 value={secondaryTeamId}
                 onValueChange={setSecondaryTeamId}
-              >
-                <SelectTrigger id="secondary-team">
-                  <SelectValue placeholder="Select team to merge into primary" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teams.map((team: any) => (
-                    <SelectItem
-                      key={team.id}
-                      value={team.id}
-                      disabled={team.id === primaryTeamId}
-                    >
-                      <div className="flex items-center gap-2">
-                        {team.picture && (
-                          <img
-                            src={team.picture}
-                            alt={team.name}
-                            className="h-6 w-6 rounded object-cover"
-                          />
-                        )}
-                        <span>{team.name}</span>
-                        {team.school_name && (
-                          <span className="text-sm text-gray-500">
-                            ({team.school_name})
-                          </span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select team to merge into primary"
+                searchPlaceholder="Search teams..."
+                emptyText="No teams found"
+                allowClear
+                clearText="Clear selection"
+              />
             </div>
 
             {/* Confirmation */}
