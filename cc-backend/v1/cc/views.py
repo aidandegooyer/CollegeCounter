@@ -132,9 +132,13 @@ def recalculate_all_elos(reset_to_default=False, default_elo=1000):
         logger.info(f"Reset all team ELOs to {default_elo}")
 
     # Get all completed matches with winners, ordered by date
-    completed_matches = Match.objects.filter(
-        status="completed", winner__isnull=False
-    ).order_by("date")
+    completed_matches = (
+        Match.objects.filter(status="completed", winner__isnull=False)
+        .exclude(
+            models.Q(team1__name__iexact="bye") | models.Q(team2__name__iexact="bye")
+        )
+        .order_by("date")
+    )
 
     processed_count = 0
     error_count = 0
