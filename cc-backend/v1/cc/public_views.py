@@ -101,6 +101,8 @@ def public_teams(request):
 
         query &= Q(id__in=team_ids_from_participants)
 
+    query &= ~Q(name__icontains="bye")
+
     teams = Team.objects.filter(query).order_by(sort_field)
 
     # Paginate
