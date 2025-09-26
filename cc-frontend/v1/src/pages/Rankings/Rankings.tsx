@@ -1,5 +1,5 @@
 import { Label } from "@/components/ui/label";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import TeamRankingComponent from "./TeamRankingComponent";
 import InfiniteScroll from "react-infinite-scroll-component";
 import PlayerRankingComponent from "./PlayerRankingComponent";
@@ -151,6 +151,56 @@ function TeamRankingBody({
     order: "asc" as const,
   };
 
+  // Get all rankings for the season to find the previous week
+  const { data: allRankingsData } = usePublicRankings(
+    {
+      season_id: seasonFilter,
+      sort: "date",
+      order: "desc",
+      page_size: 100,
+    },
+    {
+      enabled: !!seasonFilter,
+      staleTime: 1000 * 60 * 5,
+    },
+  );
+
+  // Find the previous ranking to compare against
+  const previousRankingId = useMemo(() => {
+    if (!allRankingsData?.results || !rankingWeekFilter) {
+      return null;
+    }
+
+    const currentRankingIndex = allRankingsData.results.findIndex(
+      (ranking) => ranking.id === rankingWeekFilter,
+    );
+
+    // If we found the current ranking and there's a next one (previous in time), return it
+    if (
+      currentRankingIndex >= 0 &&
+      currentRankingIndex < allRankingsData.results.length - 1
+    ) {
+      return allRankingsData.results[currentRankingIndex + 1].id;
+    }
+
+    return null;
+  }, [allRankingsData, rankingWeekFilter]);
+
+  // Fetch previous week's ranking data for comparison
+  const { data: previousRankingData } = usePublicRankingItems(
+    {
+      ranking_id: previousRankingId || "",
+      page: 1,
+      page_size: 1000, // Get all teams for comparison
+      sort: "rank" as const,
+      order: "asc" as const,
+    },
+    {
+      enabled: !!previousRankingId,
+      staleTime: 1000 * 60 * 5,
+    },
+  );
+
   // Fetch current team data
   const {
     data: currentData,
@@ -185,6 +235,17 @@ function TeamRankingBody({
     setHasMore(true);
   }, [seasonFilter, rankingWeekFilter]);
 
+  // Create a map of previous rankings for quick lookup
+  const previousRankingsMap = useMemo(() => {
+    if (!previousRankingData?.results) return {};
+
+    const map: { [teamId: string]: number } = {};
+    previousRankingData.results.forEach((item: any) => {
+      map[item.team.id] = item.rank;
+    });
+    return map;
+  }, [previousRankingData]);
+
   // Update teams when data changes
   useEffect(() => {
     if (data?.results) {
@@ -192,7 +253,10 @@ function TeamRankingBody({
 
       if (isCurrentRankings) {
         // For current rankings, use team data directly
-        processedResults = data.results;
+        processedResults = data.results.map((team: any, index: number) => ({
+          ...team,
+          currentRank: index + 1 + (page - 1) * 20, // Calculate current rank based on position
+        }));
       } else {
         // For historical rankings, extract team data from ranking items
         processedResults = data.results.map((item: any) => ({
@@ -202,6 +266,7 @@ function TeamRankingBody({
           school_name: item.team.school_name,
           elo: item.elo, // Use historical ELO from ranking
           rank: item.rank, // Historical rank
+          currentRank: item.rank, // For historical data, current rank is the historical rank
         }));
       }
 
@@ -237,13 +302,26 @@ function TeamRankingBody({
       }
       className="infinite-scroll-container space-y-2"
     >
-      {teams.map((team, i) => (
-        <TeamRankingComponent
-          key={team.id || i}
-          team={team}
-          rank={isCurrentRankings ? i + 1 : team.rank || i}
-        />
-      ))}
+      {teams.map((team, i) => {
+        // Calculate rank change
+        let rankChange: number | undefined = undefined;
+
+        if (previousRankingsMap[team.id]) {
+          const previousRank = previousRankingsMap[team.id];
+          const currentRank = isCurrentRankings ? i + 1 : team.rank || i + 1;
+          // Rank change is negative when rank improves (lower number = better rank)
+          rankChange = previousRank - currentRank;
+        }
+
+        return (
+          <TeamRankingComponent
+            key={team.id || i}
+            team={team}
+            rank={isCurrentRankings ? i + 1 : team.rank || i + 1}
+            rankChange={rankChange}
+          />
+        );
+      })}
     </InfiniteScroll>
   );
 }

@@ -5,6 +5,7 @@ import type { PublicMatch } from "@/services/api";
 import { calculateMatchStars } from "@/services/elo";
 import { usePublicMatches } from "@/services/hooks";
 import { ChevronRight, Star } from "lucide-react";
+import { useMemo } from "react";
 import { NavLink } from "react-router";
 
 interface UpcomingMatchesWidgetProps {
@@ -13,6 +14,11 @@ interface UpcomingMatchesWidgetProps {
 }
 
 function UpcomingMatchesWidget({ teamId, limit }: UpcomingMatchesWidgetProps) {
+  const currentDate = useMemo(() => {
+    const now = new Date();
+    return now.toISOString();
+  }, []);
+
   const { data, isLoading, error } = usePublicMatches(
     {
       sort: "date",
@@ -20,6 +26,7 @@ function UpcomingMatchesWidget({ teamId, limit }: UpcomingMatchesWidgetProps) {
       page: 1,
       page_size: limit || 4,
       status: "scheduled",
+      date_from: currentDate,
       team_id: teamId,
     },
     {

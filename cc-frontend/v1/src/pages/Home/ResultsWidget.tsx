@@ -59,7 +59,7 @@ function ResultsWidget({ teamId, limit }: ResultsWidgetProps) {
   return (
     <div className="matches-widget">
       <NavLink
-        to="matches#past"
+        to="/matches#past"
         className="group flex cursor-pointer items-center justify-between"
       >
         <h2>Past Matches</h2>
