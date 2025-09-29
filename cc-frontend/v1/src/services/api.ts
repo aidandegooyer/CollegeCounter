@@ -482,6 +482,10 @@ export interface PublicTeam {
     name: string;
     picture?: string;
   };
+  current_competitions?: Array<{
+    id: string;
+    name: string;
+  }>;
 }
 
 export interface PublicPlayer {

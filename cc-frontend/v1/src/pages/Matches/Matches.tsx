@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import Logo from "@/components/Logo";
 import { calculateEloChanges, calculateMatchStars } from "@/services/elo";
 import { useNavigate } from "react-router";
+import { CompetitionLabel } from "@/components/CompetitionLabel";
 
 function Matches() {
   const getInitialMatchType = () => {
@@ -30,8 +31,9 @@ function Matches() {
   };
 
   const [matchType, setMatchType] = useState(getInitialMatchType() || "live");
-  window.location.hash = matchType;
-
+  useEffect(() => {
+    window.location.hash = matchType;
+  }, [matchType]);
   document.title = "Matches - College Counter";
 
   return (
@@ -673,16 +675,15 @@ function UpcomingMatch({ match, stars }: UpcomingMatchProps) {
 
   return (
     <li
-      className={`bg-background flex cursor-pointer rounded-xl border-2 p-4 py-2 ${stars === 5 ? "drop-shadow-primary/40 border-primary drop-shadow-lg" : ""}`}
+      className={`bg-background flex cursor-pointer rounded-xl border-2 p-4 py-2 ${stars === 5 ? "drop-shadow-primary/40 border-primary drop-shadow-lg" : ""} ${match.competition?.name === "c4" || match.competition?.name === "C4" ? "drop-shadow-secondary/40 border-secondary drop-shadow-lg" : ""} transition-all`}
       onClick={handleClick}
     >
-      <div className="sm:flex-5 flex-1 space-y-3">
+      <div className="sm:flex-5 my-auto flex-1 space-y-3">
         <div className="flex items-center space-x-2">
           <Logo src={match.team1?.picture} type="team" className="h-6 w-6" />
           <span className="truncate overflow-ellipsis whitespace-nowrap">
             {match.team1?.name || "Unknown Team"}
           </span>
-          {/* Show platform or competition info instead of ELO since it's not available */}
           <span className="ml-2 hidden items-center justify-end text-xs sm:flex">
             <div className="text-muted-foreground bg-muted flex rounded-sm px-1 font-mono text-xs">
               <div className="text-muted-foreground border-r-2 pr-1 font-mono">
@@ -730,18 +731,25 @@ function UpcomingMatch({ match, stars }: UpcomingMatchProps) {
           {dateStr}, {timeStr}
         </span>
         <br />
-        <span className="text-foreground bg-secondary rounded-md px-2 py-0.5">
-          {match.competition?.name}
+        <span className="flex justify-end">
+          {match.competition?.name && (
+            <CompetitionLabel
+              competition={match.competition.name}
+              h={12}
+              w={18}
+            />
+          )}
         </span>
-        <br />
-        <span className="text-muted-foreground space-x-.5 mt-1 flex items-center justify-end">
-          {Array.from({ length: stars }).map((_, i) => (
-            <Star key={i} size={14} className="fill-muted-foreground" />
-          ))}
-          {Array.from({ length: 5 - stars }).map((_, i) => (
-            <Star key={i} size={14} className="text-gray-700" />
-          ))}
-        </span>
+        {match.competition?.name != "c4" && match.competition?.name != "C4" && (
+          <span className="text-muted-foreground space-x-.5 mt-1 flex items-center justify-end">
+            {Array.from({ length: stars }).map((_, i) => (
+              <Star key={i} size={14} className="fill-muted-foreground" />
+            ))}
+            {Array.from({ length: 5 - stars }).map((_, i) => (
+              <Star key={i} size={14} className="text-gray-700" />
+            ))}
+          </span>
+        )}
       </div>
     </li>
   );
@@ -943,9 +951,9 @@ function Result(props: ResultProps) {
       <hr className="my-2" />
       <div className="flex items-end justify-between">
         <div className="flex items-center space-x-2">
-          <div className="bg-secondary rounded-sm px-1 py-0.5">
-            {props.match.competition?.name || ""}
-          </div>
+          {props.match.competition?.name && (
+            <CompetitionLabel competition={props.match.competition.name} />
+          )}
           <div className="bg-muted rounded-sm px-1 py-0.5">
             {props.match.season?.name || ""}
           </div>

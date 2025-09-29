@@ -7,7 +7,15 @@ from django.utils.dateparse import parse_datetime
 from datetime import datetime
 import uuid
 
-from .models import Team, Player, Match, Season, Participant, Ranking, RankingItem
+from .models import (
+    Team,
+    Player,
+    Match,
+    Season,
+    Participant,
+    Ranking,
+    RankingItem,
+)
 
 # Maximum items per page
 MAX_PAGE_SIZE = 100
@@ -131,6 +139,41 @@ def public_teams(request):
                 "picture": team.captain.picture,
             }
 
+        # Get current competitions for the team
+        current_competitions = []
+        today = datetime.now().date()
+
+        # Find current season - convert datetime fields to dates for comparison
+        current_season = None
+        for season in Season.objects.all():
+            if (
+                season.start_date
+                and season.end_date
+                and season.start_date.date() <= today <= season.end_date.date()
+            ):
+                current_season = season
+                break
+
+        print(f"Today: {today}")
+        print(f"Current season: {current_season}")
+
+        if current_season:
+            # Get all the team's current participations in this season
+            current_participants = (
+                Participant.objects.filter(team=team, season=current_season)
+                .select_related("competition")
+                .all()
+            )
+
+            for participant in current_participants:
+                if participant.competition:
+                    current_competitions.append(
+                        {
+                            "id": participant.competition.id,
+                            "name": participant.competition.name,
+                        }
+                    )
+
         result["results"].append(
             {
                 "id": team.id,
@@ -139,6 +182,7 @@ def public_teams(request):
                 "school_name": team.school_name,
                 "elo": team.elo,
                 "captain": captain,
+                "current_competitions": current_competitions,
             }
         )
 
@@ -775,11 +819,18 @@ def public_team_current_ranking(request):
     # Determine season
     if not season_id:
         today = datetime.now().date()
-        current_season = (
-            Season.objects.filter(start_date__lte=today, end_date__gte=today)
-            .order_by("-start_date")
-            .first()
-        )
+        current_season = None
+
+        # Find current season - convert datetime fields to dates for comparison
+        for season in Season.objects.all():
+            if (
+                season.start_date
+                and season.end_date
+                and season.start_date.date() <= today <= season.end_date.date()
+            ):
+                current_season = season
+                break
+
         if not current_season:
             return Response(
                 {"error": "No current season found"},

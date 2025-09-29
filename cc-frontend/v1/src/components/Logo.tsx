@@ -1,4 +1,4 @@
-import logo from "@/assets/0.1x/C Logo@0.1x.png";
+import logo from "@/assets/cs2 guy.png";
 import sillhouette from "@/assets/player_silhouette.png";
 
 interface LogoProps extends React.ImgHTMLAttributes<HTMLImageElement> {

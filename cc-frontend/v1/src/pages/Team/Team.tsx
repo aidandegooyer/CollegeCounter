@@ -9,6 +9,7 @@ import UpcomingMatchesWidget from "../Home/UpcomingMatchesWidget";
 import ResultsWidget from "../Home/ResultsWidget";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
+import { CompetitionLabel } from "@/components/CompetitionLabel";
 
 export function Team() {
   const { id } = useParams<{ id: string }>();
@@ -63,6 +64,10 @@ export function Team() {
               <h4 className="text-muted-foreground text-lg">
                 {team.school_name}
               </h4>
+              {team.current_competitions &&
+                team.current_competitions.map((comp) => (
+                  <CompetitionLabel key={comp.id} competition={comp.name} />
+                ))}
             </div>
           </span>
           <div className="ml-4 mr-8 mt-4 sm:mt-0 sm:text-right">
