@@ -7,6 +7,8 @@ import {
 import { useParams } from "react-router";
 import UpcomingMatchesWidget from "../Home/UpcomingMatchesWidget";
 import ResultsWidget from "../Home/ResultsWidget";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Spinner } from "@/components/ui/shadcn-io/spinner";
 
 export function Team() {
   const { id } = useParams<{ id: string }>();
@@ -25,9 +27,25 @@ export function Team() {
   const RankingDate = rankingData?.ranking.date
     ? new Date(rankingData.ranking.date)
     : null;
-
-  if (isLoading || rankingIsLoading) return <div>Loading...</div>;
-  if (error || rankingError || !team) return <div>Error loading team</div>;
+  if (isLoading || !data) {
+    return (
+      <div className="flex h-40 items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+  if (error || !team) {
+    return (
+      <div className="mt-4">
+        <Alert variant="destructive" className="mt-4">
+          <AlertTitle className="text-lg">Error</AlertTitle>
+          <AlertDescription>
+            There was an error loading the team. Please try again later.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container flex justify-center">
@@ -48,9 +66,21 @@ export function Team() {
             </div>
           </span>
           <div className="ml-4 mr-8 mt-4 sm:mt-0 sm:text-right">
-            <h2 className="text-6xl">#{rankingData?.rank}</h2>
+            <h2 className="text-6xl">
+              #
+              {rankingData ? (
+                rankingData.rank
+              ) : rankingIsLoading ? (
+                <Spinner />
+              ) : rankingError ? (
+                "N/A"
+              ) : (
+                "-"
+              )}
+            </h2>
             <p className="text-muted-foreground">
-              Ranking as of {RankingDate?.toLocaleDateString()}
+              Ranking as of{" "}
+              {rankingData ? RankingDate?.toLocaleDateString() : "-"}
             </p>
           </div>
         </div>

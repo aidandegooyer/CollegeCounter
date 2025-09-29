@@ -4,6 +4,7 @@ import { usePublicPlayers } from "@/services/hooks";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import Logo from "@/components/Logo";
 import { NavLink } from "react-router";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface TeamRankingComponentProps {
   team: PublicTeam;
@@ -27,13 +28,25 @@ function TeamRankingComponent(props: TeamRankingComponentProps) {
   );
 
   function expandedCard() {
-    if (isLoading)
+    if (isLoading || !data) {
       return (
         <div className="flex h-40 items-center justify-center">
-          <Spinner></Spinner>
+          <Spinner />
         </div>
       );
-    if (error || data == undefined) return <div>Error loading players</div>;
+    }
+    if (error) {
+      return (
+        <div className="mt-4">
+          <Alert variant="destructive" className="mt-4">
+            <AlertTitle className="text-lg">Error</AlertTitle>
+            <AlertDescription>
+              There was an error loading the team. Please try again later.
+            </AlertDescription>
+          </Alert>
+        </div>
+      );
+    }
 
     return (
       <div className="mx-12 flex justify-between pt-3">

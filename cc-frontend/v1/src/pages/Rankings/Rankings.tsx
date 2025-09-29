@@ -424,6 +424,19 @@ function RankingsFilter(props: RankingsFilterProps) {
     },
   );
 
+  // Auto-select the most recent ranking week after data is received
+  useEffect(() => {
+    if (
+      rankingsData?.results &&
+      rankingsData.results.length > 0 &&
+      !props.rankingWeekFilter
+    ) {
+      // Select the first ranking (most recent due to desc order)
+      const mostRecentRanking = rankingsData.results[0];
+      props.setRankingWeekFilter(mostRecentRanking.id);
+    }
+  }, [rankingsData, props.rankingWeekFilter, props.setRankingWeekFilter]);
+
   return (
     <div className="flex flex-wrap justify-center gap-4">
       {/* Season Filter - Always shown */}
@@ -464,7 +477,6 @@ function RankingsFilter(props: RankingsFilterProps) {
               <SelectItem disabled value="x">
                 Select a week
               </SelectItem>
-              <SelectItem value="current">Current Rankings</SelectItem>
               {rankingsData?.results?.map((ranking) => (
                 <SelectItem key={ranking.id} value={ranking.id}>
                   {new Date(ranking.date).toLocaleDateString("en-US", {
