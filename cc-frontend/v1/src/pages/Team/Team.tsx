@@ -64,10 +64,14 @@ export function Team() {
               <h4 className="text-muted-foreground text-lg">
                 {team.school_name}
               </h4>
-              {team.current_competitions &&
-                team.current_competitions.map((comp) => (
-                  <CompetitionLabel key={comp.id} competition={comp.name} />
-                ))}
+              <div className="mt-2 flex flex-wrap gap-2">
+                {team.current_competitions &&
+                  team.current_competitions
+                    .filter((comp) => comp.name && !comp.name.includes("(p)"))
+                    .map((comp) => (
+                      <CompetitionLabel key={comp.id} competition={comp.name} />
+                    ))}
+              </div>
             </div>
           </span>
           <div className="ml-4 mr-8 mt-4 sm:mt-0 sm:text-right">
