@@ -6,7 +6,7 @@ import { calculateMatchStars } from "@/services/elo";
 import { usePublicMatches } from "@/services/hooks";
 import { ChevronRight, Star } from "lucide-react";
 import { useMemo } from "react";
-import { NavLink } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 
 interface UpcomingMatchesWidgetProps {
   teamId?: string;
@@ -111,8 +111,18 @@ function Match(props: MatchProps) {
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    navigate(`/matches/${props.match.id}`);
+  };
+
   return (
-    <li className="flex rounded-xl border-2 p-4 py-2">
+    <li
+      className="flex cursor-pointer rounded-xl border-2 p-4 py-2"
+      onClick={handleClick}
+    >
       <div className="flex-3 space-y-3">
         <div className="flex items-center space-x-2">
           <Logo

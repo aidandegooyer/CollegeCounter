@@ -18,6 +18,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import Logo from "@/components/Logo";
 import { calculateEloChanges, calculateMatchStars } from "@/services/elo";
+import { useNavigate } from "react-router";
 
 function Matches() {
   const getInitialMatchType = () => {
@@ -664,19 +665,25 @@ function UpcomingMatch({ match, stars }: UpcomingMatchProps) {
     hour: "numeric",
     minute: "2-digit",
   });
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    navigate(`/matches/${match.id}`);
+  };
 
   return (
     <li
-      className={`bg-background flex rounded-xl border-2 p-4 py-2 ${stars === 5 ? "drop-shadow-primary/40 border-primary drop-shadow-lg" : ""}`}
+      className={`bg-background flex cursor-pointer rounded-xl border-2 p-4 py-2 ${stars === 5 ? "drop-shadow-primary/40 border-primary drop-shadow-lg" : ""}`}
+      onClick={handleClick}
     >
-      <div className="flex-5 space-y-3">
+      <div className="sm:flex-5 flex-1 space-y-3">
         <div className="flex items-center space-x-2">
           <Logo src={match.team1?.picture} type="team" className="h-6 w-6" />
           <span className="truncate overflow-ellipsis whitespace-nowrap">
             {match.team1?.name || "Unknown Team"}
           </span>
           {/* Show platform or competition info instead of ELO since it's not available */}
-          <span className="ml-2 flex items-center justify-end text-xs">
+          <span className="ml-2 hidden items-center justify-end text-xs sm:flex">
             <div className="text-muted-foreground bg-muted flex rounded-sm px-1 font-mono text-xs">
               <div className="text-muted-foreground border-r-2 pr-1 font-mono">
                 {match.team1?.elo}
@@ -699,7 +706,7 @@ function UpcomingMatch({ match, stars }: UpcomingMatchProps) {
           <span className="truncate overflow-ellipsis whitespace-nowrap">
             {match.team2?.name || "Unknown Team"}
           </span>
-          <span className="ml-2 flex items-center justify-end text-xs">
+          <span className="ml-2 hidden items-center justify-end text-xs sm:flex">
             <div className="text-muted-foreground bg-muted flex rounded-sm px-1 font-mono text-xs">
               <div className="text-muted-foreground border-r-2 pr-1 font-mono">
                 {match.team2?.elo}
@@ -718,7 +725,7 @@ function UpcomingMatch({ match, stars }: UpcomingMatchProps) {
           </span>
         </div>
       </div>
-      <div className="flex-2 text-end text-sm">
+      <div className="sm:flex-2 flex-1 text-end text-sm">
         <span className="text-muted-foreground">
           {dateStr}, {timeStr}
         </span>
@@ -874,8 +881,17 @@ function Result(props: ResultProps) {
     loser = props.match.team1;
   }
 
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    navigate(`/matches/${props.match.id}`);
+  };
+
   return (
-    <li className="cursor-pointer rounded-xl border-2 p-4 py-2">
+    <li
+      className="cursor-pointer rounded-xl border-2 p-4 py-2"
+      onClick={handleClick}
+    >
       <div className="flex">
         <div className="flex-3 space-y-2">
           <div className="flex items-center space-x-2">

@@ -17,6 +17,8 @@ import Graphic from "@/pages/Admin/Graphic";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Article from "@/pages/News/Article";
 import { Team } from "./pages/Team/Team";
+import { NotFoundPage } from "./pages/Utility/NotFoundPage";
+import { Match } from "./pages/Match/Match";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDrfCYvSpHIFdvVkVsaMSMgil-d2W9JZWc",
@@ -67,6 +69,7 @@ function App() {
             <Route path="/matches" element={<Matches />} />
             <Route path="/events" element={<Home />} />
             <Route path="/teams/:id" element={<Team />} />
+            <Route path="/matches/:id" element={<Match />} />
             <Route
               path="/admin"
               element={
@@ -85,6 +88,8 @@ function App() {
             />
 
             <Route path="/signin" element={<SignIn />} />
+
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
 
           <Footer />
