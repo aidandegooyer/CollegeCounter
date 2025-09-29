@@ -361,23 +361,35 @@ def public_matches(request):
 
     if date_from:
         try:
-            from_date = parse_datetime(f"{date_from}T00:00:00Z")
+            # Try parsing as full datetime first (ISO format)
+            from_date = parse_datetime(date_from)
+            # If that fails, try parsing as date and add time
+            if not from_date:
+                from_date = parse_datetime(f"{date_from}T00:00:00Z")
             if from_date:
                 query &= Q(date__gte=from_date)
         except Exception:
             return Response(
-                {"error": "Invalid date_from format. Use YYYY-MM-DD."},
+                {
+                    "error": "Invalid date_from format. Use YYYY-MM-DD or ISO datetime format."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
     if date_to:
         try:
-            to_date = parse_datetime(f"{date_to}T23:59:59Z")
+            # Try parsing as full datetime first (ISO format)
+            to_date = parse_datetime(date_to)
+            # If that fails, try parsing as date and add end of day time
+            if not to_date:
+                to_date = parse_datetime(f"{date_to}T23:59:59Z")
             if to_date:
                 query &= Q(date__lte=to_date)
         except Exception:
             return Response(
-                {"error": "Invalid date_to format. Use YYYY-MM-DD."},
+                {
+                    "error": "Invalid date_to format. Use YYYY-MM-DD or ISO datetime format."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
