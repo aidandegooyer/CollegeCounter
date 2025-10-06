@@ -70,6 +70,14 @@ export interface Match {
   score_team1: number;
   score_team2: number;
   platform: string;
+  season?: {
+    id: string;
+    name: string;
+  };
+  competition?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface ImportMatchesRequest {
@@ -747,6 +755,111 @@ export interface MergeTeamsResponse {
 
 export const mergeTeams = async (data: MergeTeamsRequest): Promise<MergeTeamsResponse> => {
   const response = await api.post(`/merge-teams/`, data);
+  return response.data;
+};
+
+// Match management API interfaces
+export interface CreateMatchRequest {
+  team1_id: string;
+  team2_id: string;
+  date?: string; // ISO datetime string
+  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  url?: string;
+  score_team1?: number;
+  score_team2?: number;
+  platform?: 'faceit' | 'playfly' | 'other';
+  season_id?: string;
+  competition_id?: string;
+  winner_id?: string; // Must be team1_id or team2_id
+}
+
+export interface UpdateMatchRequest {
+  team1_id?: string; // Required for PUT, optional for PATCH
+  team2_id?: string; // Required for PUT, optional for PATCH
+  date?: string;
+  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  url?: string;
+  score_team1?: number;
+  score_team2?: number;
+  platform?: 'faceit' | 'playfly' | 'other';
+  season_id?: string;
+  competition_id?: string;
+  winner_id?: string;
+}
+
+export interface DeleteMatchRequest {
+  security_key?: string; // Optional security key for extra protection
+}
+
+export interface CreateMatchResponse {
+  id: string;
+  team1: {
+    id: string;
+    name: string;
+    picture?: string;
+  };
+  team2: {
+    id: string;
+    name: string;
+    picture?: string;
+  };
+  date: string | null;
+  status: string;
+  url?: string;
+  winner?: {
+    id: string;
+    name: string;
+  };
+  score_team1: number;
+  score_team2: number;
+  platform: string;
+  season?: {
+    id: string;
+    name: string;
+  };
+  competition?: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface DeleteMatchResponse {
+  message: string;
+  deleted_match: {
+    id: string;
+    team1_name: string;
+    team2_name: string;
+    date: string | null;
+    status: string;
+  };
+}
+
+// Match management API functions
+export const createMatch = async (data: CreateMatchRequest): Promise<CreateMatchResponse> => {
+  const response = await api.post(`/matches/create/`, data);
+  return response.data;
+};
+
+export const updateMatch = async (
+  matchId: string, 
+  data: UpdateMatchRequest, 
+  method: 'PUT' | 'PATCH' = 'PATCH'
+): Promise<CreateMatchResponse> => {
+  const response = await api({
+    method: method.toLowerCase(),
+    url: `/matches/${matchId}/update/`,
+    data
+  });
+  return response.data;
+};
+
+export const deleteMatch = async (
+  matchId: string, 
+  data?: DeleteMatchRequest
+): Promise<DeleteMatchResponse> => {
+  const response = await api.delete(`/matches/${matchId}/delete/`, {
+    data: data || {}
+  });
   return response.data;
 };
 

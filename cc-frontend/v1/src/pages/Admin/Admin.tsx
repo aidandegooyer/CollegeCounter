@@ -8,6 +8,7 @@ import ControlPanel from "./ControlPanel";
 import EditTeamPlayer from "./EditTeamPlayer";
 import Graphic from "./Graphic";
 import MergeTeams from "./MergeTeams";
+import EditMatch from "./EditMatch";
 
 function Admin() {
   const auth = getAuth();
@@ -45,6 +46,12 @@ function Admin() {
             className="hover:text-foreground! cursor-pointer"
           >
             Edit Team/Player
+          </TabsTrigger>
+          <TabsTrigger
+            value="edit-match"
+            className="hover:text-foreground! cursor-pointer"
+          >
+            Edit Match
           </TabsTrigger>
           <TabsTrigger
             value="import"
@@ -97,6 +104,9 @@ function Admin() {
         </TabsContent>
         <TabsContent value="merge-teams">
           <MergeTeams />
+        </TabsContent>
+        <TabsContent value="edit-match">
+          <EditMatch />
         </TabsContent>
       </Tabs>
     </div>
