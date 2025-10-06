@@ -74,6 +74,7 @@ export function SearchSelect({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          type="button"
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -89,13 +90,13 @@ export function SearchSelect({
           </span>
           <div className="flex items-center gap-1">
             {allowClear && selectedOption && (
-              <button
-                type="button"
+              <div
+                role="button"
                 onClick={handleClear}
                 className="flex h-4 w-4 items-center justify-center rounded-sm opacity-50 hover:opacity-100"
               >
                 <span className="text-xs">×</span>
-              </button>
+              </div>
             )}
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </div>
@@ -112,7 +113,7 @@ export function SearchSelect({
             <CommandGroup>
               {allowClear && selectedOption && (
                 <CommandItem
-                  value=""
+                  value="__clear__"
                   onSelect={() => handleSelect("")}
                   className="text-muted-foreground"
                 >
