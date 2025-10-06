@@ -15,38 +15,60 @@ except (ValueError, Exception):
     pass
 
 
-def firebase_auth_required(view_func):
+def firebase_auth_required(view_func=None, min_role="base"):
     """
-    Decorator for views that checks if the user has a valid Firebase token.
+    Decorator (works both with @firebase_auth_required and @firebase_auth_required(min_role="admin"))
+    min_role: one of "base" (logged in), "admin", "owner"
     """
+    ROLE_LEVELS = {"none": 0, "base": 1, "admin": 2, "owner": 3}
 
-    @wraps(view_func)
-    def wrapped_view(request, *args, **kwargs):
-        auth_header = request.headers.get("Authorization", "")
+    def decorator(func):
+        @wraps(func)
+        def _wrapped(request, *args, **kwargs):
+            auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+            if not auth_header.startswith("Bearer "):
+                return JsonResponse(
+                    {"error": "Authentication credentials were not provided."},
+                    status=401,
+                )
 
-        # Check if Authorization header is present and in correct format
-        if not auth_header.startswith("Bearer "):
-            return JsonResponse(
-                {"error": "Unauthorized: No valid authentication credentials found"},
-                status=401,
-            )
+            id_token = auth_header.split(" ", 1)[1]
+            try:
+                decoded = auth.verify_id_token(id_token)
+            except Exception:
+                return JsonResponse({"error": "Invalid auth token"}, status=401)
 
-        # Extract the token
-        token = auth_header.split("Bearer ")[1]
+            # attach decoded token to request for downstream use
+            request.firebase_user = decoded
 
-        try:
-            # Verify the token with Firebase
-            decoded_token = auth.verify_id_token(token)
+            # Determine role: prefer explicit custom claim "role" (string) or "privilege_level" (int)
+            role = decoded.get("role")
+            if not role:
+                # fallback to numeric claim if present
+                priv_level = decoded.get("privilege_level")
+                if isinstance(priv_level, int):
+                    # map numeric to roles (0..3)
+                    inv_map = {v: k for k, v in ROLE_LEVELS.items()}
+                    role = inv_map.get(priv_level, "base")
+                else:
+                    # owner override via settings list of UIDs (comma-separated in env)
+                    owners = getattr(settings, "FIREBASE_OWNER_UIDS", [])
+                    if decoded.get("uid") and decoded.get("uid") in owners:
+                        role = "owner"
+                    else:
+                        # authenticated with no explicit role -> treat as base
+                        role = "base"
 
-            # Add the user info to the request for use in views
-            request.firebase_user = decoded_token
+            if ROLE_LEVELS.get(role, 1) < ROLE_LEVELS.get(min_role, 1):
+                return JsonResponse(
+                    {"error": "Forbidden - insufficient privileges"}, status=403
+                )
 
-            # Continue with the view
-            return view_func(request, *args, **kwargs)
+            return func(request, *args, **kwargs)
 
-        except auth.InvalidIdTokenError:
-            return JsonResponse({"error": "Unauthorized: Invalid token"}, status=401)
-        except Exception as e:
-            return JsonResponse({"error": f"Unauthorized: {str(e)}"}, status=401)
+        return _wrapped
 
-    return wrapped_view
+    # support both @firebase_auth_required and @firebase_auth_required(min_role="admin")
+    if view_func:
+        return decorator(view_func)
+    return decorator

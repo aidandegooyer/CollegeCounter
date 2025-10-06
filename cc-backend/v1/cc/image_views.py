@@ -21,7 +21,7 @@ if not firebase_admin._apps:
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@firebase_auth_required
+@firebase_auth_required(min_role="admin")
 def upload_team_picture(request, team_id):
     """
     Upload a team picture to Firebase Storage and update the team's picture URL
@@ -74,7 +74,7 @@ def upload_team_picture(request, team_id):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@firebase_auth_required
+@firebase_auth_required(min_role="admin")
 def upload_player_picture(request, player_id):
     """
     Upload a player picture to Firebase Storage and update the player's picture URL
@@ -127,7 +127,7 @@ def upload_player_picture(request, player_id):
 
 @csrf_exempt
 @require_http_methods(["PUT"])
-@firebase_auth_required
+@firebase_auth_required(min_role="admin")
 def update_team(request, team_id):
     """
     Update a team's details
@@ -167,7 +167,7 @@ def update_team(request, team_id):
 
 @csrf_exempt
 @require_http_methods(["PUT"])
-@firebase_auth_required
+@firebase_auth_required(min_role="admin")
 def update_player(request, player_id):
     """
     Update a player's details

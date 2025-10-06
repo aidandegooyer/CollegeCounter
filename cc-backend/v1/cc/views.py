@@ -195,7 +195,7 @@ def index(request):
 
 @csrf_exempt
 @api_view(["POST"])
-@firebase_auth_required
+@firebase_auth_required(min_role="owner")
 def import_matches(request):
     """
     Import matches from an external API (Faceit or Playfly) into the database.
@@ -652,7 +652,7 @@ def process_player(player_data, team, season):
 
 
 @api_view(["GET"])
-@firebase_auth_required
+@firebase_auth_required(min_role="base")
 def list_seasons(request):
     """
     Get all seasons
@@ -674,7 +674,7 @@ def list_seasons(request):
 
 
 @api_view(["POST"])
-@firebase_auth_required
+@firebase_auth_required(min_role="owner")
 def create_season(request):
     """
     Create a new season
@@ -710,7 +710,7 @@ def create_season(request):
 
 
 @api_view(["GET"])
-@firebase_auth_required
+@firebase_auth_required(min_role="base")
 def list_teams(request):
     """
     Get all teams
@@ -742,7 +742,7 @@ def list_teams(request):
 
 
 @api_view(["GET"])
-@firebase_auth_required
+@firebase_auth_required(min_role="base")
 def list_players(request):
     """
     Get all players
@@ -778,7 +778,7 @@ def list_players(request):
 
 
 @api_view(["GET"])
-@firebase_auth_required
+@firebase_auth_required(min_role="base")
 def list_matches(request):
     """
     Get all matches
@@ -830,7 +830,7 @@ def list_matches(request):
 
 
 @api_view(["GET"])
-@firebase_auth_required
+@firebase_auth_required(min_role="base")
 def get_match(request, match_id):
     """
     Get a single match by ID
@@ -882,7 +882,7 @@ def get_match(request, match_id):
 
 
 @api_view(["POST"])
-@firebase_auth_required
+@firebase_auth_required(min_role="admin")
 def create_match(request):
     """
     Create a new match
@@ -1044,7 +1044,7 @@ def create_match(request):
 
 
 @api_view(["PUT", "PATCH"])
-@firebase_auth_required
+@firebase_auth_required(min_role="admin")
 def update_match(request, match_id):
     """
     Update an existing match
@@ -1245,7 +1245,7 @@ def update_match(request, match_id):
 
 
 @api_view(["DELETE"])
-@firebase_auth_required
+@firebase_auth_required(min_role="admin")
 def delete_match(request, match_id):
     """
     Delete a match
@@ -1296,7 +1296,7 @@ def delete_match(request, match_id):
 
 
 @api_view(["POST"])
-@firebase_auth_required
+@firebase_auth_required(min_role="owner")
 def clear_database(request):
     """
     Clear the database for testing purposes.
@@ -1328,7 +1328,7 @@ def clear_database(request):
 
 
 @api_view(["POST"])
-@firebase_auth_required
+@firebase_auth_required(min_role="admin")
 def update_player_elo(request):
     """
     Update player ELO ratings from Faceit API.
@@ -1390,7 +1390,7 @@ def update_player_elo(request):
 
 
 @api_view(["POST"])
-@firebase_auth_required
+@firebase_auth_required(min_role="owner")
 def reset_player_elo(request):
     """
     Reset all player ELO ratings to the default value.
@@ -1421,7 +1421,7 @@ def reset_player_elo(request):
 
 
 @api_view(["GET", "POST"])
-@firebase_auth_required
+@firebase_auth_required(min_role="owner")
 def match_participants(request):
     """
     Match participants between competitions/seasons and teams.
@@ -1536,7 +1536,7 @@ def match_participants(request):
 
 
 @api_view(["POST"])
-@firebase_auth_required
+@firebase_auth_required(min_role="owner")
 def recalculate_elos(request):
     """
     Recalculate ELO ratings for all teams based on completed matches in chronological order.
@@ -1582,7 +1582,7 @@ def recalculate_elos(request):
 
 
 @api_view(["POST"])
-@firebase_auth_required
+@firebase_auth_required(min_role="owner")
 def calculate_team_elos(request):
     """
     Calculate team ELOs based on player ELOs.
@@ -1655,7 +1655,7 @@ def calculate_team_elos(request):
 
 
 @api_view(["POST"])
-@firebase_auth_required
+@firebase_auth_required(min_role="admin")
 def create_ranking_snapshot(request):
     """
     Create a ranking snapshot based on current team ELO values.
@@ -1733,7 +1733,7 @@ def create_ranking_snapshot(request):
 
 
 @api_view(["POST"])
-@firebase_auth_required
+@firebase_auth_required(min_role="admin")
 def update_matches(request):
     """
     Update existing matches with fresh data from external APIs.
@@ -2334,7 +2334,7 @@ def proxy_leaguespot_participants(request, match_id):
 
 
 @api_view(["POST"])
-@firebase_auth_required
+@firebase_auth_required(min_role="owner")
 def merge_teams(request):
     """
     Merge two teams into one, combining rosters and transferring all match history.
@@ -2589,7 +2589,7 @@ def merge_teams(request):
 
 
 @api_view(["DELETE"])
-@firebase_auth_required
+@firebase_auth_required(min_role="owner")
 def delete_competition(request, competition_id):
     """
     Delete a competition and all its related data.
@@ -2690,7 +2690,7 @@ def delete_competition(request, competition_id):
 
 
 @api_view(["GET"])
-@firebase_auth_required
+@firebase_auth_required(min_role="base")
 def list_competitions(request):
     """
     Get all competitions with their associated data counts.
