@@ -108,7 +108,7 @@ function TeamRankingsWidget() {
       <hr />
       <ul className="space-y-3 py-2 pt-3">
         {rankingItems.results.map((team, i) => (
-          <RankingItem key={team.id || i} index={i} team={team} />
+          <RankingItem key={team.team.id || i} index={i} team={team} />
         ))}
       </ul>
     </div>
@@ -125,7 +125,10 @@ function RankingItem(props: RankingItemProps) {
 
   return (
     <li className="flex justify-between">
-      <NavLink to={`/teams/${props.team.id}`} className="group cursor-pointer">
+      <NavLink
+        to={`/teams/${props.team.team.id}`}
+        className="group cursor-pointer"
+      >
         <div className="flex items-center space-x-2">
           <span className="mr-3 w-4 text-end font-mono">{rank}</span>
           <Logo
