@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 @api_view(["PUT"])
-@firebase_auth_required
+@firebase_auth_required(min_role="admin")
 def update_team(request, team_id):
     """
     Update team information
@@ -66,7 +66,7 @@ def update_team(request, team_id):
 
 
 @api_view(["PUT"])
-@firebase_auth_required
+@firebase_auth_required(min_role="admin")
 def update_player(request, player_id):
     """
     Update player information
