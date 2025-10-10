@@ -11,22 +11,47 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePublicTeams, usePublicSeasons } from "@/services/hooks";
-import { Upload, Link, Download, Palette } from "lucide-react";
+import { Upload, Download, Palette } from "lucide-react";
 import Logo from "@/components/Logo";
+import { domToPng } from "modern-screenshot";
+import { Spinner } from "@/components/ui/shadcn-io/spinner";
 
 function Graphic() {
   const [backgroundImage, setBackgroundImage] = useState<string>("");
-  const [backgroundUrl, setBackgroundUrl] = useState<string>("");
   const [seasonFilter, setSeasonFilter] = useState<string | undefined>(
     import.meta.env.VITE_CURRENT_SEASON_ID || undefined,
   );
   const [titleText, setTitleText] = useState("TOP 10 TEAMS");
+  const [downloadLoading, setDownloadLoading] = useState(false);
   const [titleColor, setTitleColor] = useState("#ffffff");
   const [teamTextColor, setTeamTextColor] = useState("#ffffff");
   const [backgroundColor, setBackgroundColor] = useState("rgba(0, 0, 0, 0.7)");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Helper function to proxy external images through backend
+  const getProxiedImageUrl = (originalUrl: string) => {
+    if (!originalUrl) return "";
+
+    // If it's already a data URL or blob, return as-is
+    if (originalUrl.startsWith("data:") || originalUrl.startsWith("blob:")) {
+      return originalUrl;
+    }
+
+    // If it's a local URL, return as-is
+    if (
+      originalUrl.startsWith("/") ||
+      originalUrl.includes(window.location.host)
+    ) {
+      return originalUrl;
+    }
+
+    // For external URLs, proxy through backend
+    const apiBase =
+      import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+    return `${apiBase}/proxy/image/?url=${encodeURIComponent(originalUrl)}`;
+  };
 
   // Get available seasons
   const { data: seasonsData } = usePublicSeasons({
@@ -51,46 +76,81 @@ function Graphic() {
       reader.onload = (e) => {
         const result = e.target?.result as string;
         setBackgroundImage(result);
-        setBackgroundUrl(""); // Clear URL when file is uploaded
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleUrlSubmit = () => {
-    if (backgroundUrl.trim()) {
-      setBackgroundImage(backgroundUrl.trim());
-    }
-  };
-
   const clearBackground = () => {
     setBackgroundImage("");
-    setBackgroundUrl("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-  const downloadImage = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    // Create a temporary canvas with the graphic content
-    const tempCanvas = document.createElement("canvas");
-    const tempCtx = tempCanvas.getContext("2d");
-    if (!tempCtx) return;
-
+  const downloadImage = async () => {
+    setDownloadLoading(true);
     const graphicElement = document.getElementById("graphic-preview");
     if (!graphicElement) return;
 
-    // Set canvas size to match the graphic
-    tempCanvas.width = 1200;
-    tempCanvas.height = 800;
+    try {
+      // Wait a moment for any proxied images to load
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Use html2canvas alternative - for now, just prompt user to screenshot
-    alert(
-      'Please use your browser\'s screenshot tool or right-click on the graphic and select "Save image as..." to download the graphic.',
-    );
+      const dataUrl = await domToPng(graphicElement, {
+        width: 900,
+        height: 1100,
+        scale: 2, // Higher quality (1800x2200px actual size)
+        backgroundColor: "#000000",
+        style: {
+          // Ensure consistent sizing
+          transform: "scale(1)",
+          transformOrigin: "top left",
+        },
+        filter: (node) => {
+          // Filter out any unwanted elements
+          const element = node as Element;
+          return !element.classList?.contains("exclude-from-image");
+        },
+      });
+
+      // Create download link
+      const link = document.createElement("a");
+      link.download = `college-counter-top-10-${new Date().toISOString().split("T")[0]}.png`;
+      link.href = dataUrl;
+      link.click();
+      setDownloadLoading(false);
+    } catch (error) {
+      setDownloadLoading(false);
+      console.error("Error generating image:", error);
+
+      // Enhanced fallback with visual guide
+      const graphicElement = document.getElementById("graphic-preview");
+      if (graphicElement) {
+        const originalStyle = graphicElement.style.cssText;
+
+        // Add visual guide
+        graphicElement.style.outline = "3px dashed #ff0000";
+        graphicElement.style.outlineOffset = "5px";
+        graphicElement.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        const proceed = confirm(
+          "🔴 RED OUTLINE marks the area to screenshot\n\n" +
+            "Screenshot failed. Please manually capture:\n\n" +
+            "Mac: Press Cmd+Shift+4, then drag to select the red area\n" +
+            "Windows: Press Win+Shift+S, then select the red area\n\n" +
+            "Click OK when ready, or Cancel to remove the outline.",
+        );
+
+        if (!proceed) {
+          graphicElement.style.cssText = originalStyle;
+        } else {
+          setTimeout(() => {
+            graphicElement.style.cssText = originalStyle;
+          }, 15000);
+        }
+      }
+    }
   };
 
   if (isLoading) {
@@ -106,9 +166,13 @@ function Graphic() {
   return (
     <div className="container mx-auto space-y-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Graphic Generator</h1>
-        <Button onClick={downloadImage} className="flex items-center gap-2">
-          <Download className="h-4 w-4" />
+        <h1>Graphic Generator</h1>
+        <Button
+          onClick={downloadImage}
+          className="flex cursor-pointer items-center gap-2"
+          disabled={downloadLoading}
+        >
+          {downloadLoading ? <Spinner /> : <Download className="h-4 w-4" />}
           Download
         </Button>
       </div>
@@ -149,32 +213,11 @@ function Graphic() {
                   </Button>
                 </div>
               </div>
-
-              {/* URL Input */}
-              <div className="space-y-2">
-                <Label htmlFor="background-url">Or paste image URL</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="background-url"
-                    placeholder="https://example.com/image.jpg"
-                    value={backgroundUrl}
-                    onChange={(e) => setBackgroundUrl(e.target.value)}
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={handleUrlSubmit}
-                    className="flex items-center gap-2"
-                  >
-                    <Link className="h-4 w-4" />
-                    Load
-                  </Button>
-                </div>
-              </div>
             </CardContent>
           </Card>
 
           {/* Content Controls */}
-          <Card>
+          <Card className="mb-6">
             <CardHeader>
               <CardTitle>Content Settings</CardTitle>
             </CardHeader>
@@ -264,10 +307,14 @@ function Graphic() {
             <CardHeader>
               <CardTitle>Preview</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex justify-center">
               <div
                 id="graphic-preview"
-                className="relative aspect-[2/3] w-full overflow-hidden rounded-lg border-2 border-dashed border-gray-300"
+                className="relative w-full overflow-hidden"
+                style={{
+                  width: "900px",
+                  height: "1100px",
+                }}
               >
                 {/* Background Image Layer */}
                 {backgroundImage ? (
@@ -304,11 +351,11 @@ function Graphic() {
                   </div>
 
                   {/* Teams List */}
-                  <div className="w-150 max-w-md space-y-2">
+                  <div className="w-150 space-y-2">
                     {topTeams.map((team, index) => (
                       <div
                         key={team.id}
-                        className="bg-background flex items-center justify-between rounded-lg border-2 px-4 py-3"
+                        className="bg-background flex items-center justify-between rounded-lg border-2 px-4 py-1.5"
                         style={{
                           color: teamTextColor,
                         }}
@@ -319,9 +366,10 @@ function Graphic() {
                           </span>
                           {team.picture && (
                             <img
-                              src={team.picture}
+                              src={getProxiedImageUrl(team.picture)}
                               alt={team.name}
-                              className="h-8 w-8 rounded object-cover"
+                              className="h-12 w-12 rounded object-cover"
+                              crossOrigin="anonymous"
                             />
                           )}
                           <div>
@@ -335,6 +383,9 @@ function Graphic() {
                             )}
                           </div>
                         </div>
+                        <div className="bg-secondary shadow-secondary/30 rounded-md px-2 py-1 font-mono text-xl shadow-xl">
+                          {Math.round(team.elo)}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -346,46 +397,13 @@ function Graphic() {
                       color: teamTextColor,
                     }}
                   >
-                    <Logo type="team" className="h-24 w-24 rounded-md"></Logo>
+                    <Logo type="cc" className="h-24 w-24 rounded-md"></Logo>
                     <div className="ml-2">
                       <h1 className="text-5xl!">College</h1>
                       <h1 className="text-5xl!">Counter</h1>
                     </div>
                   </div>
                 </div>
-
-                {/* Placeholder when no background */}
-                {!backgroundImage && (
-                  <div className="absolute inset-0 z-20 flex items-center justify-center">
-                    <p className="text-lg text-gray-500">
-                      Upload or paste a background image
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Instructions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>How to Save</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 text-sm">
-                <p>To save your graphic:</p>
-                <ol className="ml-4 list-inside list-decimal space-y-1">
-                  <li>Right-click on the preview above</li>
-                  <li>
-                    Select "Save image as..." or use your browser's screenshot
-                    tool
-                  </li>
-                  <li>Choose your desired location and filename</li>
-                </ol>
-                <p className="mt-4 text-gray-600">
-                  The graphic is optimized for social media sharing (3:2 aspect
-                  ratio).
-                </p>
               </div>
             </CardContent>
           </Card>

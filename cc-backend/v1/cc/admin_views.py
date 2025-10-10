@@ -1,9 +1,11 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from django.http import HttpResponse
 from .models import Team, Player
 from .middleware import firebase_auth_required
 import logging
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -143,5 +145,59 @@ def update_player(request, player_id):
         logger.error(f"Error updating player {player_id}: {str(e)}")
         return Response(
             {"error": f"Failed to update player: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["GET"])
+def proxy_image(request):
+    """
+    Proxy external images to avoid CORS issues in screenshot generation
+    """
+    image_url = request.GET.get("url")
+
+    if not image_url:
+        return Response(
+            {"error": "URL parameter is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        # Set headers to match browser requests for better compatibility
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:144.0) Gecko/20100101 Firefox/144.0",
+            "Accept": "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+            "Referer": request.META.get("HTTP_REFERER", "http://localhost:5173/"),
+        }
+
+        # Fetch the image
+        response = requests.get(image_url, headers=headers, timeout=10, stream=True)
+        response.raise_for_status()
+
+        # Create HTTP response with the image data
+        content_type = response.headers.get("Content-Type", "image/jpeg")
+        django_response = HttpResponse(response.content, content_type=content_type)
+
+        # Add CORS headers to allow frontend access
+        django_response["Access-Control-Allow-Origin"] = "*"
+        django_response["Access-Control-Allow-Methods"] = "GET"
+        django_response["Access-Control-Allow-Headers"] = "*"
+
+        # Cache headers for better performance
+        django_response["Cache-Control"] = "public, max-age=3600"
+
+        return django_response
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching image from {image_url}: {str(e)}")
+        return Response(
+            {"error": f"Failed to fetch image: {str(e)}"},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error in proxy_image: {str(e)}")
+        return Response(
+            {"error": f"Internal server error: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
