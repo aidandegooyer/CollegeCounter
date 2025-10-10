@@ -16,6 +16,9 @@ import Logo from "@/components/Logo";
 import { domToPng } from "modern-screenshot";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org/v1";
+
 function Graphic() {
   const [backgroundImage, setBackgroundImage] = useState<string>("");
   const [seasonFilter, setSeasonFilter] = useState<string | undefined>(
@@ -46,11 +49,7 @@ function Graphic() {
     ) {
       return originalUrl;
     }
-
-    // For external URLs, proxy through backend
-    const apiBase =
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-    return `${apiBase}/proxy/image/?url=${encodeURIComponent(originalUrl)}`;
+    return `${API_BASE_URL}/proxy/image/?url=${encodeURIComponent(originalUrl)}`;
   };
 
   // Get available seasons
