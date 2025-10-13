@@ -64,9 +64,8 @@ function Navbar() {
 
           <li>
             <NavLink
-              //TODO: Add events page
-              to={location.pathname}
-              className={`cursor-not-allowed ${
+              to={"/events"}
+              className={`transition-colors hover:text-blue-200 ${
                 location.pathname === "/events"
                   ? "text-foreground"
                   : "text-muted-foreground"

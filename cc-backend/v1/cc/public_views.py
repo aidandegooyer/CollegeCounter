@@ -9,6 +9,7 @@ import uuid
 
 from .models import (
     Team,
+    Event,
     Player,
     Match,
     Season,
@@ -889,3 +890,251 @@ def public_team_current_ranking(request):
     }
 
     return Response(result)
+
+
+@api_view(["GET"])
+def public_events(request):
+    """
+    Public API endpoint to fetch events with various filters.
+
+    Query Parameters:
+    - id: Filter by event ID (comma-separated for multiple)
+    - name: Filter by event name (partial match)
+    - season_id: Filter by season ID
+    - featured: Filter by featured status (true/false)
+    - public_only: Only show public events (default: true)
+    - page: Page number (default: 1)
+    - page_size: Items per page (default: 20, max: 100)
+    - sort: Sort field (default: start_date)
+    - order: Sort order (asc or desc, default: desc)
+
+    Returns a paginated list of events.
+    """
+
+    # Parse query parameters
+    event_ids = (
+        request.query_params.get("id", "").split(",")
+        if request.query_params.get("id")
+        else []
+    )
+    event_ids = [id.strip() for id in event_ids if id.strip()]
+
+    name = request.query_params.get("name", "").strip()
+    season_id = request.query_params.get("season_id", "").strip()
+    featured = request.query_params.get("featured", "").lower()
+    public_only = request.query_params.get("public_only", "true").lower() == "true"
+
+    page = int(request.query_params.get("page", 1))
+    page_size = min(int(request.query_params.get("page_size", 20)), MAX_PAGE_SIZE)
+    sort_field = request.query_params.get("sort", "start_date")
+    order = request.query_params.get("order", "desc")
+
+    # Start with base Event queryset
+    queryset = (
+        Event.objects.select_related("winner", "season")
+        .prefetch_related("custom_details")
+        .all()
+    )
+
+    # Apply filters
+    if event_ids:
+        try:
+            event_uuids = [uuid.UUID(id) for id in event_ids]
+            queryset = queryset.filter(id__in=event_uuids)
+        except ValueError:
+            return Response(
+                {"error": "Invalid event ID format"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+    if name:
+        queryset = queryset.filter(name__icontains=name)
+
+    if season_id:
+        try:
+            season_uuid = uuid.UUID(season_id)
+            queryset = queryset.filter(season_id=season_uuid)
+        except ValueError:
+            return Response(
+                {"error": "Invalid season ID format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    # Filter by public/featured status if custom event exists
+    if public_only or featured:
+        custom_event_filters = Q()
+        if public_only:
+            # Only show events that either don't have custom details or have public custom details
+            custom_event_filters |= Q(custom_details__isnull=True) | Q(
+                custom_details__is_public=True
+            )
+        if featured == "true":
+            custom_event_filters &= Q(custom_details__is_featured=True)
+        elif featured == "false":
+            custom_event_filters &= Q(custom_details__is_featured=False)
+
+        queryset = queryset.filter(custom_event_filters)
+
+    # Apply sorting
+    valid_sort_fields = ["name", "start_date", "end_date"]
+    if sort_field not in valid_sort_fields:
+        sort_field = "start_date"
+
+    if order not in ["asc", "desc"]:
+        order = "desc"
+
+    order_prefix = "" if order == "asc" else "-"
+    queryset = queryset.order_by(f"{order_prefix}{sort_field}")
+
+    # Paginate results
+    paginator = Paginator(queryset, page_size)
+    page_obj = paginator.get_page(page)
+
+    # Serialize results
+    results = []
+    for event in page_obj:
+        # Check if there's a custom event associated
+        custom_event = getattr(event, "custom_details", None)
+
+        event_data = {
+            "id": event.id,
+            "name": event.name,
+            "start_date": event.start_date,
+            "end_date": event.end_date,
+            "description": event.description,
+            "picture": event.picture,
+            "winner": {
+                "id": event.winner.id,
+                "name": event.winner.name,
+                "picture": event.winner.picture,
+                "school_name": event.winner.school_name,
+            }
+            if event.winner
+            else None,
+            "season": {
+                "id": event.season.id,
+                "name": event.season.name,
+            }
+            if event.season
+            else None,
+        }
+
+        # Add custom event data if exists
+        if custom_event:
+            event_data["custom_details"] = {
+                "id": custom_event.id,
+                "bracket_link": custom_event.bracket_link,
+                "stream_link": custom_event.stream_link,
+                "secondary_stream_link": custom_event.secondary_stream_link,
+                "discord_link": custom_event.discord_link,
+                "registration_link": custom_event.registration_link,
+                "rules_document": custom_event.rules_document,
+                "prize_pool": str(custom_event.prize_pool)
+                if custom_event.prize_pool
+                else None,
+                "prize_currency": custom_event.prize_currency,
+                "max_teams": custom_event.max_teams,
+                "entry_fee": str(custom_event.entry_fee)
+                if custom_event.entry_fee
+                else None,
+                "format": custom_event.format,
+                "game_mode": custom_event.game_mode,
+                "is_featured": custom_event.is_featured,
+                "is_public": custom_event.is_public,
+                "registration_open": custom_event.registration_open,
+                "registration_deadline": custom_event.registration_deadline,
+                "twitter_hashtag": custom_event.twitter_hashtag,
+                "metadata": custom_event.metadata,
+            }
+
+        results.append(event_data)
+
+    return Response(
+        {
+            "count": paginator.count,
+            "total_pages": paginator.num_pages,
+            "current_page": page,
+            "page_size": page_size,
+            "results": results,
+        }
+    )
+
+
+@api_view(["GET"])
+def public_event_detail(request, event_id):
+    """
+    Public API endpoint to fetch a single event by ID.
+    """
+    try:
+        event_uuid = uuid.UUID(event_id)
+        event = (
+            Event.objects.select_related("winner", "season")
+            .prefetch_related("custom_details")
+            .get(id=event_uuid)
+        )
+
+        # Check if event is public (if it has custom details)
+        custom_event = getattr(event, "custom_details", None)
+        if custom_event and not custom_event.is_public:
+            return Response(
+                {"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        event_data = {
+            "id": event.id,
+            "name": event.name,
+            "start_date": event.start_date,
+            "end_date": event.end_date,
+            "description": event.description,
+            "picture": event.picture,
+            "winner": {
+                "id": event.winner.id,
+                "name": event.winner.name,
+                "picture": event.winner.picture,
+                "school_name": event.winner.school_name,
+            }
+            if event.winner
+            else None,
+            "season": {
+                "id": event.season.id,
+                "name": event.season.name,
+            }
+            if event.season
+            else None,
+        }
+
+        # Add custom event data if exists
+        if custom_event:
+            event_data["custom_details"] = {
+                "id": custom_event.id,
+                "bracket_link": custom_event.bracket_link,
+                "stream_link": custom_event.stream_link,
+                "secondary_stream_link": custom_event.secondary_stream_link,
+                "discord_link": custom_event.discord_link,
+                "registration_link": custom_event.registration_link,
+                "rules_document": custom_event.rules_document,
+                "prize_pool": str(custom_event.prize_pool)
+                if custom_event.prize_pool
+                else None,
+                "prize_currency": custom_event.prize_currency,
+                "max_teams": custom_event.max_teams,
+                "entry_fee": str(custom_event.entry_fee)
+                if custom_event.entry_fee
+                else None,
+                "format": custom_event.format,
+                "game_mode": custom_event.game_mode,
+                "is_featured": custom_event.is_featured,
+                "is_public": custom_event.is_public,
+                "registration_open": custom_event.registration_open,
+                "registration_deadline": custom_event.registration_deadline,
+                "twitter_hashtag": custom_event.twitter_hashtag,
+                "metadata": custom_event.metadata,
+            }
+
+        return Response(event_data)
+
+    except ValueError:
+        return Response(
+            {"error": "Invalid event ID format"}, status=status.HTTP_400_BAD_REQUEST
+        )
+    except Event.DoesNotExist:
+        return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)

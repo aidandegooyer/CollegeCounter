@@ -893,3 +893,169 @@ export const fetchPublicTeamRanking = async (params: PublicTeamRankingRequest): 
   const response = await api.get(`/public/team-current-ranking${queryString ? `?${queryString}` : ''}`);
   return response.data;
 };
+
+// Events API
+
+export interface PublicEvent {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  description?: string;
+  picture?: string;
+  winner?: {
+    id: string;
+    name: string;
+    picture?: string;
+    school_name?: string;
+  };
+  season?: {
+    id: string;
+    name: string;
+  };
+  custom_details?: {
+    id: string;
+    bracket_link?: string;
+    stream_link?: string;
+    secondary_stream_link?: string;
+    discord_link?: string;
+    registration_link?: string;
+    rules_document?: string;
+    prize_pool?: string;
+    prize_currency: string;
+    max_teams?: number;
+    entry_fee?: string;
+    format?: string;
+    game_mode?: string;
+    is_featured: boolean;
+    is_public: boolean;
+    registration_open: boolean;
+    registration_deadline?: string;
+    twitter_hashtag?: string;
+    metadata: Record<string, any>;
+  };
+}
+
+export interface EventQueryParams {
+  id?: string | string[];
+  name?: string;
+  season_id?: string;
+  featured?: boolean;
+  public_only?: boolean;
+  page?: number;
+  page_size?: number;
+  sort?: 'name' | 'start_date' | 'end_date';
+  order?: 'asc' | 'desc';
+}
+
+// Public Events API
+export const fetchPublicEvents = async (params: EventQueryParams = {}): Promise<PaginatedResponse<PublicEvent>> => {
+  const queryString = convertToQueryString(params);
+  const response = await api.get(`/public/events${queryString ? `?${queryString}` : ''}`);
+  return response.data;
+};
+
+export const fetchPublicEvent = async (id: string): Promise<PublicEvent> => {
+  const response = await api.get(`/public/events/${id}`);
+  return response.data;
+};
+
+// Admin Custom Events API
+
+export interface CustomEvent {
+  id: string;
+  event: {
+    id: string;
+    name: string;
+    start_date: string;
+    end_date: string;
+    description?: string;
+    picture?: string;
+    winner?: {
+      id: string;
+      name: string;
+    };
+  };
+  bracket_link?: string;
+  stream_link?: string;
+  secondary_stream_link?: string;
+  discord_link?: string;
+  registration_link?: string;
+  rules_document?: string;
+  prize_pool?: string;
+  prize_currency: string;
+  max_teams?: number;
+  entry_fee?: string;
+  format?: string;
+  game_mode?: string;
+  is_featured: boolean;
+  is_public: boolean;
+  registration_open: boolean;
+  registration_deadline?: string;
+  twitter_hashtag?: string;
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomEventCreateRequest {
+  event_id?: string; // If extending existing event
+  name?: string; // For new events
+  start_date?: string;
+  end_date?: string;
+  description?: string;
+  picture?: string;
+  bracket_link?: string;
+  stream_link?: string;
+  secondary_stream_link?: string;
+  discord_link?: string;
+  registration_link?: string;
+  rules_document?: string;
+  prize_pool?: number;
+  prize_currency?: string;
+  max_teams?: number;
+  entry_fee?: number;
+  format?: string;
+  game_mode?: string;
+  is_featured?: boolean;
+  is_public?: boolean;
+  registration_open?: boolean;
+  registration_deadline?: string;
+  twitter_hashtag?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface CustomEventUpdateRequest extends Partial<CustomEventCreateRequest> {
+  // All fields are optional for updates
+}
+
+export interface CustomEventsResponse {
+  custom_events: CustomEvent[];
+}
+
+// Admin Custom Events API Functions
+export const fetchAdminCustomEvents = async (): Promise<CustomEventsResponse> => {
+  const response = await api.get('/custom-events/');
+  return response.data;
+};
+
+export const fetchAdminCustomEvent = async (id: string): Promise<CustomEvent> => {
+  const response = await api.get(`/custom-events/${id}/`);
+  return response.data;
+};
+
+export const createAdminCustomEvent = async (data: CustomEventCreateRequest): Promise<{message: string; custom_event_id: string; event_id: string}> => {
+  const response = await api.post('/custom-events/', data);
+  return response.data;
+};
+
+export const updateAdminCustomEvent = async (id: string, data: CustomEventUpdateRequest): Promise<{message: string}> => {
+  const response = await api.put(`/custom-events/${id}/`, data);
+  return response.data;
+};
+
+export const deleteAdminCustomEvent = async (id: string): Promise<{message: string}> => {
+  const response = await api.delete(`/custom-events/${id}/`);
+  return response.data;
+};
+

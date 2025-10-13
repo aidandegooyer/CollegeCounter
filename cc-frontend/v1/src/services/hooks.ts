@@ -6,10 +6,14 @@ import {
   fetchPublicSeasons,
   fetchPublicRankings,
   fetchPublicRankingItems,
+  fetchPublicEvents,
+  fetchPublicEvent,
   fetchAdminTeams,
   fetchAdminPlayers,
   fetchAdminMatches,
   fetchPublicTeamRanking,
+  fetchAdminCustomEvents,
+  fetchAdminCustomEvent,
 } from '@/services/api';
 import type {
   TeamQueryParams,
@@ -18,6 +22,7 @@ import type {
   SeasonQueryParams,
   RankingQueryParams,
   RankingItemQueryParams,
+  EventQueryParams,
   PublicTeamRankingRequest
 } from '@/services/api';
 
@@ -204,3 +209,68 @@ export function useTeamRanking(params: PublicTeamRankingRequest, options = {}) {
     ...options,
   });
 }
+
+// Public Events Hooks
+
+export function usePublicEvents(params: EventQueryParams = {}, options = {}) {
+  return useQuery({
+    queryKey: ['public', 'events', params],
+    queryFn: () => fetchPublicEvents(params),
+    staleTime: DEFAULT_STALE_TIME,
+    ...options,
+  });
+}
+
+export function usePublicEvent(id: string, options = {}) {
+  return useQuery({
+    queryKey: ['public', 'events', id],
+    queryFn: () => fetchPublicEvent(id),
+    staleTime: DEFAULT_STALE_TIME,
+    enabled: !!id,
+    ...options,
+  });
+}
+
+export function useFeaturedEvents(options = {}) {
+  return useQuery({
+    queryKey: ['public', 'events', 'featured'],
+    queryFn: () => fetchPublicEvents({ featured: true, sort: 'start_date', order: 'desc' }),
+    staleTime: DEFAULT_STALE_TIME,
+    ...options,
+  });
+}
+
+export function useUpcomingEvents(limit = 5, options = {}) {
+  return useQuery({
+    queryKey: ['public', 'events', 'upcoming', limit],
+    queryFn: () => fetchPublicEvents({ 
+      sort: 'start_date', 
+      order: 'asc', 
+      page_size: limit 
+    }),
+    staleTime: DEFAULT_STALE_TIME,
+    ...options,
+  });
+}
+
+// Admin Custom Events Hooks
+
+export function useAdminCustomEvents(options = {}) {
+  return useQuery({
+    queryKey: ['admin', 'custom-events'],
+    queryFn: () => fetchAdminCustomEvents(),
+    staleTime: DEFAULT_STALE_TIME,
+    ...options,
+  });
+}
+
+export function useAdminCustomEvent(id: string, options = {}) {
+  return useQuery({
+    queryKey: ['admin', 'custom-events', id],
+    queryFn: () => fetchAdminCustomEvent(id),
+    staleTime: DEFAULT_STALE_TIME,
+    enabled: !!id,
+    ...options,
+  });
+}
+

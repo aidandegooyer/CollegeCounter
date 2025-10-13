@@ -21,4 +21,11 @@ urlpatterns = [
         public_views.public_team_current_ranking,
         name="public_team_current_ranking",
     ),
+    # Event endpoints
+    path("events", public_views.public_events, name="public_events"),
+    path(
+        "events/<uuid:event_id>",
+        public_views.public_event_detail,
+        name="public_event_detail",
+    ),
 ]

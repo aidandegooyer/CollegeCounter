@@ -279,3 +279,108 @@ class Competition(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class CustomEvent(models.Model):
+    """
+    Extended event model for custom events with additional features like bracket links, streams, etc.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.OneToOneField(
+        Event,
+        on_delete=models.CASCADE,
+        related_name="custom_details",
+        help_text="Base event this custom event extends",
+    )
+    bracket_link = models.URLField(
+        blank=True,
+        null=True,
+        help_text="Link to tournament bracket (e.g., Challonge, Battlefy)",
+    )
+    stream_link = models.URLField(
+        blank=True, null=True, help_text="Primary stream link (e.g., Twitch, YouTube)"
+    )
+    secondary_stream_link = models.URLField(
+        blank=True, null=True, help_text="Secondary/backup stream link"
+    )
+    discord_link = models.URLField(
+        blank=True, null=True, help_text="Discord server link for the event"
+    )
+    registration_link = models.URLField(
+        blank=True, null=True, help_text="Registration/signup link"
+    )
+    rules_document = models.URLField(
+        blank=True, null=True, help_text="Link to rules document or webpage"
+    )
+    prize_pool = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Total prize pool amount",
+    )
+    prize_currency = models.CharField(
+        max_length=3,
+        default="USD",
+        help_text="Currency for prize pool (e.g., USD, EUR)",
+    )
+    max_teams = models.IntegerField(
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(1)],
+        help_text="Maximum number of teams allowed",
+    )
+    entry_fee = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Entry fee per team",
+    )
+    format = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Tournament format (e.g., Single Elimination, Double Elimination, Swiss)",
+    )
+    game_mode = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Game mode or ruleset (e.g., 5v5, Best of 3)",
+    )
+    is_featured = models.BooleanField(
+        default=False, help_text="Mark this event as featured on the website"
+    )
+    is_public = models.BooleanField(
+        default=True, help_text="Whether this event is visible to public"
+    )
+    registration_open = models.BooleanField(
+        default=False, help_text="Whether registration is currently open"
+    )
+    registration_deadline = models.DateTimeField(
+        blank=True, null=True, help_text="Deadline for team registration"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # Social media links
+    twitter_hashtag = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Official hashtag for the event (without #)",
+    )
+
+    # Additional metadata as JSON field for flexibility
+    metadata = models.JSONField(
+        default=dict, blank=True, help_text="Additional custom data as JSON"
+    )
+
+    def __str__(self):
+        return f"Custom: {self.event.name}"
+
+    class Meta:
+        verbose_name = "Custom Event"
+        verbose_name_plural = "Custom Events"

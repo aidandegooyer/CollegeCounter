@@ -40,6 +40,13 @@ urlpatterns = [
     path("players/<uuid:player_id>/", admin_views.update_player, name="update_player"),
     # Image proxy endpoint for CORS-free image access
     path("proxy/image/", admin_views.proxy_image, name="proxy_image"),
+    # Custom events endpoints
+    path("custom-events/", admin_views.custom_events, name="custom_events"),
+    path(
+        "custom-events/<uuid:custom_event_id>/",
+        admin_views.custom_event_detail,
+        name="custom_event_detail",
+    ),
     # LeagueSpot API proxy endpoints
     path(
         "proxy/leaguespot/seasons/<str:season_id>/",
