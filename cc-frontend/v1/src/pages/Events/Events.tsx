@@ -1,21 +1,8 @@
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  CalendarDays,
-  MapPin,
-  Trophy,
-  Users,
-  ExternalLink,
-  Twitch,
-  MessageCircle,
-} from "lucide-react";
+import { CalendarDays, Trophy, ExternalLink } from "lucide-react";
+import c4_logo from "@/assets/c4 title noborder.svg";
 
 // Simple Badge component
 function Badge({
@@ -44,6 +31,7 @@ function Badge({
 }
 import { usePublicEvents } from "@/services/hooks";
 import type { PublicEvent } from "@/services/api";
+import { NavLink } from "react-router";
 
 export function Events() {
   const {
@@ -75,12 +63,13 @@ export function Events() {
 
   return (
     <div className="app-container mx-4 flex justify-center">
-      <div className="matches w-full max-w-[1200px]">
+      <div className="matches w-full max-w-[1000px]">
         <div className="mb-6">
-          <h1 className="mb-2 text-3xl font-bold">Events</h1>
+          <h1>Events</h1>
           <p className="text-muted-foreground">
             Discover upcoming tournaments, competitions, and community events
           </p>
+          <hr />
         </div>
 
         {eventsLoading ? (
@@ -96,7 +85,7 @@ export function Events() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {events.map((event) => (
               <Event key={event.id} event={event} />
             ))}
@@ -152,7 +141,7 @@ function Event({ event }: EventProps) {
   };
 
   return (
-    <Card className="overflow-hidden transition-shadow hover:shadow-lg">
+    <Card className="bg-background">
       <div className="flex flex-col md:flex-row">
         {/* Event Image */}
         {event.picture && (
@@ -171,28 +160,21 @@ function Event({ event }: EventProps) {
             <div className="flex items-start justify-between">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <CardTitle className="text-xl">{event.name}</CardTitle>
-                  {getStatusBadge()}
-                  {event.custom_details?.is_featured && (
-                    <Badge variant="default">Featured</Badge>
+                  {event.custom_details?.is_featured ? (
+                    <img src={c4_logo} alt="C4 Logo" className="-m-3 h-24" />
+                  ) : (
+                    <CardTitle className="text-xl">{event.name}</CardTitle>
                   )}
                 </div>
+                {getStatusBadge()}
 
-                <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-sm">
+                <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
                   <div className="flex items-center gap-1">
                     <CalendarDays className="h-4 w-4" />
-                    <span>{formatDate(startDate)}</span>
+                    <span>
+                      {formatDate(startDate)} - {formatTime(startDate)}
+                    </span>
                   </div>
-                  {startDate.toDateString() !== endDate.toDateString() && (
-                    <span>→ {formatDate(endDate)}</span>
-                  )}
-                </div>
-
-                <div className="text-muted-foreground flex items-center gap-1 text-sm">
-                  <span>{formatTime(startDate)}</span>
-                  {startDate.getTime() !== endDate.getTime() && (
-                    <span>- {formatTime(endDate)}</span>
-                  )}
                 </div>
               </div>
 
@@ -203,12 +185,6 @@ function Event({ event }: EventProps) {
                 </div>
               )}
             </div>
-
-            {event.description && (
-              <CardDescription className="text-base">
-                {event.description}
-              </CardDescription>
-            )}
           </CardHeader>
 
           <CardContent>
@@ -227,43 +203,23 @@ function Event({ event }: EventProps) {
                   </div>
                 )}
 
-                {/* Max Teams */}
-                {event.custom_details.max_teams && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Users className="h-4 w-4" />
-                    <span className="font-medium">Max Teams:</span>
-                    <span>{event.custom_details.max_teams}</span>
-                  </div>
-                )}
-
-                {/* Format & Game Mode */}
-                <div className="flex flex-wrap gap-4 text-sm">
-                  {event.custom_details.format && (
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      <span>{event.custom_details.format}</span>
-                    </div>
-                  )}
-                  {event.custom_details.game_mode && (
-                    <Badge variant="outline">
-                      {event.custom_details.game_mode}
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Registration */}
                 {event.custom_details.registration_open &&
                   event.custom_details.registration_deadline && (
-                    <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-950/20">
-                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                    <div className="inline-block rounded-lg bg-blue-50 p-3 dark:bg-blue-950/20">
+                      <p className="text-md font-medium text-blue-900 dark:text-blue-100">
                         Registration Open
                       </p>
-                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                      <p className="text-sm text-blue-700 dark:text-blue-300">
                         Deadline:{" "}
                         {new Date(
                           event.custom_details.registration_deadline,
                         ).toLocaleDateString()}
                       </p>
+                      {event.custom_details.max_teams && (
+                        <div className="text-sm text-blue-700 dark:text-blue-300">
+                          <p>Max Teams: {event.custom_details.max_teams}</p>
+                        </div>
+                      )}
                     </div>
                   )}
               </div>
@@ -284,45 +240,18 @@ function Event({ event }: EventProps) {
                     </a>
                   </Button>
                 )}
-
-              {event.custom_details?.bracket_link && (
-                <Button variant="outline" asChild>
-                  <a
-                    href={event.custom_details.bracket_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    View Bracket
-                    <ExternalLink className="ml-2 h-4 w-4" />
-                  </a>
+              <NavLink to={`/events/${event.id}`}>
+                <Button
+                  className="cursor-pointer"
+                  variant={
+                    event.custom_details?.registration_open
+                      ? "outline"
+                      : "default"
+                  }
+                >
+                  View Event
                 </Button>
-              )}
-
-              {event.custom_details?.stream_link && (
-                <Button variant="outline" asChild>
-                  <a
-                    href={event.custom_details.stream_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Twitch className="mr-2 h-4 w-4" />
-                    Watch Stream
-                  </a>
-                </Button>
-              )}
-
-              {event.custom_details?.discord_link && (
-                <Button variant="outline" asChild>
-                  <a
-                    href={event.custom_details.discord_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <MessageCircle className="mr-2 h-4 w-4" />
-                    Join Discord
-                  </a>
-                </Button>
-              )}
+              </NavLink>
             </div>
           </CardContent>
         </div>
