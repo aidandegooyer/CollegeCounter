@@ -22,6 +22,13 @@ from .models import (
 MAX_PAGE_SIZE = 100
 
 
+def safe_uuid(value):
+    """Safely convert a value to UUID, handling cases where it might already be a UUID."""
+    if isinstance(value, uuid.UUID):
+        return value
+    return uuid.UUID(value)
+
+
 @api_view(["GET"])
 def public_teams(request):
     """
@@ -86,7 +93,7 @@ def public_teams(request):
 
         if season_id:
             try:
-                uuid.UUID(season_id)  # Validate UUID
+                safe_uuid(season_id)  # Validate UUID
                 participant_query &= Q(season_id=season_id)
             except ValueError:
                 return Response(
@@ -96,7 +103,7 @@ def public_teams(request):
 
         if competition_id:
             try:
-                uuid.UUID(competition_id)  # Validate UUID
+                safe_uuid(competition_id)  # Validate UUID
                 participant_query &= Q(competition_id=competition_id)
             except ValueError:
                 return Response(
@@ -939,7 +946,7 @@ def public_events(request):
     # Apply filters
     if event_ids:
         try:
-            event_uuids = [uuid.UUID(id) for id in event_ids]
+            event_uuids = [safe_uuid(id) for id in event_ids]
             queryset = queryset.filter(id__in=event_uuids)
         except ValueError:
             return Response(
@@ -951,7 +958,7 @@ def public_events(request):
 
     if season_id:
         try:
-            season_uuid = uuid.UUID(season_id)
+            season_uuid = safe_uuid(season_id)
             queryset = queryset.filter(season_id=season_uuid)
         except ValueError:
             return Response(
@@ -1065,7 +1072,7 @@ def public_event_detail(request, event_id):
     Public API endpoint to fetch a single event by ID.
     """
     try:
-        event_uuid = uuid.UUID(event_id)
+        event_uuid = safe_uuid(event_id)
         event = (
             Event.objects.select_related("winner", "season")
             .prefetch_related("custom_details")

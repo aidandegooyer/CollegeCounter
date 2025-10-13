@@ -826,13 +826,20 @@ function EventCreateForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.start_date || !formData.end_date) {
-      setNotification({
-        type: "error",
-        message:
-          "Please fill in the required fields (name, start date, and end date)",
-      });
-      return;
+    // Validation logic depends on whether we're extending an existing event or creating new
+    if (!formData.event_id) {
+      // Creating new event - require basic fields
+      if (!formData.name || !formData.start_date || !formData.end_date) {
+        setNotification({
+          type: "error",
+          message:
+            "Please fill in the required fields (name, start date, and end date) or select an existing event to extend",
+        });
+        return;
+      }
+    } else {
+      // Extending existing event - basic fields are optional since they come from the base event
+      console.log("Extending existing event:", formData.event_id);
     }
 
     if (new Date(formData.start_date) >= new Date(formData.end_date)) {
@@ -847,12 +854,22 @@ function EventCreateForm({
 
     try {
       const createData: CustomEventCreateRequest = {
-        event_id: formData.event_id || undefined,
-        name: formData.name,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
-        description: formData.description || undefined,
-        picture: formData.picture || undefined,
+        // If extending existing event, only send event_id and custom fields
+        // If creating new event, send all basic fields + custom fields
+        ...(formData.event_id
+          ? {
+              // Extending existing event - only send event_id and custom fields
+              event_id: formData.event_id,
+            }
+          : {
+              // Creating new event - send basic event fields
+              name: formData.name,
+              start_date: formData.start_date,
+              end_date: formData.end_date,
+              description: formData.description || undefined,
+              picture: formData.picture || undefined,
+            }),
+        // Always send custom event fields
         bracket_link: formData.bracket_link || undefined,
         stream_link: formData.stream_link || undefined,
         secondary_stream_link: formData.secondary_stream_link || undefined,
@@ -936,40 +953,88 @@ function EventCreateForm({
               searchPlaceholder="Search events..."
               allowClear
             />
+            {formData.event_id ? (
+              <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-950/20">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Extending Existing Event
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  Basic event details (name, dates, description) are optional
+                  and will inherit from the selected event if not provided.
+                  Custom details below will be added as event enhancements.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-lg bg-green-50 p-3 dark:bg-green-950/20">
+                <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                  Creating New Event
+                </p>
+                <p className="text-xs text-green-700 dark:text-green-300">
+                  All basic event details (name, dates) are required for new
+                  events.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="name">Event Name *</Label>
+            <Label htmlFor="name">
+              Event Name {!formData.event_id && "*"}
+              {formData.event_id && (
+                <span className="text-muted-foreground ml-2 text-sm">
+                  (Optional - will use existing event name if not provided)
+                </span>
+              )}
+            </Label>
             <Input
               id="name"
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              required
+              required={!formData.event_id}
+              placeholder={
+                formData.event_id
+                  ? "Leave empty to use existing event name"
+                  : "Enter event name"
+              }
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="start_date">Start Date & Time *</Label>
+              <Label htmlFor="start_date">
+                Start Date & Time {!formData.event_id && "*"}
+                {formData.event_id && (
+                  <span className="text-muted-foreground ml-2 text-sm">
+                    (Optional)
+                  </span>
+                )}
+              </Label>
               <Input
                 id="start_date"
                 name="start_date"
                 type="datetime-local"
                 value={formData.start_date}
                 onChange={handleInputChange}
-                required
+                required={!formData.event_id}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="end_date">End Date & Time *</Label>
+              <Label htmlFor="end_date">
+                End Date & Time {!formData.event_id && "*"}
+                {formData.event_id && (
+                  <span className="text-muted-foreground ml-2 text-sm">
+                    (Optional)
+                  </span>
+                )}
+              </Label>
               <Input
                 id="end_date"
                 name="end_date"
                 type="datetime-local"
                 value={formData.end_date}
                 onChange={handleInputChange}
-                required
+                required={!formData.event_id}
               />
             </div>
           </div>
