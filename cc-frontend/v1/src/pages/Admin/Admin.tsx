@@ -10,7 +10,6 @@ import Graphic from "./Graphic";
 import MergeTeams from "./MergeTeams";
 import EditMatch from "./EditMatch";
 import EditEvent from "./EditEvent";
-import { Edit } from "lucide-react";
 
 function Admin() {
   const auth = getAuth();
