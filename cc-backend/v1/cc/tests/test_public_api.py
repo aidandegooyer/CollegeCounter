@@ -67,6 +67,22 @@ class PublicAPITestCase(TestCase):
         self.assertEqual(content["count"], 1)
         self.assertEqual(content["results"][0]["name"], "Test Team 1")
 
+        # Test filtering by event_id
+        response = self.client.get(f"{url}?event_id={self.event.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        content = json.loads(response.content)
+        # Both teams should be returned since they both participate in the match that's part of the event
+        self.assertEqual(content["count"], 2)
+        team_names = [team["name"] for team in content["results"]]
+        self.assertIn("Test Team 1", team_names)
+        self.assertIn("Test Team 2", team_names)
+
+        # Test invalid event_id format
+        response = self.client.get(f"{url}?event_id=invalid-uuid")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        content = json.loads(response.content)
+        self.assertEqual(content["error"], "Invalid event_id format")
+
     def test_public_players_endpoint(self):
         """Test that the public players endpoint returns all players"""
         url = reverse("public_players")

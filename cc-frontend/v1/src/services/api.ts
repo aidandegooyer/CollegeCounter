@@ -507,6 +507,19 @@ export interface PublicTeam {
     id: string;
     name: string;
   }>;
+  current_ranking?: {
+    id: string;
+    rank: number;
+    elo: number;
+    ranking: {
+      id: string;
+      date: string;
+    };
+    season: {
+      id: string;
+      name: string;
+    };
+  };
 }
 
 export interface PublicPlayer {
@@ -602,6 +615,7 @@ export interface TeamQueryParams {
   school_name?: string;
   season_id?: string;
   competition_id?: string;
+  event_id?: string;
   page?: number;
   page_size?: number;
   sort?: 'name' | 'school_name' | 'elo';
@@ -684,6 +698,22 @@ const convertToQueryString = (params: Record<string, any>): string => {
 };
 
 // Public API client functions
+
+/**
+ * Fetch teams with optional filtering parameters
+ * 
+ * @example
+ * // Get teams that participated in a specific event
+ * const teams = await fetchPublicTeams({ event_id: "event-uuid-here" });
+ * 
+ * // Get teams from a specific school that participated in an event
+ * const schoolTeams = await fetchPublicTeams({ 
+ *   event_id: "event-uuid-here", 
+ *   school_name: "University of" 
+ * });
+ * 
+ * @returns Teams with current ranking information (rank, elo from latest ranking snapshot)
+ */
 export const fetchPublicTeams = async (params: TeamQueryParams = {}): Promise<PaginatedResponse<PublicTeam>> => {
   const queryString = convertToQueryString(params);
   const response = await api.get(`/public/teams${queryString ? `?${queryString}` : ''}`);

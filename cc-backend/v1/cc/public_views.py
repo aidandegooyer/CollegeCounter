@@ -41,13 +41,15 @@ def public_teams(request):
     - school_name: Filter by school name (partial match)
     - season_id: Filter by season ID
     - competition_id: Filter by competition ID
+    - event_id: Filter teams that have matches in a specific event
     - page: Page number (default: 1)
     - page_size: Items per page (default: 20, max: 100)
     - sort: Sort field (default: name)
     - order: Sort order (asc or desc, default: asc)
     - season_id: Filter teams that participated in a specific season
 
-    Returns a paginated list of teams.
+    Returns a paginated list of teams with their current ranking information.
+    Each team includes current_ranking with rank and elo from the latest ranking snapshot.
     """
     # Parse query parameters
     team_ids = (
@@ -61,6 +63,7 @@ def public_teams(request):
     school_name = request.query_params.get("school_name", "")
     season_id = request.query_params.get("season_id", "")
     competition_id = request.query_params.get("competition_id", "")
+    event_id = request.query_params.get("event_id", "")
 
     page = int(request.query_params.get("page", "1"))
     page_size = min(int(request.query_params.get("page_size", "20")), MAX_PAGE_SIZE)
@@ -117,6 +120,37 @@ def public_teams(request):
         ).values_list("team_id", flat=True)
 
         query &= Q(id__in=team_ids_from_participants)
+
+    # Handle event_id filtering through EventMatch and Match models
+    if event_id:
+        try:
+            safe_uuid(event_id)  # Validate UUID
+            # Find teams that have matches in the specified event
+            # Teams can be either team1 or team2 in matches that are part of an event
+            team_ids_from_event = set()
+
+            # Get all match IDs for the event
+            match_ids = EventMatch.objects.filter(event_id=event_id).values_list(
+                "match_id", flat=True
+            )
+
+            # Get team IDs from those matches (both team1 and team2)
+            team1_ids = Match.objects.filter(id__in=match_ids).values_list(
+                "team1_id", flat=True
+            )
+            team2_ids = Match.objects.filter(id__in=match_ids).values_list(
+                "team2_id", flat=True
+            )
+
+            team_ids_from_event.update(team1_ids)
+            team_ids_from_event.update(team2_ids)
+
+            query &= Q(id__in=list(team_ids_from_event))
+        except ValueError:
+            return Response(
+                {"error": "Invalid event_id format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     query &= ~Q(name__icontains="bye")
 
@@ -183,6 +217,33 @@ def public_teams(request):
                         }
                     )
 
+        # Get current ranking for the team
+        current_ranking = None
+        if current_season:
+            # Get the latest ranking for the current season
+            latest_ranking = (
+                Ranking.objects.filter(season=current_season).order_by("-date").first()
+            )
+            if latest_ranking:
+                # Get the team's ranking item in this ranking
+                ranking_item = RankingItem.objects.filter(
+                    ranking=latest_ranking, team=team
+                ).first()
+                if ranking_item:
+                    current_ranking = {
+                        "id": ranking_item.id,
+                        "rank": ranking_item.rank,
+                        "elo": ranking_item.elo,
+                        "ranking": {
+                            "id": latest_ranking.id,
+                            "date": latest_ranking.date,
+                        },
+                        "season": {
+                            "id": current_season.id,
+                            "name": current_season.name,
+                        },
+                    }
+
         result["results"].append(
             {
                 "id": team.id,
@@ -192,6 +253,7 @@ def public_teams(request):
                 "elo": team.elo,
                 "captain": captain,
                 "current_competitions": current_competitions,
+                "current_ranking": current_ranking,
             }
         )
 
