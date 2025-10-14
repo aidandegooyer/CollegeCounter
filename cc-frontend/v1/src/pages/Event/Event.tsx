@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, NavLink } from "react-router";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,10 +15,14 @@ import {
   FileText,
   Radio,
 } from "lucide-react";
-import { usePublicEvent, usePublicMatches } from "@/services/hooks";
+import {
+  usePublicEvent,
+  usePublicMatches,
+  usePublicTeams,
+} from "@/services/hooks";
 
 import c4_logo from "@/assets/c4 title.svg";
-import type { PublicEvent, PublicMatch } from "@/services/api";
+import type { PublicEvent, PublicMatch, PublicTeam } from "@/services/api";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TabsContent } from "@radix-ui/react-tabs";
 import { CountdownTimer } from "@/components/CountdownTimer";
@@ -88,6 +92,12 @@ export function Event() {
     isLoading: matchesLoading,
     error: matchesError,
   } = usePublicMatches({ event_id: event?.id }, { disabled: !event?.id });
+
+  const {
+    data: teams,
+    isLoading: teamsLoading,
+    error: teamsError,
+  } = usePublicTeams({ event_id: event?.id }, { disabled: !event?.id });
 
   if (isLoading) {
     return (
@@ -240,10 +250,19 @@ export function Event() {
               </div>
             )}
 
-            {MainContentSwitcher(event, matches?.results, {
-              isLoading: matchesLoading,
-              error: matchesError,
-            })}
+            {MainContentSwitcher(
+              event,
+              matches?.results,
+              teams?.results,
+              {
+                isLoading: matchesLoading,
+                error: matchesError,
+              },
+              {
+                isLoading: teamsLoading,
+                error: teamsError,
+              },
+            )}
           </div>
 
           {/* Sidebar */}
@@ -402,7 +421,12 @@ export function Event() {
 function MainContentSwitcher(
   event: PublicEvent,
   matches: PublicMatch[] = [],
+  teams: PublicTeam[] = [],
   { isLoading, error }: { isLoading: boolean; error: any },
+  {
+    isLoading: teamsLoading,
+    error: teamsError,
+  }: { isLoading: boolean; error: any },
 ) {
   const getStatus = () => {
     if (!event) return null;
@@ -459,6 +483,9 @@ function MainContentSwitcher(
       </TabsList>
       <TabsContent value="stream">{Stream(event)}</TabsContent>
       <TabsContent value="bracket">{Bracket(event)}</TabsContent>
+      <TabsContent value="teams">
+        {Teams(teams, { isLoading: teamsLoading, error: teamsError })}
+      </TabsContent>
       <TabsContent value="matches">
         {Matches(matches, { isLoading, error })}
       </TabsContent>
@@ -520,6 +547,55 @@ function Stream(event: PublicEvent) {
       </div>
     );
   }
+}
+
+function Teams(
+  teams: PublicTeam[],
+  { isLoading, error }: { isLoading: boolean; error: any },
+) {
+  if (isLoading) {
+    return (
+      <div className="h-50 flex content-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div>Error loading teams</div>;
+  }
+
+  if (teams.length === 0) {
+    return (
+      <div className="text-muted-foreground py-8 text-center">
+        No teams found for this event.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {teams.map((team) => (
+        <Team key={team.id} team={team} />
+      ))}
+    </div>
+  );
+}
+
+function Team({ team }: { team: PublicTeam }) {
+  return (
+    <div className="rounded-lg border p-2">
+      <NavLink to={`/teams/${team.id}`} className="flex items-center">
+        <Logo src={team.picture} type="team" className="h-12 w-12 rounded-md" />
+        <div className="flex">
+          <p className="bg-secondary mx-4 rounded-lg px-2 py-1 font-mono">
+            #{team.current_ranking?.rank}
+          </p>
+          <h3 className="pt-0.5 text-lg font-semibold">{team.name}</h3>
+        </div>
+      </NavLink>
+    </div>
+  );
 }
 
 function Bracket(event: PublicEvent) {
