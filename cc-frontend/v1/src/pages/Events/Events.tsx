@@ -1,5 +1,5 @@
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, Trophy, ExternalLink } from "lucide-react";
 import c4_logo from "@/assets/c4 title noborder.svg";
@@ -85,7 +85,7 @@ export function Events() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="flex justify-center gap-6 lg:grid lg:grid-cols-2">
             {events.map((event) => (
               <Event key={event.id} event={event} />
             ))}
@@ -107,10 +107,9 @@ function Event({ event }: EventProps) {
   const isOngoing = startDate <= new Date() && endDate >= new Date();
   const isPast = endDate < new Date();
 
-  const formatDate = (date: Date) => {
+  const formatDate = (date: Date, year?: boolean) => {
     return date.toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
+      year: year ? "numeric" : undefined,
       month: "long",
       day: "numeric",
     });
@@ -141,7 +140,9 @@ function Event({ event }: EventProps) {
   };
 
   return (
-    <Card className="bg-background">
+    <Card
+      className={`bg-background w-[488px] ${event.custom_details?.is_featured ? "drop-shadow-primary/40 border-primary border-2 drop-shadow-lg" : ""}`}
+    >
       <div className="flex flex-col md:flex-row">
         {/* Event Image */}
         {event.picture && (
@@ -159,23 +160,21 @@ function Event({ event }: EventProps) {
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
+                <div className="mb-1 flex items-center">
                   {event.custom_details?.is_featured ? (
                     <img src={c4_logo} alt="C4 Logo" className="-m-3 h-24" />
                   ) : (
-                    <CardTitle className="text-xl">{event.name}</CardTitle>
+                    <div>
+                      <h2 className="mb-1 overflow-ellipsis text-5xl">
+                        {event.name}
+                      </h2>
+                      <p className="text-muted-foreground text-sm italic">
+                        Note: This event is not affiliated with College Counter
+                      </p>
+                    </div>
                   )}
                 </div>
                 {getStatusBadge()}
-
-                <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
-                  <div className="flex items-center gap-1">
-                    <CalendarDays className="h-4 w-4" />
-                    <span>
-                      {formatDate(startDate)} - {formatTime(startDate)}
-                    </span>
-                  </div>
-                </div>
               </div>
 
               {event.winner && (
@@ -190,16 +189,57 @@ function Event({ event }: EventProps) {
           <CardContent>
             {/* Event Details */}
             {event.custom_details && (
-              <div className="mb-4 space-y-3">
+              <div className="flex items-center justify-between">
                 {/* Prize Pool */}
                 {event.custom_details.prize_pool && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Trophy className="h-4 w-4 text-yellow-500" />
-                    <span className="font-medium">Prize Pool:</span>
-                    <span>
-                      {event.custom_details.prize_currency}{" "}
-                      {event.custom_details.prize_pool}
-                    </span>
+                  <div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Trophy className="h-4 w-4 text-yellow-500" />
+                      <span className="font-medium">Prize Pool:</span>
+                      <span>
+                        {event.custom_details.prize_currency}{" "}
+                        {event.custom_details.prize_pool}
+                      </span>
+                    </div>
+                    <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2 text-sm">
+                      <div className="flex items-center gap-1">
+                        <CalendarDays className="h-4 w-4" />
+                        <span>
+                          {formatDate(startDate)} -{" "}
+                          {startDate.toDateString() === endDate.toDateString()
+                            ? formatTime(startDate)
+                            : formatDate(endDate, true)}
+                        </span>
+                      </div>
+                    </div>
+                    {/* Action Buttons */}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {event.custom_details?.registration_link &&
+                        event.custom_details.registration_open && (
+                          <Button asChild>
+                            <a
+                              href={event.custom_details.registration_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Register Now
+                              <ExternalLink className="ml-2 h-4 w-4" />
+                            </a>
+                          </Button>
+                        )}
+                      <NavLink to={`/events/${event.id}`}>
+                        <Button
+                          className="cursor-pointer"
+                          variant={
+                            event.custom_details?.registration_open
+                              ? "outline"
+                              : "default"
+                          }
+                        >
+                          View Event
+                        </Button>
+                      </NavLink>
+                    </div>
                   </div>
                 )}
 
@@ -224,35 +264,6 @@ function Event({ event }: EventProps) {
                   )}
               </div>
             )}
-
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-2">
-              {event.custom_details?.registration_link &&
-                event.custom_details.registration_open && (
-                  <Button asChild>
-                    <a
-                      href={event.custom_details.registration_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Register Now
-                      <ExternalLink className="ml-2 h-4 w-4" />
-                    </a>
-                  </Button>
-                )}
-              <NavLink to={`/events/${event.id}`}>
-                <Button
-                  className="cursor-pointer"
-                  variant={
-                    event.custom_details?.registration_open
-                      ? "outline"
-                      : "default"
-                  }
-                >
-                  View Event
-                </Button>
-              </NavLink>
-            </div>
           </CardContent>
         </div>
       </div>

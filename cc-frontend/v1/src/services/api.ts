@@ -78,6 +78,19 @@ export interface Match {
     id: string;
     name: string;
   };
+  event_match?: EventMatch; // Optional, present if this match is part of an event
+}
+
+export interface EventMatch {
+  id: string;
+  event: {
+    id: string;
+    name: string;
+  };
+  round: number;
+  num_in_bracket: number;
+  is_bye: boolean;
+  extra_info: Record<string, any>;
 }
 
 export interface ImportMatchesRequest {
@@ -546,6 +559,7 @@ export interface PublicMatch {
     id: string;
     name: string;
   };
+  event_match?: EventMatch; // Optional, present if this match is part of an event
 }
 
 export interface PublicSeason {
@@ -622,6 +636,7 @@ export interface MatchQueryParams {
   page_size?: number;
   sort?: 'date' | 'status';
   order?: 'asc' | 'desc';
+  event_id?: string;
 }
 
 export interface SeasonQueryParams {
@@ -771,6 +786,31 @@ export interface CreateMatchRequest {
   season_id?: string;
   competition_id?: string;
   winner_id?: string; // Must be team1_id or team2_id
+  // Event match specific fields
+  event_id?: string; // If provided, creates an EventMatch
+  round?: number; // Required if event_id is provided
+  num_in_bracket?: number; // Required if event_id is provided
+  is_bye?: boolean; // Optional, defaults to false
+  extra_info?: Record<string, any>; // Optional, extra information for event matches
+}
+
+export interface CreateEventMatchRequest {
+  team1_id: string;
+  team2_id: string;
+  event_id: string;
+  round: number;
+  num_in_bracket: number;
+  date?: string;
+  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  url?: string;
+  score_team1?: number;
+  score_team2?: number;
+  platform?: 'faceit' | 'playfly' | 'other';
+  season_id?: string;
+  competition_id?: string;
+  winner_id?: string;
+  is_bye?: boolean;
+  extra_info?: Record<string, any>;
 }
 
 export interface UpdateMatchRequest {
@@ -836,8 +876,19 @@ export interface DeleteMatchResponse {
 
 // Match management API functions
 export const createMatch = async (data: CreateMatchRequest): Promise<CreateMatchResponse> => {
-  const response = await api.post(`/matches/create/`, data);
+  const response = await api.post('/admin/matches', data);
   return response.data;
+};
+
+export const createEventMatch = async (data: CreateEventMatchRequest): Promise<CreateMatchResponse> => {
+  const response = await api.post('/event-matches/create/', data);
+  return response.data;
+};
+
+// Fetch all events for admin use (includes both regular events and custom events)
+export const fetchAllEvents = async (): Promise<PublicEvent[]> => {
+  const response = await fetchPublicEvents({ page_size: 100 }); // Get a large page size
+  return response.results;
 };
 
 export const updateMatch = async (

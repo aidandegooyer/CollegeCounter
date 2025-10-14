@@ -4,7 +4,9 @@ import {
   fetchAllTeams,
   fetchSeasons,
   listCompetitions,
+  fetchAllEvents,
   createMatch,
+  createEventMatch,
   updateMatch,
   deleteMatch,
 } from "@/services/api";
@@ -13,7 +15,9 @@ import type {
   Team,
   Season,
   Competition,
+  PublicEvent,
   CreateMatchRequest,
+  CreateEventMatchRequest,
   UpdateMatchRequest,
 } from "@/services/api";
 import { Button } from "@/components/ui/button";
@@ -26,6 +30,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -42,11 +47,14 @@ import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { AlertCircle, Check, Plus, Trash2 } from "lucide-react";
 
 function EditMatch() {
-  const [activeTab, setActiveTab] = useState<"edit" | "create">("edit");
+  const [activeTab, setActiveTab] = useState<
+    "edit" | "create" | "create-event"
+  >("edit");
   const [matches, setMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const [events, setEvents] = useState<PublicEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
   const [notification, setNotification] = useState<{
@@ -59,17 +67,24 @@ function EditMatch() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [matchesData, teamsData, seasonsData, competitionsData] =
-          await Promise.all([
-            fetchAllMatches(),
-            fetchAllTeams(),
-            fetchSeasons(),
-            listCompetitions(),
-          ]);
+        const [
+          matchesData,
+          teamsData,
+          seasonsData,
+          competitionsData,
+          eventsData,
+        ] = await Promise.all([
+          fetchAllMatches(),
+          fetchAllTeams(),
+          fetchSeasons(),
+          listCompetitions(),
+          fetchAllEvents(),
+        ]);
         setMatches(matchesData);
         setTeams(teamsData);
         setSeasons(seasonsData);
         setCompetitions(competitionsData.competitions);
+        setEvents(eventsData);
       } catch (error) {
         console.error("Error fetching data:", error);
         setNotification({
@@ -126,11 +141,14 @@ function EditMatch() {
 
       <Tabs
         value={activeTab}
-        onValueChange={(v) => setActiveTab(v as "edit" | "create")}
+        onValueChange={(v) =>
+          setActiveTab(v as "edit" | "create" | "create-event")
+        }
       >
-        <TabsList className="mb-6 grid w-full grid-cols-2">
+        <TabsList className="mb-6 grid w-full grid-cols-3">
           <TabsTrigger value="edit">Edit Match</TabsTrigger>
           <TabsTrigger value="create">Create Match</TabsTrigger>
+          <TabsTrigger value="create-event">Create Event Match</TabsTrigger>
         </TabsList>
 
         <TabsContent value="edit">
@@ -157,7 +175,7 @@ function EditMatch() {
                       )
                       .map((match) => ({
                         value: match.id,
-                        label: `${match.team1.name} vs ${match.team2.name} (${new Date(match.date).toLocaleDateString()})`,
+                        label: `${match.team1.name} vs ${match.team2.name} (${new Date(match.date).toLocaleDateString()})${match.event_match ? ` - ${match.event_match.event.name}` : ""}`,
                       }))}
                     value={selectedMatchId || ""}
                     onValueChange={setSelectedMatchId}
@@ -209,6 +227,27 @@ function EditMatch() {
                 teams={teams}
                 seasons={seasons}
                 competitions={competitions}
+                setNotification={setNotification}
+                onMatchCreated={refreshMatches}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="create-event">
+          <Card className="mx-auto max-w-2xl">
+            <CardHeader>
+              <CardTitle>Create Event Match</CardTitle>
+              <CardDescription>
+                Add a new match for a specific event
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <EventMatchCreateForm
+                teams={teams}
+                seasons={seasons}
+                competitions={competitions}
+                events={events}
                 setNotification={setNotification}
                 onMatchCreated={refreshMatches}
               />
@@ -571,6 +610,17 @@ interface MatchCreateFormProps {
   onMatchCreated: () => void;
 }
 
+interface EventMatchCreateFormProps {
+  teams: Team[];
+  seasons: Season[];
+  competitions: Competition[];
+  events: PublicEvent[];
+  setNotification: (
+    notification: { type: "success" | "error"; message: string } | null,
+  ) => void;
+  onMatchCreated: () => void;
+}
+
 function MatchCreateForm({
   teams,
   seasons,
@@ -862,6 +912,446 @@ function MatchCreateForm({
             <>
               <Plus className="mr-2 h-4 w-4" />
               Create Match
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function EventMatchCreateForm({
+  teams,
+  seasons,
+  competitions,
+  events,
+  setNotification,
+  onMatchCreated,
+}: EventMatchCreateFormProps) {
+  const [formData, setFormData] = useState({
+    team1_id: "",
+    team2_id: "",
+    event_id: "",
+    round: 1,
+    num_in_bracket: 1,
+    date: "",
+    status: "scheduled" as
+      | "scheduled"
+      | "in_progress"
+      | "completed"
+      | "cancelled",
+    url: "",
+    score_team1: 0,
+    score_team2: 0,
+    platform: "other" as "faceit" | "playfly" | "other",
+    season_id: "",
+    competition_id: "",
+    winner_id: "",
+    is_bye: false,
+  });
+
+  const [extraInfo, setExtraInfo] = useState({
+    round_name: "",
+    bracket_position: "",
+    notes: "",
+  });
+  const [creating, setCreating] = useState(false);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        type === "checkbox"
+          ? checked
+          : name === "score_team1" ||
+              name === "score_team2" ||
+              name === "round" ||
+              name === "num_in_bracket"
+            ? parseInt(value, 10) || 0
+            : value,
+    }));
+  };
+
+  const handleSelectChange = (value: string, name: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleExtraInfoChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = e.target;
+    setExtraInfo((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.team1_id || !formData.team2_id || !formData.event_id) {
+      setNotification({
+        type: "error",
+        message: "Please select both teams and an event",
+      });
+      return;
+    }
+
+    if (formData.team1_id === formData.team2_id) {
+      setNotification({
+        type: "error",
+        message: "A team cannot play against itself",
+      });
+      return;
+    }
+
+    if (formData.round < 1 || formData.num_in_bracket < 1) {
+      setNotification({
+        type: "error",
+        message: "Round and bracket number must be at least 1",
+      });
+      return;
+    }
+
+    setCreating(true);
+
+    try {
+      const createData: CreateEventMatchRequest = {
+        team1_id: formData.team1_id,
+        team2_id: formData.team2_id,
+        event_id: formData.event_id,
+        round: formData.round,
+        num_in_bracket: formData.num_in_bracket,
+        date: formData.date || undefined,
+        status: formData.status,
+        url: formData.url || undefined,
+        score_team1: formData.score_team1,
+        score_team2: formData.score_team2,
+        platform: formData.platform,
+        season_id: formData.season_id || undefined,
+        competition_id: formData.competition_id || undefined,
+        winner_id: formData.winner_id || undefined,
+        is_bye: formData.is_bye,
+        extra_info: extraInfo,
+      };
+
+      await createEventMatch(createData);
+      onMatchCreated();
+      setNotification({
+        type: "success",
+        message: "Event match created successfully",
+      });
+
+      // Reset form
+      setFormData({
+        team1_id: "",
+        team2_id: "",
+        event_id: "",
+        round: 1,
+        num_in_bracket: 1,
+        date: "",
+        status: "scheduled",
+        url: "",
+        score_team1: 0,
+        score_team2: 0,
+        platform: "other",
+        season_id: "",
+        competition_id: "",
+        winner_id: "",
+        is_bye: false,
+      });
+
+      setExtraInfo({
+        round_name: "",
+        bracket_position: "",
+        notes: "",
+      });
+    } catch (error) {
+      console.error("Error creating event match:", error);
+      setNotification({
+        type: "error",
+        message: "Failed to create event match",
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="space-y-4">
+        {/* Event Selection */}
+        <div className="space-y-2">
+          <Label htmlFor="event_id">Event *</Label>
+          <SearchSelect
+            options={useSearchSelectOptions(events, "name", "id")}
+            value={formData.event_id}
+            onValueChange={(value) => handleSelectChange(value, "event_id")}
+            placeholder="Select Event"
+            searchPlaceholder="Search events..."
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="team1_id">Team 1 *</Label>
+            <SearchSelect
+              options={useSearchSelectOptions(teams, "name", "id")}
+              value={formData.team1_id}
+              onValueChange={(value) => handleSelectChange(value, "team1_id")}
+              placeholder="Select Team 1"
+              searchPlaceholder="Search teams..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="team2_id">Team 2 *</Label>
+            <SearchSelect
+              options={useSearchSelectOptions(teams, "name", "id")}
+              value={formData.team2_id}
+              onValueChange={(value) => handleSelectChange(value, "team2_id")}
+              placeholder="Select Team 2"
+              searchPlaceholder="Search teams..."
+            />
+          </div>
+        </div>
+
+        {/* Event-specific fields */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="round">Round *</Label>
+            <Input
+              id="round"
+              name="round"
+              type="number"
+              min="1"
+              value={formData.round}
+              onChange={handleInputChange}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="num_in_bracket">Bracket Number *</Label>
+            <Input
+              id="num_in_bracket"
+              name="num_in_bracket"
+              type="number"
+              min="1"
+              value={formData.num_in_bracket}
+              onChange={handleInputChange}
+            />
+          </div>
+          <div className="flex items-end space-y-2">
+            <label className="flex items-center space-x-2">
+              <input
+                id="is_bye"
+                name="is_bye"
+                type="checkbox"
+                checked={formData.is_bye}
+                onChange={handleInputChange}
+              />
+              <span className="text-sm">Is Bye Round</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="date">Date & Time</Label>
+            <Input
+              id="date"
+              name="date"
+              type="datetime-local"
+              value={formData.date}
+              onChange={handleInputChange}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="status">Status</Label>
+            <Select
+              value={formData.status}
+              onValueChange={(value) => handleSelectChange(value, "status")}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="scheduled">Scheduled</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="url">Match URL</Label>
+          <Input
+            id="url"
+            name="url"
+            type="url"
+            value={formData.url}
+            onChange={handleInputChange}
+            placeholder="https://..."
+          />
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="score_team1">Team 1 Score</Label>
+            <Input
+              id="score_team1"
+              name="score_team1"
+              type="number"
+              min="0"
+              value={formData.score_team1}
+              onChange={handleInputChange}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="score_team2">Team 2 Score</Label>
+            <Input
+              id="score_team2"
+              name="score_team2"
+              type="number"
+              min="0"
+              value={formData.score_team2}
+              onChange={handleInputChange}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="platform">Platform</Label>
+            <Select
+              value={formData.platform}
+              onValueChange={(value) => handleSelectChange(value, "platform")}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select platform" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="faceit">Faceit</SelectItem>
+                <SelectItem value="playfly">Playfly</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="season_id">Season (Optional)</Label>
+            <SearchSelect
+              options={[
+                { value: "", label: "No Season" },
+                ...useSearchSelectOptions(seasons, "name", "id"),
+              ]}
+              value={formData.season_id}
+              onValueChange={(value) => handleSelectChange(value, "season_id")}
+              placeholder="Select season"
+              searchPlaceholder="Search seasons..."
+              allowClear
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="competition_id">Competition (Optional)</Label>
+            <SearchSelect
+              options={[
+                { value: "", label: "No Competition" },
+                ...useSearchSelectOptions(competitions, "name", "id"),
+              ]}
+              value={formData.competition_id}
+              onValueChange={(value) =>
+                handleSelectChange(value, "competition_id")
+              }
+              placeholder="Select competition"
+              searchPlaceholder="Search competitions..."
+              allowClear
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="winner_id">Winner (Optional)</Label>
+          <Select
+            value={formData.winner_id || "__no_winner__"}
+            onValueChange={(value) => handleSelectChange(value, "winner_id")}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select winner" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__no_winner__">No Winner</SelectItem>
+              {formData.team1_id && (
+                <SelectItem value={formData.team1_id}>
+                  {teams.find((t) => t.id === formData.team1_id)?.name ||
+                    "Team 1"}
+                </SelectItem>
+              )}
+              {formData.team2_id && (
+                <SelectItem value={formData.team2_id}>
+                  {teams.find((t) => t.id === formData.team2_id)?.name ||
+                    "Team 2"}
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Extra Information Section */}
+        <div className="space-y-4 border-t pt-4">
+          <h4 className="text-muted-foreground text-sm font-medium">
+            Additional Information
+          </h4>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="round_name">Round Name</Label>
+              <Input
+                id="round_name"
+                name="round_name"
+                value={extraInfo.round_name}
+                onChange={handleExtraInfoChange}
+                placeholder="e.g., Quarter Finals, Semi Finals"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bracket_position">Bracket Position</Label>
+              <Input
+                id="bracket_position"
+                name="bracket_position"
+                value={extraInfo.bracket_position}
+                onChange={handleExtraInfoChange}
+                placeholder="e.g., Upper Bracket, Lower Bracket"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              name="notes"
+              value={extraInfo.notes}
+              onChange={handleExtraInfoChange}
+              placeholder="Additional notes about this match"
+              rows={3}
+            />
+          </div>
+        </div>
+
+        <Button type="submit" className="w-full" disabled={creating}>
+          {creating ? (
+            <>
+              <Spinner className="mr-2 h-4 w-4" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Event Match
             </>
           )}
         </Button>

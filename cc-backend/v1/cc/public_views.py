@@ -10,6 +10,7 @@ import uuid
 from .models import (
     Team,
     Event,
+    EventMatch,
     Player,
     Match,
     Season,
@@ -352,6 +353,7 @@ def public_matches(request):
     - date_to: Filter by date (matches before this date, format: YYYY-MM-DD)
     - season_id: Filter by season ID
     - competition_id: Filter by competition ID
+    - event_id: Filter by event ID (matches that are part of a specific event)
     - page: Page number (default: 1)
     - page_size: Items per page (default: 20, max: 100)
     - sort: Sort field (default: -date for most recent first)
@@ -375,6 +377,7 @@ def public_matches(request):
     season_id = request.query_params.get("season_id", "")
     competition_id = request.query_params.get("competition_id", "")
     competition_name = request.query_params.get("competition_name", "")
+    event_id = request.query_params.get("event_id", "")
 
     page = int(request.query_params.get("page", "1"))
     page_size = min(int(request.query_params.get("page_size", "20")), MAX_PAGE_SIZE)
@@ -469,9 +472,25 @@ def public_matches(request):
         # Filter by competition name using the relationship
         query &= Q(competition__name__icontains=competition_name)
 
+    if event_id:
+        try:
+            uuid.UUID(event_id)  # Validate UUID
+            # Filter matches that have an EventMatch relationship with the specified event
+            query &= Q(event_matches__event_id=event_id)
+        except ValueError:
+            return Response(
+                {"error": "Invalid event_id format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
     query &= ~Q(team1__name__icontains="bye") & ~Q(team2__name__icontains="bye")
 
-    matches = Match.objects.filter(query).order_by(sort_field)
+    matches = (
+        Match.objects.filter(query)
+        .select_related("team1", "team2", "winner", "season", "competition")
+        .prefetch_related("event_matches__event")
+        .order_by(sort_field)
+    )
 
     # Paginate
     paginator = Paginator(matches, page_size)
@@ -497,6 +516,26 @@ def public_matches(request):
                 "id": match.winner.id,
                 "name": match.winner.name,
             }
+
+        # Get event match data if exists
+        event_match_data = None
+        try:
+            event_match = EventMatch.objects.filter(match=match).first()
+            if event_match:
+                event_match_data = {
+                    "id": event_match.id,
+                    "event": {
+                        "id": event_match.event.id,
+                        "name": event_match.event.name,
+                    },
+                    "round": event_match.round,
+                    "num_in_bracket": event_match.num_in_bracket,
+                    "is_bye": event_match.is_bye,
+                    "extra_info": event_match.extra_info,
+                }
+        except Exception:
+            # Handle case where EventMatch query fails
+            pass
 
         result["results"].append(
             {
@@ -529,6 +568,7 @@ def public_matches(request):
                 }
                 if match.competition
                 else None,
+                "event_match": event_match_data,
             }
         )
 

@@ -264,6 +264,11 @@ class EventMatch(models.Model):
     is_bye = models.BooleanField(
         default=False, help_text="Indicates if this match is a bye round"
     )
+    extra_info = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional information about the event match (round name, bracket position, etc.)",
+    )
 
     def __str__(self):
         return f"EVENTMATCH: {self.match.team1} vs {self.match.team2} on {self.match.date.strftime('%Y-%m-%d %H:%M:%S')}"

@@ -13,14 +13,17 @@ import {
   ArrowLeft,
   DollarSign,
   FileText,
+  Radio,
 } from "lucide-react";
-import { usePublicEvent } from "@/services/hooks";
+import { usePublicEvent, usePublicMatches } from "@/services/hooks";
 
 import c4_logo from "@/assets/c4 title.svg";
-import type { PublicEvent } from "@/services/api";
+import type { PublicEvent, PublicMatch } from "@/services/api";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TabsContent } from "@radix-ui/react-tabs";
 import { CountdownTimer } from "@/components/CountdownTimer";
+import Logo from "@/components/Logo";
+import { calculateEloChanges } from "@/services/elo";
 
 // Simple Badge component (reused from Events.tsx)
 function Badge({
@@ -79,6 +82,12 @@ export function Event() {
       full: date,
     };
   };
+
+  const {
+    data: matches,
+    isLoading: matchesLoading,
+    error: matchesError,
+  } = usePublicMatches({ event_id: event?.id }, { disabled: !event?.id });
 
   if (isLoading) {
     return (
@@ -232,7 +241,10 @@ export function Event() {
               </div>
             )}
 
-            {MainContentSwitcher(event)}
+            {MainContentSwitcher(event, matches?.results, {
+              isLoading: matchesLoading,
+              error: matchesError,
+            })}
           </div>
 
           {/* Sidebar */}
@@ -388,7 +400,11 @@ export function Event() {
   );
 }
 
-function MainContentSwitcher(event: PublicEvent) {
+function MainContentSwitcher(
+  event: PublicEvent,
+  matches: PublicMatch[] = [],
+  { isLoading, error }: { isLoading: boolean; error: any },
+) {
   const getStatus = () => {
     if (!event) return null;
     const now = new Date();
@@ -444,7 +460,7 @@ function MainContentSwitcher(event: PublicEvent) {
       </TabsContent>
       <TabsContent value="bracket">{Bracket(event)}</TabsContent>
       <TabsContent value="matches">
-        <div>Matches Content Here</div>
+        {Matches(matches, { isLoading, error })}
       </TabsContent>
       <TabsContent value="info">{Info(event)}</TabsContent>
     </Tabs>
@@ -505,5 +521,259 @@ function Info(event: PublicEvent) {
         </CardContent>
       </Card>
     </>
+  );
+}
+
+function Matches(
+  matches: PublicMatch[],
+  { isLoading, error }: { isLoading: boolean; error: any },
+) {
+  if (isLoading) {
+    return (
+      <div className="h-50 flex content-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div>Error loading matches</div>;
+  }
+
+  const scheduled = matches.filter((m) => m.status === "scheduled");
+  const live = matches.filter((m) => m.status === "in_progress");
+  const completed = matches.filter((m) => m.status === "completed");
+
+  return (
+    <div className="space-y-4">
+      {live.length > 0 && (
+        <div>
+          <h2>Live Matches</h2>
+          <ul className="space-y-2">
+            {live.map((match) => (
+              <UpcomingOrLiveMatch key={match.id} match={match} live={true} />
+            ))}
+          </ul>
+        </div>
+      )}
+      {scheduled.length > 0 && (
+        <div>
+          <h2>Scheduled Matches</h2>
+          <ul className="space-y-2">
+            {scheduled.map((match) => (
+              <UpcomingOrLiveMatch key={match.id} match={match} />
+            ))}
+          </ul>
+        </div>
+      )}
+      {completed.length > 0 && (
+        <div>
+          <h2>Completed Matches</h2>
+          <ul className="grid grid-cols-2 space-y-2">
+            {completed.map((match) => (
+              <Result key={match.id} match={match} />
+            ))}
+          </ul>
+        </div>
+      )}
+      {live.length === 0 &&
+        scheduled.length === 0 &&
+        completed.length === 0 && (
+          <div className="text-muted-foreground py-8 text-center">
+            No matches found for this event.
+          </div>
+        )}
+    </div>
+  );
+}
+
+interface UpcomingOrLiveMatchProps {
+  match: PublicMatch;
+  live?: boolean;
+}
+
+function UpcomingOrLiveMatch({ match, live }: UpcomingOrLiveMatchProps) {
+  const changes_team1 = calculateEloChanges(
+    match.team1?.elo || 1000,
+    match.team2?.elo || 1000,
+  );
+  const changes_team2 = calculateEloChanges(
+    match.team2?.elo || 1000,
+    match.team1?.elo || 1000,
+  );
+  // Format date and time
+  const matchDate = new Date(match.date || "");
+  const dateStr = matchDate.toLocaleDateString([], {
+    day: "numeric",
+    month: "short",
+  });
+  const timeStr = matchDate.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    navigate(`/matches/${match.id}`);
+  };
+
+  return (
+    <li
+      className={`bg-background flex cursor-pointer rounded-xl border-2 p-4 py-2 transition-all`}
+      onClick={handleClick}
+    >
+      <div className="sm:flex-5 my-auto flex-1 space-y-3">
+        <div className="flex items-center space-x-2">
+          <Logo src={match.team1?.picture} type="team" className="h-6 w-6" />
+          <span className="truncate overflow-ellipsis whitespace-nowrap">
+            {match.team1?.name || "Unknown Team"}
+          </span>
+          <span className="ml-2 hidden items-center justify-end text-xs sm:flex">
+            <div className="text-muted-foreground bg-muted flex rounded-sm px-1 font-mono text-xs">
+              <div className="text-muted-foreground border-r-2 pr-1 font-mono">
+                {match.team1?.elo}
+              </div>
+              <div className="border-r-2 border-dotted px-1 font-mono text-green-600">
+                {changes_team1.winChange >= 0
+                  ? `+${changes_team1.winChange}`
+                  : changes_team1.winChange}
+              </div>
+              <div className="border-foreground-muted pl-1 font-mono text-red-600">
+                {changes_team1.lossChange >= 0
+                  ? `+${changes_team1.lossChange}`
+                  : changes_team1.lossChange}
+              </div>
+            </div>
+          </span>
+        </div>
+        <div className="flex items-center space-x-2 overflow-ellipsis">
+          <Logo src={match.team2?.picture} type="team" className="h-6 w-6" />
+          <span className="truncate overflow-ellipsis whitespace-nowrap">
+            {match.team2?.name || "Unknown Team"}
+          </span>
+          <span className="ml-2 hidden items-center justify-end text-xs sm:flex">
+            <div className="text-muted-foreground bg-muted flex rounded-sm px-1 font-mono text-xs">
+              <div className="text-muted-foreground border-r-2 pr-1 font-mono">
+                {match.team2?.elo}
+              </div>
+              <div className="border-r-2 border-dotted px-1 font-mono text-green-600">
+                {changes_team2.winChange >= 0
+                  ? `+${changes_team2.winChange}`
+                  : changes_team2.winChange}
+              </div>
+              <div className="border-foreground-muted pl-1 font-mono text-red-600">
+                {changes_team2.lossChange >= 0
+                  ? `+${changes_team2.lossChange}`
+                  : changes_team2.lossChange}
+              </div>
+            </div>
+          </span>
+        </div>
+      </div>
+      <div className="sm:flex-2 flex-1 text-end text-sm">
+        {live ? (
+          <div className="mb-2 flex items-center justify-end space-x-1">
+            <h3 className="mr-2 text-lg font-bold">In Progress</h3>
+            <Radio className="animate-radio-blink h-6 w-6 text-red-500" />
+          </div>
+        ) : (
+          <div className="mb-1 text-lg">
+            {dateStr}, {timeStr}
+          </div>
+        )}
+        <div className="flex justify-end">
+          {match.event_match?.extra_info.round_name && (
+            <div className="bg-primary rounded-md px-2 py-0.5">
+              {match.event_match?.extra_info.round_name}
+            </div>
+          )}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+interface ResultProps {
+  match: PublicMatch;
+}
+
+function Result(props: ResultProps) {
+  const winningTeamId = props.match.winner?.id;
+  let winner, loser;
+  if (winningTeamId === props.match.team1.id) {
+    winner = props.match.team1;
+    loser = props.match.team2;
+  } else {
+    winner = props.match.team2;
+    loser = props.match.team1;
+  }
+
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    navigate(`/matches/${props.match.id}`);
+  };
+
+  return (
+    <li
+      className="cursor-pointer rounded-xl border-2 p-4 py-2"
+      onClick={handleClick}
+    >
+      <div className="flex">
+        <div className="flex-3 space-y-2">
+          <div className="flex items-center space-x-2">
+            <Logo
+              src={winner.picture}
+              className="h-6 w-6"
+              alt="pfp"
+              type="team"
+            />
+            <span className="truncate overflow-ellipsis whitespace-nowrap font-semibold">
+              {winner.name}
+            </span>
+          </div>
+          <div className="flex items-center space-x-2 overflow-ellipsis">
+            <Logo
+              src={loser.picture}
+              className="h-6 w-6"
+              alt="pfp"
+              type="team"
+            />
+            <span className="text-muted-foreground truncate overflow-ellipsis whitespace-nowrap">
+              {loser.name}
+            </span>
+          </div>
+        </div>
+        <div className="flex-1 space-y-2 text-end">
+          <span className="flex justify-end">
+            <p className="bg-muted ml-2 rounded-sm px-1 font-mono text-green-500">
+              {Math.max(props.match.score_team1, props.match.score_team2)}
+            </p>
+          </span>
+          <span className="flex justify-end">
+            <p className="bg-muted ml-2 rounded-sm px-1 font-mono text-red-500">
+              {Math.min(props.match.score_team1, props.match.score_team2)}
+            </p>
+          </span>
+        </div>
+      </div>
+      <hr className="my-2" />
+      <div className="flex items-end justify-between">
+        <div className="flex items-center space-x-2">
+          {props.match.event_match?.extra_info.round_name && (
+            <div className="bg-primary rounded-md px-2 py-0.5">
+              {props.match.event_match?.extra_info.round_name}
+            </div>
+          )}
+        </div>
+        <p className="text-muted-foreground py-0.5">
+          {new Date(props.match.date).toLocaleString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })}
+        </p>
+      </div>
+    </li>
   );
 }
