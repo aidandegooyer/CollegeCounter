@@ -148,23 +148,22 @@ export function Event() {
         {/* Hero Section */}
         <div className="grid grid-cols-1 gap-6 md:grid md:grid-cols-3">
           <div className="relative col-span-2">
-            {event.picture && (
-              <div className="h-64 w-full overflow-hidden rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 md:h-80">
-                <img
-                  src={event.picture}
-                  alt={event.name}
-                  className="h-full w-full object-cover"
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-40" />
-              </div>
-            )}
-            <div
-              className={`${event.picture ? "absolute bottom-0 left-0 right-0 p-6 text-white" : ""}`}
-            >
+            <div>
               {event.custom_details?.is_featured ? (
                 <img src={c4_logo} alt="C4 Logo" className="mb-2 h-24 w-auto" />
               ) : (
-                <h1>{event.name}</h1>
+                <div className="flex items-center gap-4">
+                  {event.picture && (
+                    <div className="h-18 w-18">
+                      <img
+                        src={event.picture}
+                        alt={event.name}
+                        className="h-full w-full rounded-lg object-cover"
+                      />
+                    </div>
+                  )}
+                  <h1>{event.name}</h1>
+                </div>
               )}
               {event.winner && (
                 <div className="mb-2 flex items-center gap-2">
@@ -420,7 +419,10 @@ function MainContentSwitcher(
     }
   };
   return (
-    <Tabs defaultValue="matches" className="w-full">
+    <Tabs
+      defaultValue={getStatus() === "ongoing" ? "stream" : "matches"}
+      className="w-full"
+    >
       <TabsList>
         {getStatus() === "ongoing" && (
           <TabsTrigger
@@ -455,9 +457,7 @@ function MainContentSwitcher(
           Info
         </TabsTrigger>
       </TabsList>
-      <TabsContent value="stream">
-        <div>Stream Content Here</div>
-      </TabsContent>
+      <TabsContent value="stream">{Stream(event)}</TabsContent>
       <TabsContent value="bracket">{Bracket(event)}</TabsContent>
       <TabsContent value="matches">
         {Matches(matches, { isLoading, error })}
@@ -465,6 +465,61 @@ function MainContentSwitcher(
       <TabsContent value="info">{Info(event)}</TabsContent>
     </Tabs>
   );
+}
+
+function Stream(event: PublicEvent) {
+  if (!event.custom_details?.stream_link) {
+    return (
+      <Card className="bg-background">
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <Twitch className="text-muted-foreground mb-4 h-12 w-12" />
+          <p className="text-muted-foreground">
+            No stream available for this event
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (event.custom_details.stream_link.includes("twitch.tv")) {
+    // Extract channel name from Twitch URL
+    let channelName = "";
+
+    if (event.custom_details.stream_link.includes("twitch.tv/")) {
+      const parts = event.custom_details.stream_link.split("twitch.tv/");
+      if (parts.length > 1) {
+        channelName = parts[1].split(/[/?#]/)[0]; // Remove any query params or fragments
+      }
+    }
+
+    if (!channelName) {
+      return (
+        <Card className="bg-background">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Twitch className="text-muted-foreground mb-4 h-12 w-12" />
+            <p className="text-muted-foreground">Invalid stream URL</p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    // Create proper Twitch embed URL with required parameters
+    const embedUrl = `https://player.twitch.tv/?channel=${channelName}&parent=${window.location.hostname}&autoplay=true&muted=true`;
+
+    return (
+      <div className="w-full overflow-clip rounded-lg">
+        <iframe
+          src={embedUrl}
+          height="480"
+          width="100%"
+          allowFullScreen={true}
+          frameBorder="0"
+          scrolling="no"
+          title="Twitch Stream"
+        ></iframe>
+      </div>
+    );
+  }
 }
 
 function Bracket(event: PublicEvent) {
