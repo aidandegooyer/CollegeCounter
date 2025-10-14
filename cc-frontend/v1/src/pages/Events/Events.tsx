@@ -141,20 +141,10 @@ function Event({ event }: EventProps) {
 
   return (
     <Card
-      className={`bg-background w-[488px] ${event.custom_details?.is_featured ? "drop-shadow-primary/40 border-primary border-2 drop-shadow-lg" : ""}`}
+      className={`bg-background relative w-[488px] ${event.custom_details?.is_featured ? "drop-shadow-primary/40 border-primary border-2 drop-shadow-lg" : ""}`}
     >
+      <div className="absolute right-2 top-1">{getStatusBadge()}</div>
       <div className="flex flex-col md:flex-row">
-        {/* Event Image */}
-        {event.picture && (
-          <div className="h-48 md:h-auto md:w-64">
-            <img
-              src={event.picture}
-              alt={event.name}
-              className="h-full w-full object-cover"
-            />
-          </div>
-        )}
-
         {/* Event Content */}
         <div className="flex-1">
           <CardHeader>
@@ -164,17 +154,28 @@ function Event({ event }: EventProps) {
                   {event.custom_details?.is_featured ? (
                     <img src={c4_logo} alt="C4 Logo" className="-m-3 h-24" />
                   ) : (
-                    <div>
-                      <h2 className="mb-1 overflow-ellipsis text-5xl">
-                        {event.name}
-                      </h2>
-                      <p className="text-muted-foreground text-sm italic">
-                        Note: This event is not affiliated with College Counter
-                      </p>
+                    <div className="mb-1 flex items-center gap-4">
+                      {event.picture && (
+                        <div className="h-18 w-18">
+                          <img
+                            src={event.picture}
+                            alt={event.name}
+                            className="h-full w-full rounded-lg object-cover"
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <h2 className="mb-1 overflow-ellipsis text-5xl">
+                          {event.name}
+                        </h2>
+                        <p className="text-muted-foreground text-xs italic">
+                          Note: This event is not affiliated with College
+                          Counter
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
-                {getStatusBadge()}
               </div>
 
               {event.winner && (
