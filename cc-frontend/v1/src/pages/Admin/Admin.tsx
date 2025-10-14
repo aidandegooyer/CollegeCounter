@@ -10,6 +10,7 @@ import Graphic from "./Graphic";
 import MergeTeams from "./MergeTeams";
 import EditMatch from "./EditMatch";
 import EditEvent from "./EditEvent";
+import { Edit } from "lucide-react";
 
 function Admin() {
   const auth = getAuth();
@@ -46,25 +47,14 @@ function Admin() {
             value="edit"
             className="hover:text-foreground! cursor-pointer"
           >
-            Edit Team/Player
+            Edit/Create
           </TabsTrigger>
-          <TabsTrigger
-            value="edit-match"
-            className="hover:text-foreground! cursor-pointer"
-          >
-            Edit Match
-          </TabsTrigger>
-          <TabsTrigger
-            value="edit-event"
-            className="hover:text-foreground! cursor-pointer"
-          >
-            Edit Event
-          </TabsTrigger>
+
           <TabsTrigger
             value="import"
             className="hover:text-foreground! cursor-pointer"
           >
-            Import Matches
+            Import Tools
           </TabsTrigger>
           <TabsTrigger
             value="database"
@@ -72,54 +62,100 @@ function Admin() {
           >
             Database Viewer
           </TabsTrigger>
-          <TabsTrigger
-            value="delete-data"
-            className="hover:text-foreground! cursor-pointer"
-          >
-            Delete Data
-          </TabsTrigger>
+
           <TabsTrigger
             value="graphic"
             className="hover:text-foreground! cursor-pointer"
           >
             Graphic Generator
           </TabsTrigger>
-          <TabsTrigger
-            value="merge-teams"
-            className="hover:text-foreground! cursor-pointer"
-          >
-            Merge Teams
-          </TabsTrigger>
         </TabsList>
         <TabsContent value="control-panel">
           <ControlPanel />
         </TabsContent>
-        <TabsContent value="edit">
-          <EditTeamPlayer />
-        </TabsContent>
-        <TabsContent value="import">
-          <ImportMatches />
-        </TabsContent>
+        <TabsContent value="edit">{EditAndCreate()}</TabsContent>
+        <TabsContent value="import">{ImportTools()}</TabsContent>
         <TabsContent value="database">
           <DatabaseViewer />
         </TabsContent>
-        <TabsContent value="delete-data">
-          <DeleteData />
-        </TabsContent>
+
         <TabsContent value="graphic">
           <Graphic />
-        </TabsContent>
-        <TabsContent value="merge-teams">
-          <MergeTeams />
-        </TabsContent>
-        <TabsContent value="edit-match">
-          <EditMatch />
-        </TabsContent>
-        <TabsContent value="edit-event">
-          <EditEvent />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 export default Admin;
+
+function EditAndCreate() {
+  return (
+    <Tabs defaultValue="team-player">
+      <TabsList>
+        <TabsTrigger
+          value="team-player"
+          className="hover:text-foreground! cursor-pointer"
+        >
+          Team/Player
+        </TabsTrigger>
+        <TabsTrigger
+          value="match"
+          className="hover:text-foreground! cursor-pointer"
+        >
+          Match
+        </TabsTrigger>
+        <TabsTrigger
+          value="event"
+          className="hover:text-foreground! cursor-pointer"
+        >
+          Event
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="team-player">
+        <EditTeamPlayer />
+      </TabsContent>
+      <TabsContent value="match">
+        <EditMatch />
+      </TabsContent>
+      <TabsContent value="event">
+        <EditEvent />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function ImportTools() {
+  return (
+    <Tabs defaultValue="import-matches">
+      <TabsList>
+        <TabsTrigger
+          value="import-matches"
+          className="hover:text-foreground! cursor-pointer"
+        >
+          Import Matches
+        </TabsTrigger>
+        <TabsTrigger
+          value="merge-teams"
+          className="hover:text-foreground! cursor-pointer"
+        >
+          Merge Teams
+        </TabsTrigger>
+        <TabsTrigger
+          value="delete-data"
+          className="hover:text-foreground! cursor-pointer"
+        >
+          Delete Data
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="import-matches">
+        <ImportMatches />
+      </TabsContent>
+      <TabsContent value="merge-teams">
+        <MergeTeams />
+      </TabsContent>
+      <TabsContent value="delete-data">
+        <DeleteData />
+      </TabsContent>
+    </Tabs>
+  );
+}
