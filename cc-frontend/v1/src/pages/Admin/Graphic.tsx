@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { usePublicTeams, usePublicSeasons } from "@/services/hooks";
+import {
+  usePublicTeams,
+  usePublicSeasons,
+  usePublicRankings,
+  usePublicRankingItems,
+} from "@/services/hooks";
 import { Upload, Download, Palette } from "lucide-react";
 import Logo from "@/components/Logo";
 import { domToPng } from "modern-screenshot";
@@ -24,6 +29,9 @@ function Graphic() {
   const [seasonFilter, setSeasonFilter] = useState<string | undefined>(
     import.meta.env.VITE_CURRENT_SEASON_ID || undefined,
   );
+  const [rankingWeekFilter, setRankingWeekFilter] = useState<
+    string | undefined
+  >(undefined);
   const [titleText, setTitleText] = useState("TOP 10 TEAMS");
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [titleColor, setTitleColor] = useState("#ffffff");
@@ -59,14 +67,87 @@ function Graphic() {
     page_size: 50,
   });
 
-  // Get top 10 teams
-  const { data: teamsData, isLoading } = usePublicTeams({
-    sort: "elo",
-    order: "desc",
+  // Fetch rankings for the selected season
+  const { data: rankingsData } = usePublicRankings(
+    {
+      season_id: seasonFilter,
+      sort: "date",
+      order: "desc",
+      page_size: 100,
+    },
+    {
+      enabled: !!seasonFilter,
+    },
+  );
+
+  // Auto-select the most recent ranking week when rankings are loaded
+  useEffect(() => {
+    if (
+      rankingsData?.results &&
+      rankingsData.results.length > 0 &&
+      !rankingWeekFilter
+    ) {
+      const mostRecentRanking = rankingsData.results[0];
+      setRankingWeekFilter(mostRecentRanking.id);
+    }
+  }, [rankingsData, rankingWeekFilter]);
+
+  // Determine if we're showing current rankings or a specific ranking snapshot
+  const isCurrentRankings =
+    !rankingWeekFilter || rankingWeekFilter === "current";
+
+  // Query for current team rankings (live ELO data)
+  const currentRankingsParams = {
+    sort: "elo" as const,
+    order: "desc" as const,
+    page: 1,
     page_size: 10,
     ...(seasonFilter &&
       seasonFilter !== "all_seasons" && { season_id: seasonFilter }),
-  });
+  };
+
+  // Query for historical ranking data
+  const historicalRankingsParams = {
+    ranking_id: rankingWeekFilter || "",
+    page: 1,
+    page_size: 10,
+    sort: "rank" as const,
+    order: "asc" as const,
+  };
+
+  // Fetch current team data
+  const { data: currentData, isLoading: isLoadingCurrent } = usePublicTeams(
+    currentRankingsParams,
+    {
+      enabled: isCurrentRankings,
+    },
+  );
+
+  // Fetch historical ranking items
+  const { data: historicalData, isLoading: isLoadingHistorical } =
+    usePublicRankingItems(historicalRankingsParams, {
+      enabled: !isCurrentRankings && !!rankingWeekFilter,
+    });
+
+  // Use the appropriate data source
+  const isLoading = isCurrentRankings ? isLoadingCurrent : isLoadingHistorical;
+
+  // Process the data based on source
+  const topTeams = (() => {
+    if (isCurrentRankings && currentData?.results) {
+      return currentData.results;
+    } else if (!isCurrentRankings && historicalData?.results) {
+      // For historical data, transform ranking items to team-like objects
+      return historicalData.results.map((item: any) => ({
+        id: item.team.id,
+        name: item.team.name,
+        picture: item.team.picture,
+        school_name: item.team.school_name,
+        elo: item.elo, // Use historical ELO from ranking
+      }));
+    }
+    return [];
+  })();
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -160,8 +241,6 @@ function Graphic() {
     );
   }
 
-  const topTeams = teamsData?.results || [];
-
   return (
     <div className="container mx-auto space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -232,6 +311,31 @@ function Graphic() {
                     {seasonsData?.results?.map((season) => (
                       <SelectItem key={season.id} value={season.id}>
                         {season.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Ranking Week Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="rankingWeek">Ranking Week</Label>
+                <Select
+                  value={rankingWeekFilter}
+                  onValueChange={setRankingWeekFilter}
+                >
+                  <SelectTrigger id="rankingWeek">
+                    <SelectValue placeholder="Select a week" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="current">Current (Live ELO)</SelectItem>
+                    {rankingsData?.results?.map((ranking) => (
+                      <SelectItem key={ranking.id} value={ranking.id}>
+                        {new Date(ranking.date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
                       </SelectItem>
                     ))}
                   </SelectContent>
