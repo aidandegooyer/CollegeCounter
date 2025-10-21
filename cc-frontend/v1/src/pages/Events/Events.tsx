@@ -85,10 +85,12 @@ export function Events() {
             </p>
           </div>
         ) : (
-          <div className="flex justify-center gap-6 lg:grid lg:grid-cols-2">
-            {events.map((event) => (
-              <Event key={event.id} event={event} />
-            ))}
+          <div className="flex justify-center">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {events.map((event) => (
+                <Event key={event.id} event={event} />
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -141,7 +143,7 @@ function Event({ event }: EventProps) {
 
   return (
     <Card
-      className={`bg-background relative w-[488px] ${event.custom_details?.is_featured ? "drop-shadow-primary/40 border-primary border-2 drop-shadow-lg" : ""}`}
+      className={`bg-background relative max-w-[488px] ${event.custom_details?.is_featured ? "drop-shadow-primary/40 border-primary border-2 drop-shadow-lg" : ""}`}
     >
       <div className="absolute right-2 top-1">{getStatusBadge()}</div>
       <div className="flex flex-col md:flex-row">
