@@ -7,7 +7,33 @@ interface TimeRemaining {
   seconds: number;
 }
 
-export function CountdownTimer({ targetDate }: { targetDate: Date }) {
+type CountdownTimerSize = "sm" | "md" | "lg";
+
+const sizeMap = {
+  sm: {
+    number: "text-lg",
+    label: "text-xs",
+    gap: "gap-2",
+  },
+  md: {
+    number: "text-2xl",
+    label: "text-sm",
+    gap: "gap-4",
+  },
+  lg: {
+    number: "text-4xl",
+    label: "text-base",
+    gap: "gap-6",
+  },
+};
+
+export function CountdownTimer({
+  targetDate,
+  size = "md",
+}: {
+  targetDate: Date;
+  size?: CountdownTimerSize;
+}) {
   const [timeRemaining, setTimeRemaining] = useState<TimeRemaining>({
     days: 0,
     hours: 0,
@@ -49,46 +75,48 @@ export function CountdownTimer({ targetDate }: { targetDate: Date }) {
     return () => clearInterval(interval);
   }, [targetDate]);
 
+  const { number, label, gap } = sizeMap[size];
+
   if (isExpired) {
     return <div className=""></div>;
   }
 
   return (
-    <div className="flex flex-wrap justify-center gap-4 text-center">
+    <div className={`flex flex-wrap justify-center ${gap} text-center`}>
       {timeRemaining.days > 0 && (
         <div className="flex flex-col">
-          <span className="text-3xl font-bold">
+          <span className={`${number} font-bold`}>
             {timeRemaining.days.toString().padStart(2, "0")}
           </span>
-          <span className="text-sm uppercase tracking-wide text-gray-600">
+          <span className={`${label} uppercase tracking-wide text-gray-600`}>
             {timeRemaining.days === 1 ? "Day" : "Days"}
           </span>
         </div>
       )}
 
       <div className="flex flex-col">
-        <span className="text-3xl font-bold">
+        <span className={`${number} font-bold`}>
           {timeRemaining.hours.toString().padStart(2, "0")}
         </span>
-        <span className="text-sm uppercase tracking-wide text-gray-600">
+        <span className={`${label} uppercase tracking-wide text-gray-600`}>
           Hr
         </span>
       </div>
 
       <div className="flex flex-col">
-        <span className="text-3xl font-bold">
+        <span className={`${number} font-bold`}>
           {timeRemaining.minutes.toString().padStart(2, "0")}
         </span>
-        <span className="text-sm uppercase tracking-wide text-gray-600">
+        <span className={`${label} uppercase tracking-wide text-gray-600`}>
           Min
         </span>
       </div>
 
       <div className="flex flex-col">
-        <span className="text-3xl font-bold">
+        <span className={`${number} font-bold`}>
           {timeRemaining.seconds.toString().padStart(2, "0")}
         </span>
-        <span className="text-sm uppercase tracking-wide text-gray-600">
+        <span className={`${label} uppercase tracking-wide text-gray-600`}>
           Sec
         </span>
       </div>
