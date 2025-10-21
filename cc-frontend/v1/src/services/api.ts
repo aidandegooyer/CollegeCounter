@@ -1172,3 +1172,19 @@ export const deleteAdminCustomEvent = async (id: string): Promise<{message: stri
   return response.data;
 };
 
+// NWES API Proxy
+export interface NWESProxyParams {
+  tournament_id?: string;
+  [key: string]: any; // Allow any other query parameters
+}
+
+/**
+ * Proxy request to NWES API. The API key is automatically added on the backend.
+ * 
+ * @param params - Query parameters to send to NWES API (excluding api_key)
+ * @returns Promise with the NWES API response
+ */
+export const proxyNWES = async (params: NWESProxyParams): Promise<any> => {
+  const response = await api.get('/proxy/nwes/', { params });
+  return response.data;
+};

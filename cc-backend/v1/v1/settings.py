@@ -35,6 +35,7 @@ DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
 
 PLAYFLY_API_KEY = os.getenv("PLAYFLY_API_KEY", "")
 FACEIT_API_KEY = os.getenv("FACEIT_API_KEY", "")
+NWES_API_KEY = os.getenv("NWES_API_KEY", "")
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
 
 
@@ -46,7 +47,7 @@ else:
     CORS_ALLOWED_ORIGINS = [
         "https://www.collegecounter.org",
         "https://collegecounter.org",
-        "http://localhost:5173"
+        "http://localhost:5173",
     ]
 
 

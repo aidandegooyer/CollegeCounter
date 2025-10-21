@@ -79,6 +79,7 @@ urlpatterns = [
         views.proxy_leaguespot_participants,
         name="proxy_leaguespot_participants",
     ),
+    path("proxy/nwes/", views.proxy_nwes, name="proxy_nwes"),
     path(
         "sanity-webhook/",
         webhooks.SanityWebhookView.as_view(),
