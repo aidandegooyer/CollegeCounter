@@ -1315,6 +1315,263 @@ def create_event_match(request):
 
 @api_view(["PUT", "PATCH"])
 @firebase_auth_required(min_role="admin")
+def update_event_match(request, match_id):
+    """
+    Update an existing event match
+
+    PUT: Full update (all fields required except optional ones)
+    PATCH: Partial update (only provided fields will be updated)
+
+    Expected request format (same as create_event_match):
+    {
+        "team1_id": "uuid",  // Required for PUT, optional for PATCH
+        "team2_id": "uuid",  // Required for PUT, optional for PATCH
+        "event_id": "uuid",  // Required for PUT, optional for PATCH
+        "round": 1,  // Required for PUT, optional for PATCH
+        "num_in_bracket": 1,  // Required for PUT, optional for PATCH
+        "date": "2025-01-01T15:00:00Z",  // Optional
+        "status": "scheduled",  // Optional
+        "url": "https://example.com",  // Optional
+        "score_team1": 0,  // Optional
+        "score_team2": 0,  // Optional
+        "platform": "other",  // Optional
+        "season_id": "uuid",  // Optional
+        "competition_id": "uuid",  // Optional
+        "winner_id": "uuid",  // Optional
+        "is_bye": false,  // Optional
+        "extra_info": {}  // Optional - JSON object for additional match info
+    }
+    """
+    try:
+        match = get_object_or_404(Match, id=match_id)
+        event_match = get_object_or_404(EventMatch, match=match)
+        is_full_update = request.method == "PUT"
+
+        # Store old match state for ELO management
+        old_status = match.status
+        old_winner = match.winner
+
+        # Handle team updates
+        team1_id = request.data.get("team1_id")
+        team2_id = request.data.get("team2_id")
+
+        if is_full_update and (not team1_id or not team2_id):
+            return Response(
+                {"error": "team1_id and team2_id are required for full update"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if team1_id and team2_id and team1_id == team2_id:
+            return Response(
+                {"error": "A team cannot play against itself"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if team1_id:
+            try:
+                match.team1 = Team.objects.get(id=team1_id)
+            except Team.DoesNotExist:
+                return Response(
+                    {"error": "Team1 not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+        if team2_id:
+            try:
+                match.team2 = Team.objects.get(id=team2_id)
+            except Team.DoesNotExist:
+                return Response(
+                    {"error": "Team2 not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+        # Handle event update
+        event_id = request.data.get("event_id")
+        if is_full_update and not event_id:
+            return Response(
+                {"error": "event_id is required for full update"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if event_id:
+            try:
+                event_match.event = Event.objects.get(id=event_id)
+            except Event.DoesNotExist:
+                return Response(
+                    {"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+        # Handle EventMatch specific fields
+        if "round" in request.data:
+            if is_full_update and request.data["round"] is None:
+                return Response(
+                    {"error": "round is required for full update"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            event_match.round = request.data["round"]
+
+        if "num_in_bracket" in request.data:
+            if is_full_update and request.data["num_in_bracket"] is None:
+                return Response(
+                    {"error": "num_in_bracket is required for full update"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            event_match.num_in_bracket = request.data["num_in_bracket"]
+
+        if "is_bye" in request.data:
+            event_match.is_bye = request.data["is_bye"]
+
+        if "extra_info" in request.data:
+            event_match.extra_info = request.data["extra_info"]
+
+        # Handle date update
+        if "date" in request.data:
+            date_str = request.data["date"]
+            if date_str:
+                match_date = safe_parse_datetime(date_str)
+                if not match_date:
+                    return Response(
+                        {"error": "Invalid date format"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                match.date = match_date
+            elif not is_full_update:  # Only allow None for PATCH requests
+                match.date = timezone.now()
+
+        # Handle other Match field updates
+        if "status" in request.data:
+            match.status = request.data["status"]
+
+        if "url" in request.data:
+            match.url = request.data["url"]
+
+        if "score_team1" in request.data:
+            match.score_team1 = request.data["score_team1"]
+
+        if "score_team2" in request.data:
+            match.score_team2 = request.data["score_team2"]
+
+        if "platform" in request.data:
+            match.platform = request.data["platform"]
+
+        # Handle season update
+        if "season_id" in request.data:
+            season_id = request.data["season_id"]
+            if season_id:
+                try:
+                    season_obj = Season.objects.get(id=season_id)
+                    match.season = season_obj  # type: ignore
+                except Season.DoesNotExist:
+                    return Response(
+                        {"error": "Season not found"}, status=status.HTTP_404_NOT_FOUND
+                    )
+            else:
+                match.season = None
+
+        # Handle competition update
+        if "competition_id" in request.data:
+            competition_id = request.data["competition_id"]
+            if competition_id:
+                try:
+                    competition_obj = Competition.objects.get(id=competition_id)
+                    match.competition = competition_obj  # type: ignore
+                except Competition.DoesNotExist:
+                    return Response(
+                        {"error": "Competition not found"},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+            else:
+                match.competition = None
+
+        # Handle winner update
+        if "winner_id" in request.data:
+            winner_id = request.data["winner_id"]
+            if winner_id:
+                if winner_id == str(match.team1.id):
+                    match.winner = match.team1
+                elif winner_id == str(match.team2.id):
+                    match.winner = match.team2
+                else:
+                    return Response(
+                        {"error": "Winner must be one of the two teams in the match"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            else:
+                match.winner = None
+
+        # Save both objects
+        match.save()
+        event_match.save()
+
+        # Handle ELO updates if match status or winner changed
+        if old_status == "completed" and old_winner:
+            if match.status != "completed" or match.winner != old_winner:
+                logger.warning(
+                    f"Match {match.id} was updated from completed status. "
+                    f"Consider running ELO recalculation to ensure accuracy."
+                )
+
+        # Apply new ELO changes if the match is now completed
+        if match.status == "completed" and match.winner and old_status != "completed":
+            update_match_elos(match)
+
+        # Return the updated match with event match data
+        winner_data = None
+        if match.winner:
+            winner_data = {
+                "id": match.winner.id,
+                "name": match.winner.name,
+            }
+
+        event_match_data = {
+            "id": event_match.id,
+            "event": {
+                "id": event_match.event.id,
+                "name": event_match.event.name,
+            },
+            "round": event_match.round,
+            "num_in_bracket": event_match.num_in_bracket,
+            "is_bye": event_match.is_bye,
+            "extra_info": event_match.extra_info,
+        }
+
+        result = {
+            "id": match.id,
+            "team1": {
+                "id": match.team1.id,
+                "name": match.team1.name,
+                "picture": match.team1.picture,
+            },
+            "team2": {
+                "id": match.team2.id,
+                "name": match.team2.name,
+                "picture": match.team2.picture,
+            },
+            "date": match.date,
+            "status": match.status,
+            "url": match.url,
+            "winner": winner_data,
+            "score_team1": match.score_team1,
+            "score_team2": match.score_team2,
+            "platform": match.platform,
+            "season": {"id": match.season.id, "name": match.season.name}
+            if match.season
+            else None,
+            "competition": {
+                "id": match.competition.id,
+                "name": match.competition.name,
+            }
+            if match.competition
+            else None,
+            "event_match": event_match_data,
+        }
+
+        return Response(result)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["PUT", "PATCH"])
+@firebase_auth_required(min_role="admin")
 def update_match(request, match_id):
     """
     Update an existing match

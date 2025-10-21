@@ -43,6 +43,26 @@ import SearchSelect, {
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { AlertCircle, Check, Plus, Trash2 } from "lucide-react";
 
+// Helper functions for timezone conversion
+const dateToLocalInput = (isoString: string | null | undefined): string => {
+  if (!isoString) return "";
+  const date = new Date(isoString);
+  // Format: YYYY-MM-DDTHH:mm (local time for datetime-local input)
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const localInputToISO = (localDateTimeString: string): string => {
+  if (!localDateTimeString) return "";
+  // Parse as local time and convert to ISO string
+  const date = new Date(localDateTimeString);
+  return date.toISOString();
+};
+
 function EditEvent() {
   const [activeTab, setActiveTab] = useState<"edit" | "create">("edit");
   const [events, setEvents] = useState<PublicEvent[]>([]);
@@ -252,12 +272,8 @@ function EventEditForm({
   const [formData, setFormData] = useState({
     event_id: customEvent.event.id,
     name: customEvent.event.name,
-    start_date: customEvent.event.start_date
-      ? new Date(customEvent.event.start_date).toISOString().slice(0, 16)
-      : "",
-    end_date: customEvent.event.end_date
-      ? new Date(customEvent.event.end_date).toISOString().slice(0, 16)
-      : "",
+    start_date: dateToLocalInput(customEvent.event.start_date),
+    end_date: dateToLocalInput(customEvent.event.end_date),
     description: customEvent.event.description || "",
     picture: customEvent.event.picture || "",
     bracket_link: customEvent.bracket_link || "",
@@ -275,9 +291,7 @@ function EventEditForm({
     is_featured: customEvent.is_featured,
     is_public: customEvent.is_public,
     registration_open: customEvent.registration_open,
-    registration_deadline: customEvent.registration_deadline
-      ? new Date(customEvent.registration_deadline).toISOString().slice(0, 16)
-      : "",
+    registration_deadline: dateToLocalInput(customEvent.registration_deadline),
     twitter_hashtag: customEvent.twitter_hashtag || "",
   });
   const [saving, setSaving] = useState(false);
@@ -288,12 +302,8 @@ function EventEditForm({
     setFormData({
       event_id: customEvent.event.id,
       name: customEvent.event.name,
-      start_date: customEvent.event.start_date
-        ? new Date(customEvent.event.start_date).toISOString().slice(0, 16)
-        : "",
-      end_date: customEvent.event.end_date
-        ? new Date(customEvent.event.end_date).toISOString().slice(0, 16)
-        : "",
+      start_date: dateToLocalInput(customEvent.event.start_date),
+      end_date: dateToLocalInput(customEvent.event.end_date),
       description: customEvent.event.description || "",
       picture: customEvent.event.picture || "",
       bracket_link: customEvent.bracket_link || "",
@@ -311,9 +321,9 @@ function EventEditForm({
       is_featured: customEvent.is_featured,
       is_public: customEvent.is_public,
       registration_open: customEvent.registration_open,
-      registration_deadline: customEvent.registration_deadline
-        ? new Date(customEvent.registration_deadline).toISOString().slice(0, 16)
-        : "",
+      registration_deadline: dateToLocalInput(
+        customEvent.registration_deadline,
+      ),
       twitter_hashtag: customEvent.twitter_hashtag || "",
     });
   }, [customEvent]);
@@ -352,8 +362,12 @@ function EventEditForm({
     try {
       const updateData: CustomEventUpdateRequest = {
         name: formData.name,
-        start_date: formData.start_date || undefined,
-        end_date: formData.end_date || undefined,
+        start_date: formData.start_date
+          ? localInputToISO(formData.start_date)
+          : undefined,
+        end_date: formData.end_date
+          ? localInputToISO(formData.end_date)
+          : undefined,
         description: formData.description || undefined,
         picture: formData.picture || undefined,
         bracket_link: formData.bracket_link || undefined,
@@ -371,7 +385,9 @@ function EventEditForm({
         is_featured: formData.is_featured,
         is_public: formData.is_public,
         registration_open: formData.registration_open,
-        registration_deadline: formData.registration_deadline || undefined,
+        registration_deadline: formData.registration_deadline
+          ? localInputToISO(formData.registration_deadline)
+          : undefined,
         twitter_hashtag: formData.twitter_hashtag || undefined,
       };
 
@@ -864,8 +880,12 @@ function EventCreateForm({
           : {
               // Creating new event - send basic event fields
               name: formData.name,
-              start_date: formData.start_date,
-              end_date: formData.end_date,
+              start_date: formData.start_date
+                ? localInputToISO(formData.start_date)
+                : undefined,
+              end_date: formData.end_date
+                ? localInputToISO(formData.end_date)
+                : undefined,
               description: formData.description || undefined,
               picture: formData.picture || undefined,
             }),
@@ -885,7 +905,9 @@ function EventCreateForm({
         is_featured: formData.is_featured,
         is_public: formData.is_public,
         registration_open: formData.registration_open,
-        registration_deadline: formData.registration_deadline || undefined,
+        registration_deadline: formData.registration_deadline
+          ? localInputToISO(formData.registration_deadline)
+          : undefined,
         twitter_hashtag: formData.twitter_hashtag || undefined,
       };
 

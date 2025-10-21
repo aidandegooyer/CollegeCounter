@@ -915,6 +915,38 @@ export const createEventMatch = async (data: CreateEventMatchRequest): Promise<C
   return response.data;
 };
 
+export interface UpdateEventMatchRequest {
+  team1_id?: string;
+  team2_id?: string;
+  event_id?: string;
+  round?: number;
+  num_in_bracket?: number;
+  date?: string;
+  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  url?: string;
+  score_team1?: number;
+  score_team2?: number;
+  platform?: 'faceit' | 'playfly' | 'other';
+  season_id?: string;
+  competition_id?: string;
+  winner_id?: string;
+  is_bye?: boolean;
+  extra_info?: Record<string, any>;
+}
+
+export const updateEventMatch = async (
+  matchId: string,
+  data: UpdateEventMatchRequest,
+  method: 'PUT' | 'PATCH' = 'PATCH'
+): Promise<CreateMatchResponse> => {
+  const response = await api({
+    method: method.toLowerCase(),
+    url: `/event-matches/${matchId}/update/`,
+    data
+  });
+  return response.data;
+};
+
 // Fetch all events for admin use (includes both regular events and custom events)
 export const fetchAllEvents = async (): Promise<PublicEvent[]> => {
   const response = await fetchPublicEvents({ page_size: 100 }); // Get a large page size
