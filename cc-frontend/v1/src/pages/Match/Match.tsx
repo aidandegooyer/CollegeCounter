@@ -9,9 +9,9 @@ import type { PublicMatch } from "@/services/api";
 import { proxyNWES } from "@/services/api";
 import { calculateMatchStars } from "@/services/elo";
 import { usePublicMatches, usePublicTeams } from "@/services/hooks";
-import { useQuery } from "@tanstack/react-query";
 import { Star } from "lucide-react";
 import { NavLink, useParams } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 
 export function Match() {
   const { id } = useParams<{ id: string }>();
@@ -37,10 +37,6 @@ export function Match() {
     match?.team1.elo || 1000,
     match?.team2.elo || 1000,
   );
-
-  function matchStatsAvailable(match: PublicMatch) {
-    return match.event_match?.extra_info?.external_match_ids?.length > 0;
-  }
 
   if (isLoading || team1Loading || team2Loading || !data) {
     return (
@@ -138,9 +134,7 @@ export function Match() {
         </div>
         <div className="mt-4">
           <div className="flex w-full items-center justify-center rounded-2xl border-2 p-2 lg:col-span-3">
-            {match.status === "completed" && matchStatsAvailable(match)
-              ? Stats(match)
-              : "No Stats Available (Coming Soon!)"}
+            <Stats match={match} />
           </div>
         </div>
       </div>
@@ -231,26 +225,37 @@ function Scoreboard(match: PublicMatch, stars: number, matchDate: Date | null) {
   );
 }
 
-function Stats(match: PublicMatch) {
+function Stats({ match }: { match: PublicMatch }) {
   const externalMatchIds = match.event_match?.extra_info?.external_match_ids as
     | string[]
     | undefined;
+
+  const hasExternalIds = externalMatchIds && externalMatchIds.length > 0;
+  const isMatchCompleted = match.status === "completed";
+
+  // Check early if match is not completed or doesn't have external IDs
+  if (!isMatchCompleted || !hasExternalIds) {
+    return (
+      <div className="text-md flex min-w-48 flex-col items-center justify-center px-4 py-1">
+        <div className="text-lg font-semibold">
+          No Stats Available (Coming Soon!)
+        </div>
+      </div>
+    );
+  }
 
   // Extract unique tournament IDs from the external match IDs
   const tournamentIds = externalMatchIds
     ? [...new Set(externalMatchIds.map((id) => id.split(":")[0]))]
     : [];
 
-  const hasExternalIds = externalMatchIds && externalMatchIds.length > 0;
-
-  // Use a single React Query to fetch all tournament data
-  // IMPORTANT: Hook must be called unconditionally, before any early returns
+  // Use React Query to fetch tournament data
   const {
     data: tournamentData,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["nwes-tournaments", tournamentIds],
+    queryKey: ["tournament-stats", tournamentIds.join(",")],
     queryFn: async () => {
       if (tournamentIds.length === 0) {
         return [];
@@ -276,21 +281,9 @@ function Stats(match: PublicMatch) {
 
       return results.filter((r) => r !== null);
     },
-    enabled: hasExternalIds && tournamentIds.length > 0,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    retry: 1,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    enabled: tournamentIds.length > 0,
   });
-
-  // Now we can safely do early returns after all hooks are called
-  if (!hasExternalIds) {
-    return (
-      <div className="text-md flex min-w-48 flex-col items-center justify-center px-4 py-1">
-        <div className="text-lg font-semibold">
-          No Stats Available (Coming Soon!)
-        </div>
-      </div>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -324,11 +317,11 @@ function Stats(match: PublicMatch) {
     matchData: any;
   }> = [];
 
-  if (tournamentData) {
+  if (tournamentData && externalMatchIds) {
     externalMatchIds.forEach((externalId) => {
       const [tournamentId, nwesMatchId] = externalId.split(":");
       const tournament = tournamentData.find(
-        (t) => t?.tournamentId === tournamentId,
+        (t: any) => t?.tournamentId === tournamentId,
       );
 
       if (tournament?.data?.matches && Array.isArray(tournament.data.matches)) {

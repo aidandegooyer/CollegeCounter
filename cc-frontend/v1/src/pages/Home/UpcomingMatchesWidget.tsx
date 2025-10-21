@@ -14,9 +14,12 @@ interface UpcomingMatchesWidgetProps {
 }
 
 function UpcomingMatchesWidget({ teamId, limit }: UpcomingMatchesWidgetProps) {
+  // Use a stable date (start of today) to enable proper caching
+  // This ensures the query key remains the same throughout the day
   const currentDate = useMemo(() => {
-    const now = new Date();
-    return now.toISOString();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today.toISOString().split("T")[0]; // Returns YYYY-MM-DD
   }, []);
 
   const { data, isLoading, error } = usePublicMatches(

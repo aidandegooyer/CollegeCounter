@@ -37,10 +37,11 @@ export function PlayerStatsTable({ teamName, players }: PlayerStatsTableProps) {
             <TableHead className="text-right">D</TableHead>
             <TableHead className="text-right">A</TableHead>
             <TableHead className="text-right">+/-</TableHead>
-            <TableHead className="text-right">ADR</TableHead>
 
             <TableHead className="text-right">Clutch Wins</TableHead>
             <TableHead className="text-right">MVPs</TableHead>
+            <TableHead className="text-right">ADR</TableHead>
+
             <TableHead className="text-right">Score</TableHead>
           </TableRow>
         </TableHeader>
@@ -51,7 +52,7 @@ export function PlayerStatsTable({ teamName, players }: PlayerStatsTableProps) {
               const plusMinus = player.stat_kills - player.stat_deaths;
               return (
                 <TableRow key={idx}>
-                  <TableCell className="font-medium">
+                  <TableCell className="w-24 font-medium">
                     {player.stat_username || "Unknown"}
                   </TableCell>
                   <TableCell className="text-right">
@@ -63,11 +64,10 @@ export function PlayerStatsTable({ teamName, players }: PlayerStatsTableProps) {
                   <TableCell className="text-right">
                     {player.stat_assists}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell
+                    className={`text-right ${plusMinus > 0 ? "text-green-500" : plusMinus < 0 ? "text-red-500" : "text-muted-foreground"}`}
+                  >
                     {plusMinus > 0 ? `+${plusMinus}` : plusMinus}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {player.stat_adr || "N/A"}
                   </TableCell>
 
                   <TableCell className="text-right">
@@ -75,6 +75,9 @@ export function PlayerStatsTable({ teamName, players }: PlayerStatsTableProps) {
                   </TableCell>
                   <TableCell className="text-right">
                     {player.stat_mvps}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {player.stat_adr || "N/A"}
                   </TableCell>
                   <TableCell className="text-right">
                     {player.stat_score}
