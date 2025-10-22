@@ -12,6 +12,7 @@ import { usePublicMatches, usePublicTeams } from "@/services/hooks";
 import { Star } from "lucide-react";
 import { NavLink, useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
 
 export function Match() {
   const { id } = useParams<{ id: string }>();
@@ -125,13 +126,39 @@ export function Match() {
           </div>
         </div>
         <div className="mt-4">
-          <div className="hidden sm:block">
+          <div className="hidden justify-between sm:flex">
             {match.status === "scheduled" && (
-              <CountdownTimer targetDate={new Date(match.date)} size="sm" />
+              <div className="inline w-40">
+                <CountdownTimer targetDate={new Date(match.date)} size="sm" />
+              </div>
+            )}
+            {match.url && (
+              <div className="w-full text-right">
+                <Button className="cursor-pointer">
+                  View Match on Original Platform -{">"}
+                </Button>
+              </div>
             )}
           </div>
           <div className="block sm:hidden">{MatchInfo(match, stars)}</div>
         </div>
+        {match.url && (
+          <div className="mt-4 flex w-full justify-center text-right sm:hidden">
+            <a
+              href={
+                match.url.includes("{lang}")
+                  ? match.url.replace("{lang}", navigator.language || "en")
+                  : match.url
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button className="cursor-pointer">
+                View Match on Original Platform -{">"}
+              </Button>
+            </a>
+          </div>
+        )}
         <div className="mt-4">
           <div className="flex w-full items-center justify-center rounded-2xl border-2 p-2 lg:col-span-3">
             <Stats match={match} />
