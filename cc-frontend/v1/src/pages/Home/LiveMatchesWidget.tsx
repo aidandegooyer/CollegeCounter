@@ -5,7 +5,7 @@ import type { PublicMatch } from "@/services/api";
 import { usePublicMatches } from "@/services/hooks";
 import { Radio } from "lucide-react";
 import "./LiveMatchesWidget.css";
-import { NavLink } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 
 function LiveMatchesWidget() {
   const { data, isLoading, error } = usePublicMatches(
@@ -77,8 +77,16 @@ function LiveMatchesWidget() {
 }
 
 function Match(match: PublicMatch) {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    navigate(`/matches/${match.id}`);
+  };
   return (
-    <li className="flex rounded-xl border-2 p-4 py-2">
+    <li
+      className="flex cursor-pointer rounded-xl border-2 p-4 py-2"
+      onClick={handleClick}
+    >
       <div className="flex-3 space-y-2">
         <div className="flex items-center space-x-2">
           <Logo

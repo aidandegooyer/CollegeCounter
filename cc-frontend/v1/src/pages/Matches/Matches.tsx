@@ -18,7 +18,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import Logo from "@/components/Logo";
 import { calculateEloChanges, calculateMatchStars } from "@/services/elo";
-import { useNavigate } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 import { CompetitionLabel } from "@/components/CompetitionLabel";
 
 function Matches() {
@@ -182,16 +182,17 @@ function LiveMatch({ match }: LiveMatchProps) {
       </div>
       {match.url && (
         <Button
-          className="bg-secondary text-foreground group mt-2 flex w-full cursor-pointer items-center"
+          className="text-foreground group mt-2 flex w-full cursor-pointer items-center"
+          variant="secondary"
           asChild
         >
-          <a href={useableUrl} target="_blank" rel="noopener noreferrer">
+          <NavLink to={match.id ? `/matches/${match.id}` : useableUrl || "#"}>
             View
             <ArrowRight
               size={16}
               className="ml-1 transition-all group-hover:ml-2"
             />
-          </a>
+          </NavLink>
         </Button>
       )}
     </li>
