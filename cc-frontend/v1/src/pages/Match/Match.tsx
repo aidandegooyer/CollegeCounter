@@ -134,9 +134,19 @@ export function Match() {
             )}
             {match.url && (
               <div className="w-full text-right">
-                <Button className="cursor-pointer">
-                  View Match on Original Platform -{">"}
-                </Button>
+                <a
+                  href={
+                    match.url.includes("{lang}")
+                      ? match.url.replace("{lang}", navigator.language || "en")
+                      : match.url
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button className="cursor-pointer">
+                    View Match on Original Platform -{">"}
+                  </Button>
+                </a>
               </div>
             )}
           </div>
