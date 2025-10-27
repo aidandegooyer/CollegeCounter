@@ -144,12 +144,12 @@ export function Event() {
 
   return (
     <div className="app-container mx-4 flex justify-center">
-      <div className="mx-6 w-full max-w-[1200px] space-y-6">
+      <div className="mx-2 w-full max-w-[1200px] space-y-6 sm:mx-6">
         {/* Back Button */}
         <Button
           variant="ghost"
           onClick={() => navigate("/events")}
-          className="mb-6 cursor-pointer"
+          className="mb-2 cursor-pointer"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Events
