@@ -7,6 +7,7 @@ import {
   createAdminCustomEvent,
   updateAdminCustomEvent,
   deleteAdminCustomEvent,
+  fetchPublicTeams,
 } from "@/services/api";
 import type {
   PublicEvent,
@@ -15,6 +16,7 @@ import type {
   Team,
   CustomEventCreateRequest,
   CustomEventUpdateRequest,
+  PublicTeam,
 } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -276,6 +278,7 @@ function EventEditForm({
     end_date: dateToLocalInput(customEvent.event.end_date),
     description: customEvent.event.description || "",
     picture: customEvent.event.picture || "",
+    winner_id: customEvent.event.winner?.id || "",
     bracket_link: customEvent.bracket_link || "",
     stream_link: customEvent.stream_link || "",
     secondary_stream_link: customEvent.secondary_stream_link || "",
@@ -296,6 +299,8 @@ function EventEditForm({
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [eventTeams, setEventTeams] = useState<PublicTeam[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
 
   // Update form data when event changes
   useEffect(() => {
@@ -306,6 +311,7 @@ function EventEditForm({
       end_date: dateToLocalInput(customEvent.event.end_date),
       description: customEvent.event.description || "",
       picture: customEvent.event.picture || "",
+      winner_id: customEvent.event.winner?.id || "",
       bracket_link: customEvent.bracket_link || "",
       stream_link: customEvent.stream_link || "",
       secondary_stream_link: customEvent.secondary_stream_link || "",
@@ -327,6 +333,25 @@ function EventEditForm({
       twitter_hashtag: customEvent.twitter_hashtag || "",
     });
   }, [customEvent]);
+
+  // Fetch teams for this event
+  useEffect(() => {
+    const loadTeams = async () => {
+      setLoadingTeams(true);
+      try {
+        const teamsData = await fetchPublicTeams({
+          event_id: customEvent.event.id,
+          page_size: 1000,
+        });
+        setEventTeams(teamsData.results);
+      } catch (error) {
+        console.error("Error fetching teams:", error);
+      } finally {
+        setLoadingTeams(false);
+      }
+    };
+    loadTeams();
+  }, [customEvent.event.id]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -370,6 +395,7 @@ function EventEditForm({
           : undefined,
         description: formData.description || undefined,
         picture: formData.picture || undefined,
+        winner_id: formData.winner_id || undefined,
         bracket_link: formData.bracket_link || undefined,
         stream_link: formData.stream_link || undefined,
         secondary_stream_link: formData.secondary_stream_link || undefined,
@@ -720,6 +746,38 @@ function EventEditForm({
             />
             <Label htmlFor="registration_open">Registration Open</Label>
           </div>
+
+          {/* Winner Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="winner_id">Event Winner</Label>
+            {loadingTeams ? (
+              <div className="flex items-center justify-center p-2">
+                <Spinner className="h-4 w-4" />
+              </div>
+            ) : (
+              <SearchSelect
+                options={[
+                  { value: "", label: "No Winner Selected" },
+                  ...eventTeams.map((team) => ({
+                    value: team.id,
+                    label: team.name,
+                  })),
+                ]}
+                value={formData.winner_id}
+                onValueChange={(value) =>
+                  handleSelectChange(value, "winner_id")
+                }
+                placeholder="Select winning team"
+                searchPlaceholder="Search teams..."
+                allowClear
+              />
+            )}
+            {customEvent.event.winner && (
+              <p className="text-muted-foreground text-sm">
+                Current winner: {customEvent.event.winner.name}
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-2">
@@ -792,6 +850,7 @@ function EventCreateForm({
     end_date: "",
     description: "",
     picture: "",
+    winner_id: "",
     bracket_link: "",
     stream_link: "",
     secondary_stream_link: "",
@@ -811,6 +870,32 @@ function EventCreateForm({
     twitter_hashtag: "",
   });
   const [creating, setCreating] = useState(false);
+  const [eventTeams, setEventTeams] = useState<PublicTeam[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
+
+  // Fetch teams when event_id is selected
+  useEffect(() => {
+    const loadTeams = async () => {
+      if (!formData.event_id) {
+        setEventTeams([]);
+        return;
+      }
+
+      setLoadingTeams(true);
+      try {
+        const teamsData = await fetchPublicTeams({
+          event_id: formData.event_id,
+          page_size: 1000,
+        });
+        setEventTeams(teamsData.results);
+      } catch (error) {
+        console.error("Error fetching teams:", error);
+      } finally {
+        setLoadingTeams(false);
+      }
+    };
+    loadTeams();
+  }, [formData.event_id]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -890,6 +975,7 @@ function EventCreateForm({
               picture: formData.picture || undefined,
             }),
         // Always send custom event fields
+        winner_id: formData.winner_id || undefined,
         bracket_link: formData.bracket_link || undefined,
         stream_link: formData.stream_link || undefined,
         secondary_stream_link: formData.secondary_stream_link || undefined,
@@ -926,6 +1012,7 @@ function EventCreateForm({
         end_date: "",
         description: "",
         picture: "",
+        winner_id: "",
         bracket_link: "",
         stream_link: "",
         secondary_stream_link: "",
@@ -1309,6 +1396,38 @@ function EventCreateForm({
               }
             />
             <Label htmlFor="registration_open">Registration Open</Label>
+          </div>
+
+          {/* Winner Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="winner_id">Event Winner</Label>
+            {loadingTeams ? (
+              <div className="flex items-center justify-center p-2">
+                <Spinner className="h-4 w-4" />
+              </div>
+            ) : (
+              <SearchSelect
+                options={[
+                  { value: "", label: "No Winner Selected" },
+                  ...eventTeams.map((team) => ({
+                    value: team.id,
+                    label: team.name,
+                  })),
+                ]}
+                value={formData.winner_id}
+                onValueChange={(value) =>
+                  handleSelectChange(value, "winner_id")
+                }
+                placeholder="Select winning team"
+                searchPlaceholder="Search teams..."
+                allowClear
+              />
+            )}
+            {formData.event_id && eventTeams.length === 0 && !loadingTeams && (
+              <p className="text-muted-foreground text-sm">
+                No teams found for this event
+              </p>
+            )}
           </div>
         </div>
 

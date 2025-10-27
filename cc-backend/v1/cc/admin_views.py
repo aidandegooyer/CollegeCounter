@@ -274,6 +274,22 @@ def custom_events(request):
             event_id = request.data.get("event_id")
             if event_id:
                 event = Event.objects.get(id=event_id)
+                # Update winner if provided when extending an event
+                winner_id = request.data.get("winner_id")
+                if winner_id:
+                    try:
+                        winner_team = Team.objects.get(id=winner_id)
+                        event.winner = winner_team
+                        event.save()
+                    except Team.DoesNotExist:
+                        return Response(
+                            {"error": f"Team with id {winner_id} not found"},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                elif "winner_id" in request.data and not winner_id:
+                    # Explicitly clearing the winner
+                    event.winner = None
+                    event.save()
             else:
                 # Create new base event
                 event_data = {
@@ -283,6 +299,18 @@ def custom_events(request):
                     "description": request.data.get("description", ""),
                     "picture": request.data.get("picture", ""),
                 }
+
+                # Handle winner_id if provided
+                winner_id = request.data.get("winner_id")
+                if winner_id:
+                    try:
+                        winner_team = Team.objects.get(id=winner_id)
+                        event_data["winner"] = winner_team
+                    except Team.DoesNotExist:
+                        return Response(
+                            {"error": f"Team with id {winner_id} not found"},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
 
                 event = Event.objects.create(**event_data)
 
@@ -417,6 +445,20 @@ def custom_event_detail(request, custom_event_id):
                 event.description = request.data["description"]
             if "picture" in request.data:
                 event.picture = request.data["picture"]
+            if "winner_id" in request.data:
+                if request.data["winner_id"]:
+                    try:
+                        winner_team = Team.objects.get(id=request.data["winner_id"])
+                        event.winner = winner_team
+                    except Team.DoesNotExist:
+                        return Response(
+                            {
+                                "error": f"Team with id {request.data['winner_id']} not found"
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                else:
+                    event.winner = None
             event.save()
 
             # Update custom event fields

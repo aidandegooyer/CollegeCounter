@@ -143,7 +143,7 @@ function Event({ event }: EventProps) {
 
   return (
     <Card
-      className={`bg-background relative max-w-[488px] ${event.custom_details?.is_featured ? "drop-shadow-primary/40 border-primary border-2 drop-shadow-lg" : ""}`}
+      className={`bg-background relative w-[488px] ${event.custom_details?.is_featured ? "drop-shadow-primary/40 border-primary border-2 drop-shadow-lg" : ""}`}
     >
       <div className="absolute right-2 top-1">{getStatusBadge()}</div>
       <div className="flex flex-col md:flex-row">
@@ -179,13 +179,6 @@ function Event({ event }: EventProps) {
                   )}
                 </div>
               </div>
-
-              {event.winner && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Trophy className="h-4 w-4 text-yellow-500" />
-                  <span className="font-medium">{event.winner.name}</span>
-                </div>
-              )}
             </div>
           </CardHeader>
 
@@ -198,11 +191,27 @@ function Event({ event }: EventProps) {
                   <div>
                     <div className="flex items-center gap-2 text-sm">
                       <Trophy className="h-4 w-4 text-yellow-500" />
-                      <span className="font-medium">Prize Pool:</span>
-                      <span>
-                        {event.custom_details.prize_currency}{" "}
-                        {event.custom_details.prize_pool}
-                      </span>
+
+                      {event.winner ? (
+                        <span className="font-bold">
+                          Winner:{" "}
+                          <NavLink
+                            to={`/teams/${event.winner.id}`}
+                            className="cursor-pointer underline transition-colors hover:text-blue-300"
+                          >
+                            {" "}
+                            {event.winner.name}
+                          </NavLink>
+                        </span>
+                      ) : (
+                        <>
+                          <span className="font-medium">Prize Pool:</span>
+                          <span>
+                            {event.custom_details.prize_currency}{" "}
+                            {event.custom_details.prize_pool}
+                          </span>
+                        </>
+                      )}
                     </div>
                     <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2 text-sm">
                       <div className="flex items-center gap-1">

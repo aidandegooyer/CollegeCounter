@@ -1118,6 +1118,7 @@ export interface CustomEventCreateRequest {
   end_date?: string;
   description?: string;
   picture?: string;
+  winner_id?: string; // ID of the winning team
   bracket_link?: string;
   stream_link?: string;
   secondary_stream_link?: string;
