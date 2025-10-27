@@ -700,7 +700,7 @@ function Matches(
       {completed.length > 0 && (
         <div>
           <h2>Completed Matches</h2>
-          <ul className="grid grid-cols-2 space-y-2">
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {completed.map((match) => (
               <Result key={match.id} match={match} />
             ))}
