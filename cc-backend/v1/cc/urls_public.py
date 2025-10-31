@@ -28,4 +28,14 @@ urlpatterns = [
         public_views.public_event_detail,
         name="public_event_detail",
     ),
+    path(
+        "team_recent_form",
+        public_views.public_team_recent_form,
+        name="public_team_recent_form",
+    ),
+    path(
+        "team_ranking_history",
+        public_views.public_team_ranking_history,
+        name="public_team_ranking_history",
+    ),
 ]

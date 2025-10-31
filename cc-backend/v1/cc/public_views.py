@@ -409,6 +409,8 @@ def public_matches(request):
     Query Parameters:
     - id: Filter by match ID (comma-separated for multiple)
     - team_id: Filter by team ID (matches where team is team1 or team2)
+    - team_id_1: Filter by first team ID (requires team_id_2, matches between these two teams)
+    - team_id_2: Filter by second team ID (requires team_id_1, matches between these two teams)
     - status: Filter by status (scheduled, in_progress, completed, cancelled)
     - platform: Filter by platform (faceit, playfly)
     - date_from: Filter by date (matches after this date, format: YYYY-MM-DD)
@@ -432,6 +434,8 @@ def public_matches(request):
     match_ids = [id.strip() for id in match_ids if id.strip()]
 
     team_id = request.query_params.get("team_id", "")
+    team_id_1 = request.query_params.get("team_id_1", "")
+    team_id_2 = request.query_params.get("team_id_2", "")
     status = request.query_params.get("status", "")
     platform = request.query_params.get("platform", "")
     date_from = request.query_params.get("date_from", "")
@@ -469,6 +473,27 @@ def public_matches(request):
             return Response(
                 {"error": "Invalid team_id format"}, status=status.HTTP_400_BAD_REQUEST
             )
+
+    # Filter matches between two specific teams
+    if team_id_1 and team_id_2:
+        try:
+            uuid.UUID(team_id_1)
+            uuid.UUID(team_id_2)
+            # Matches where team_id_1 and team_id_2 are either team1 or team2
+            query &= (Q(team1_id=team_id_1) & Q(team2_id=team_id_2)) | (
+                Q(team1_id=team_id_2) & Q(team2_id=team_id_1)
+            )
+        except ValueError:
+            return Response(
+                {"error": "Invalid team_id_1 or team_id_2 format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    elif team_id_1 or team_id_2:
+        # If only one is provided, return an error
+        return Response(
+            {"error": "Both team_id_1 and team_id_2 must be provided together"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     if status and status in ["scheduled", "in_progress", "completed", "cancelled"]:
         query &= Q(status=status)
@@ -1247,3 +1272,130 @@ def public_event_detail(request, event_id):
         )
     except Event.DoesNotExist:
         return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(["GET"])
+def public_team_recent_form(request):
+    """
+    Public API endpoint to fetch a team's recent match form.
+
+    Query Parameters:
+    - team_id: Team ID (required)
+    - limit: Number of recent matches to fetch (default: 5, max: 20)
+
+    Returns a list of recent matches with results.
+    """
+    try:
+        team_id = request.query_params.get("team_id")
+        if not team_id:
+            return Response(
+                {"error": "Missing team_id parameter"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        team_uuid = safe_uuid(team_id)
+    except ValueError:
+        return Response(
+            {"error": "Invalid team_id format"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    limit = min(int(request.query_params.get("limit", 3)), 5)
+
+    matches = (
+        Match.objects.filter(
+            Q(team1_id=team_uuid) | Q(team2_id=team_uuid), status="completed"
+        )
+        .select_related("team1", "team2", "winner")
+        .order_by("-date")[:limit]
+    )
+
+    results = []
+    for match in matches:
+        winner_pk = getattr(match.winner, "pk", None)
+        if winner_pk is None:
+            result = "draw"  # or "unknown" / "abandoned" depending on your domain
+        elif winner_pk == team_uuid:
+            result = "win"
+        else:
+            result = "loss"
+
+        # determine the opponent object safely
+        opponent = (
+            match.team2
+            if getattr(match, "team1_id", None) == team_uuid
+            else match.team1
+        )
+
+        results.append(
+            {
+                "result": result,
+                "opponent": {
+                    "id": opponent.id,
+                    "name": opponent.name,
+                    "picture": opponent.picture,
+                },
+            }
+        )
+    return Response({"team_id": team_id, "recent_form": results})
+
+
+@api_view(["GET"])
+def public_team_ranking_history(request):
+    """
+    Public API endpoint to fetch a team's ranking history.
+
+    Query Parameters:
+    - team_id: Team ID (required)
+    - season_id: Season ID (optional)
+
+    Returns a list of ranking items for the team.
+    """
+    try:
+        team_id = request.query_params.get("team_id")
+        if not team_id:
+            return Response(
+                {"error": "Missing team_id parameter"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        team_uuid = safe_uuid(team_id)
+    except ValueError:
+        return Response(
+            {"error": "Invalid team_id format"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    season_id = request.query_params.get("season_id")
+    season_filter = Q()
+    if season_id:
+        try:
+            season_uuid = safe_uuid(season_id)
+            season_filter = Q(ranking__season_id=season_uuid)
+        except ValueError:
+            return Response(
+                {"error": "Invalid season_id format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    ranking_items = (
+        RankingItem.objects.filter(Q(team_id=team_uuid) & season_filter)
+        .select_related("ranking", "ranking__season")
+        .order_by("-ranking__date")
+    )
+
+    results = []
+    for item in ranking_items:
+        results.append(
+            {
+                "id": item.id,
+                "rank": item.rank,
+                "elo": item.elo,
+                "ranking_date": item.ranking.date,
+                "season": {
+                    "id": item.ranking.season.id,
+                    "name": item.ranking.season.name,
+                }
+                if item.ranking.season
+                else None,
+            }
+        )
+    return Response({"team_id": team_id, "ranking_history": results})
