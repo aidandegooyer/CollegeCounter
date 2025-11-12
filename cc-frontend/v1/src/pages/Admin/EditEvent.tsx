@@ -116,10 +116,6 @@ function EditEvent() {
     }
   }, [notification]);
 
-  const selectedCustomEvent = customEvents.find(
-    (event) => event.id === selectedEventId,
-  );
-
   const refreshEvents = async () => {
     try {
       const [eventsData, customEventsData] = await Promise.all([
@@ -135,12 +131,24 @@ function EditEvent() {
 
   // Combine regular events and custom events for selection
   const allSelectableEvents = [
+    // First, add all custom events
     ...customEvents.map((ce) => ({
       id: ce.id,
       name: ce.event.name,
       start_date: ce.event.start_date,
       type: "custom" as const,
+      eventId: ce.event.id,
     })),
+    // Then, add base events that DON'T have a custom event wrapper
+    ...events
+      .filter((event) => !customEvents.some((ce) => ce.event.id === event.id))
+      .map((event) => ({
+        id: event.id,
+        name: event.name,
+        start_date: event.start_date,
+        type: "base" as const,
+        eventId: event.id,
+      })),
   ].sort(
     (a, b) =>
       new Date(b.start_date).getTime() - new Date(a.start_date).getTime(),
@@ -212,16 +220,121 @@ function EditEvent() {
                 <CardDescription>Update the event information</CardDescription>
               </CardHeader>
               <CardContent>
-                {selectedCustomEvent ? (
-                  <EventEditForm
-                    customEvent={selectedCustomEvent}
-                    setNotification={setNotification}
-                    onEventUpdated={refreshEvents}
-                    onEventDeleted={() => {
-                      refreshEvents();
-                      setSelectedEventId(null);
-                    }}
-                  />
+                {selectedEventId ? (
+                  (() => {
+                    const selectedEvent = allSelectableEvents.find(
+                      (e) => e.id === selectedEventId,
+                    );
+
+                    if (!selectedEvent) {
+                      return (
+                        <p className="text-muted-foreground py-8 text-center">
+                          Event not found
+                        </p>
+                      );
+                    }
+
+                    if (selectedEvent.type === "custom") {
+                      const customEvent = customEvents.find(
+                        (ce) => ce.id === selectedEventId,
+                      );
+                      return customEvent ? (
+                        <EventEditForm
+                          customEvent={customEvent}
+                          setNotification={setNotification}
+                          onEventUpdated={refreshEvents}
+                          onEventDeleted={() => {
+                            refreshEvents();
+                            setSelectedEventId(null);
+                          }}
+                        />
+                      ) : null;
+                    } else {
+                      // Base event - show option to convert to custom event
+                      const baseEvent = events.find(
+                        (e) => e.id === selectedEventId,
+                      );
+                      return baseEvent ? (
+                        <div className="space-y-4">
+                          <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-950/20">
+                            <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                              Base Event
+                            </h3>
+                            <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">
+                              This event was created through the import flow and
+                              doesn't have extended details yet.
+                            </p>
+                            <div className="mt-3 space-y-2">
+                              <p className="text-sm">
+                                <span className="font-medium">Name:</span>{" "}
+                                {baseEvent.name}
+                              </p>
+                              <p className="text-sm">
+                                <span className="font-medium">Start:</span>{" "}
+                                {new Date(
+                                  baseEvent.start_date,
+                                ).toLocaleString()}
+                              </p>
+                              <p className="text-sm">
+                                <span className="font-medium">End:</span>{" "}
+                                {new Date(baseEvent.end_date).toLocaleString()}
+                              </p>
+                              {baseEvent.description && (
+                                <p className="text-sm">
+                                  <span className="font-medium">
+                                    Description:
+                                  </span>{" "}
+                                  {baseEvent.description}
+                                </p>
+                              )}
+                              {baseEvent.season && (
+                                <p className="text-sm">
+                                  <span className="font-medium">Season:</span>{" "}
+                                  {baseEvent.season.name}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            onClick={async () => {
+                              try {
+                                // Create a custom event wrapper for this base event
+                                const createData: CustomEventCreateRequest = {
+                                  event_id: baseEvent.id,
+                                  is_public: true,
+                                  is_featured: false,
+                                  registration_open: false,
+                                };
+                                const result =
+                                  await createAdminCustomEvent(createData);
+                                await refreshEvents();
+                                setNotification({
+                                  type: "success",
+                                  message:
+                                    "Event converted to custom event successfully",
+                                });
+                                // Switch to the newly created custom event
+                                setSelectedEventId(result.custom_event_id);
+                              } catch (error) {
+                                console.error(
+                                  "Error converting to custom event:",
+                                  error,
+                                );
+                                setNotification({
+                                  type: "error",
+                                  message: "Failed to convert event",
+                                });
+                              }
+                            }}
+                            className="w-full"
+                          >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Convert to Custom Event
+                          </Button>
+                        </div>
+                      ) : null;
+                    }
+                  })()
                 ) : (
                   <p className="text-muted-foreground py-8 text-center">
                     Select an event to edit its details
