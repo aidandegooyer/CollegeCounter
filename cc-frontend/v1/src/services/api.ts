@@ -99,12 +99,18 @@ export interface ImportMatchesRequest {
   season_id: string;
   data: any; // The raw API response data
   participant_matches?: Record<string, string>; // Map of participant_id to team_id
+  event_id?: string; // For importing matches as event matches
+  import_type?: 'league' | 'event'; // Type of import
 }
 
 export interface ImportMatchesResponse {
   message: string;
   matches_imported: number;
-  match_ids: string[];
+  matches_updated: number;
+  matches_skipped: number;
+  new_match_ids: string[];
+  updated_match_ids: string[];
+  skipped_match_ids: string[];
 }
 
 export interface Participant {
@@ -147,6 +153,32 @@ export const createSeason = async (
     start_date,
     end_date
   });
+  return response.data;
+};
+
+export interface CreateEventRequest {
+  name: string;
+  start_date: string;
+  end_date: string;
+  description?: string;
+  season_id?: string;
+  picture?: string;
+}
+
+export interface CreateEventResponse {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  description?: string;
+  season_id?: string;
+  picture?: string;
+}
+
+export const createEvent = async (
+  data: CreateEventRequest
+): Promise<CreateEventResponse> => {
+  const response = await api.post(`/events/create/`, data);
   return response.data;
 };
 

@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from django.http import HttpResponse
-from .models import Team, Player, Event, CustomEvent
+from .models import Team, Player, Event, CustomEvent, Season
 from .middleware import firebase_auth_required
 import logging
 import requests
@@ -535,5 +535,84 @@ def custom_event_detail(request, custom_event_id):
         logger.error(f"Error in custom_event_detail: {str(e)}")
         return Response(
             {"error": f"Internal server error: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@firebase_auth_required(min_role="admin")
+def create_event(request):
+    """
+    Create a new event
+
+    Expected request format:
+    {
+        "name": "Event Name",
+        "start_date": "2025-01-01",
+        "end_date": "2025-01-02",
+        "description": "Event description", // Optional
+        "season_id": "uuid", // Optional
+        "picture": "https://...", // Optional
+    }
+    """
+    try:
+        # Extract required fields
+        name = request.data.get("name")
+        start_date = request.data.get("start_date")
+        end_date = request.data.get("end_date")
+
+        if not name or not start_date or not end_date:
+            return Response(
+                {"error": "name, start_date, and end_date are required fields"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Extract optional fields
+        description = request.data.get("description", "")
+        picture = request.data.get("picture", "")
+        season_id = request.data.get("season_id")
+
+        # Prepare event data
+        event_data = {
+            "name": name,
+            "start_date": start_date,
+            "end_date": end_date,
+            "description": description,
+            "picture": picture,
+        }
+
+        # Handle season if provided
+        if season_id:
+            try:
+                season = Season.objects.get(id=season_id)
+                event_data["season"] = season
+            except Season.DoesNotExist:
+                return Response(
+                    {"error": f"Season with id {season_id} not found"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Create the event
+        event = Event.objects.create(**event_data)
+
+        # Return created event data
+        response_data = {
+            "id": str(event.id),
+            "name": event.name,
+            "start_date": str(event.start_date),
+            "end_date": str(event.end_date),
+            "description": event.description,
+            "picture": event.picture,
+        }
+
+        if event.season:
+            response_data["season_id"] = str(event.season.id)
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        logger.error(f"Error creating event: {str(e)}")
+        return Response(
+            {"error": f"Failed to create event: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

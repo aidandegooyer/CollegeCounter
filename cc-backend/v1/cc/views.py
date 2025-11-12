@@ -205,7 +205,9 @@ def import_matches(request):
         "competition_name": "string",
         "season_id": "uuid",
         "data": {...}, // API response data
-        "participant_matches": { "participant_id": "team_id", ... } // Optional
+        "participant_matches": { "participant_id": "team_id", ... }, // Optional
+        "event_id": "uuid", // Optional - if provided, imports as event matches
+        "import_type": "league" | "event" // Optional - specifies import type
     }
     """
     try:
@@ -215,6 +217,8 @@ def import_matches(request):
         season_id = data.get("season_id")
         api_data = data.get("data", {})
         participant_matches = data.get("participant_matches", {})
+        event_id = data.get("event_id")
+        import_type = data.get("import_type", "league")
 
         # Get or create the competition
         competition, created = Competition.objects.get_or_create(name=competition_name)
@@ -226,6 +230,16 @@ def import_matches(request):
             return Response(
                 {"error": "Season not found"}, status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Get the event if event_id is provided
+        event = None
+        if event_id:
+            try:
+                event = Event.objects.get(id=event_id)
+            except Event.DoesNotExist:
+                return Response(
+                    {"error": "Event not found"}, status=status.HTTP_400_BAD_REQUEST
+                )
 
         # Apply participant matches if provided
         if participant_matches:
@@ -268,25 +282,57 @@ def import_matches(request):
                     # Log this but don't fail the import
                     print(f"Error applying participant match: {e}")
 
-        # Process matches based on platform
+        # Process matches based on platform and import type
         if platform == "faceit":
-            imported_matches = import_match_data(
-                api_data, competition, season, platform
+            result = import_match_data(
+                api_data,
+                competition,
+                season,
+                platform,
+                event=event,
+                import_type=import_type,
             )
         elif platform == "leaguespot":
-            imported_matches = import_match_data(
-                api_data, competition, season, platform
+            result = import_match_data(
+                api_data,
+                competition,
+                season,
+                platform,
+                event=event,
+                import_type=import_type,
             )
         else:
             return Response(
                 {"error": "Unsupported platform"}, status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Build response message
+        total_new = len(result["imported"])
+        total_updated = len(result["updated"])
+        total_skipped = len(result["skipped"])
+
+        message_parts = []
+        if total_new > 0:
+            message_parts.append(f"{total_new} new match(es)")
+        if total_updated > 0:
+            message_parts.append(f"{total_updated} updated")
+        if total_skipped > 0:
+            message_parts.append(f"{total_skipped} unchanged")
+
+        if not message_parts:
+            message = "No matches to import"
+        else:
+            message = f"Import successful: {', '.join(message_parts)}"
+
         return Response(
             {
-                "message": "Import successful",
-                "matches_imported": len(imported_matches),
-                "match_ids": imported_matches,
+                "message": message,
+                "matches_imported": total_new,
+                "matches_updated": total_updated,
+                "matches_skipped": total_skipped,
+                "new_match_ids": result["imported"],
+                "updated_match_ids": result["updated"],
+                "skipped_match_ids": result["skipped"],
             }
         )
 
@@ -294,11 +340,26 @@ def import_matches(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-def import_match_data(api_data, competition, season, platform):
+def import_match_data(
+    api_data, competition, season, platform, event=None, import_type="league"
+):
     """
-    Process Faceit API data and import matches
+    Process Faceit/LeagueSpot API data and import matches
+
+    Args:
+        api_data: The API response data containing match information
+        competition: Competition object
+        season: Season object
+        platform: Platform name (faceit or leaguespot)
+        event: Optional Event object - if provided, creates EventMatch entries
+        import_type: Type of import ("league" or "event")
+
+    Returns:
+        dict: Contains lists of imported_matches, updated_matches, and skipped_matches
     """
     imported_matches = []
+    updated_matches = []
+    skipped_matches = []
 
     # Extract matches from the API response
     matches = api_data.get("items", [])
@@ -376,10 +437,86 @@ def import_match_data(api_data, competition, season, platform):
                 winner = team2
 
         # Check if match already exists
-        if Match.objects.filter(id=match_id).exists():
-            continue  # Skip existing matches
+        existing_match = Match.objects.filter(id=match_id).first()
 
-        # Create the match
+        if existing_match:
+            # Update existing match with new information
+            updated = False
+
+            # Update status if changed
+            if existing_match.status != match_status:
+                existing_match.status = match_status
+                updated = True
+
+            # Update date if available and different
+            new_date = safe_parse_datetime(match_date) if match_date else None
+            if new_date and existing_match.date != new_date:
+                existing_match.date = new_date
+                updated = True
+
+            # Update scores and winner if available
+            if results:
+                if existing_match.score_team1 != score_team1:
+                    existing_match.score_team1 = score_team1
+                    updated = True
+                if existing_match.score_team2 != score_team2:
+                    existing_match.score_team2 = score_team2
+                    updated = True
+                if existing_match.winner != winner:
+                    existing_match.winner = winner
+                    updated = True
+
+            if updated:
+                existing_match.save()
+                updated_matches.append(str(existing_match.id))
+                logger.info(f"Updated existing match {match_id}")
+            else:
+                skipped_matches.append(str(existing_match.id))
+
+            # For event imports, check if EventMatch exists
+            if event and import_type == "event":
+                event_match = EventMatch.objects.filter(
+                    match=existing_match, event=event
+                ).first()
+
+                if not event_match:
+                    # Match exists but not linked to this event - create EventMatch
+                    round_num = match_data.get("round", 1)
+                    num_in_bracket = match_data.get(
+                        "position", len(imported_matches) + len(updated_matches) + 1
+                    )
+
+                    is_bye = False
+                    if (
+                        team1_data.get("name", "").lower() == "bye"
+                        or team2_data.get("name", "").lower() == "bye"
+                    ):
+                        is_bye = True
+
+                    extra_info = {
+                        "faceit_match_id": match_id,
+                        "faceit_url": faceit_url,
+                        "original_status": status_value,
+                    }
+
+                    if "round" in match_data:
+                        extra_info["round_name"] = match_data.get("round")
+                    if "group" in match_data:
+                        extra_info["group"] = match_data.get("group")
+
+                    EventMatch.objects.create(
+                        match=existing_match,
+                        event=event,
+                        round=round_num,
+                        num_in_bracket=num_in_bracket,
+                        is_bye=is_bye,
+                        extra_info=extra_info,
+                    )
+                    logger.info(f"Linked existing match {match_id} to event {event.id}")
+
+            continue  # Move to next match
+
+        # Create the match (only if it doesn't exist)
         match = Match.objects.create(
             id=match_id,
             team1=team1,
@@ -395,9 +532,51 @@ def import_match_data(api_data, competition, season, platform):
             competition=competition,
         )
 
+        # If this is an event import, create an EventMatch entry
+        if event and import_type == "event":
+            # Extract event-specific data from match_data
+            # You can map Faceit's bracket data here
+            round_num = match_data.get("round", 1)  # Default to round 1 if not provided
+            num_in_bracket = match_data.get("position", len(imported_matches) + 1)
+
+            # Check for bye matches
+            is_bye = False
+            if (
+                team1_data.get("name", "").lower() == "bye"
+                or team2_data.get("name", "").lower() == "bye"
+            ):
+                is_bye = True
+
+            # Extra info can contain bracket-specific data
+            extra_info = {
+                "faceit_match_id": match_id,
+                "faceit_url": faceit_url,
+                "original_status": status_value,
+            }
+
+            # Add any additional bracket metadata from Faceit
+            if "round" in match_data:
+                extra_info["round_name"] = match_data.get("round")
+            if "group" in match_data:
+                extra_info["group"] = match_data.get("group")
+
+            # Create EventMatch
+            EventMatch.objects.create(
+                match=match,
+                event=event,
+                round=round_num,
+                num_in_bracket=num_in_bracket,
+                is_bye=is_bye,
+                extra_info=extra_info,
+            )
+
         imported_matches.append(str(match.id))
 
-    return imported_matches
+    return {
+        "imported": imported_matches,
+        "updated": updated_matches,
+        "skipped": skipped_matches,
+    }
 
 
 def get_or_create_team(team_data, competition, season, platform):

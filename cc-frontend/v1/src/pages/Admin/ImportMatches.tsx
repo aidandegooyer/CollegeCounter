@@ -15,6 +15,7 @@ import { AlertCircle, CheckCircle2 } from "lucide-react";
 import {
   fetchSeasons,
   createSeason,
+  createEvent,
   importMatches,
   fetchFaceitMatches,
   fetchParticipants,
@@ -23,9 +24,10 @@ import {
   fetchLeagueSpotRoundMatches,
   fetchLeagueSpotMatch,
   fetchLeagueSpotParticipants,
+  fetchAllEvents,
 } from "@/services/api";
 
-import type { Season, Team } from "@/services/api";
+import type { Season, Team, PublicEvent } from "@/services/api";
 
 function SelectPlatform({
   platform,
@@ -415,17 +417,165 @@ function CreateSeasonForm({
   );
 }
 
+function CreateEventForm({
+  onCancel,
+  onSuccess,
+  selectedSeason,
+}: {
+  onCancel: () => void;
+  onSuccess: (eventId: string, eventName: string) => void;
+  selectedSeason: string;
+}) {
+  const [name, setName] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [description, setDescription] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const newEvent = await createEvent({
+        name,
+        start_date: startDate,
+        end_date: endDate,
+        description,
+        season_id: selectedSeason,
+      });
+      onSuccess(newEvent.id, newEvent.name);
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Failed to create event");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="mb-8 flex flex-col items-center justify-center space-y-4">
+      <h1 className="text-3xl">Create New Event</h1>
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      <form onSubmit={handleSubmit} className="w-full max-w-md space-y-4">
+        <div>
+          <Label htmlFor="name">Event Name</Label>
+          <Input
+            id="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="description">Description (Optional)</Label>
+          <Input
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="startDate">Start Date</Label>
+          <Input
+            id="startDate"
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="endDate">End Date</Label>
+          <Input
+            id="endDate"
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            required
+          />
+        </div>
+        <div className="flex justify-end space-x-2">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? "Creating..." : "Create Event"}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function SelectOrCreateEvent({
+  events,
+  selectedEvent,
+  setSelectedEvent,
+  setShowCreateEvent,
+}: {
+  events: PublicEvent[];
+  selectedEvent: string;
+  setSelectedEvent: (eventId: string, eventName: string) => void;
+  setShowCreateEvent: (show: boolean) => void;
+}) {
+  return (
+    <div className="mb-8 flex flex-col items-center justify-center space-y-4">
+      <h1 className="text-3xl">Select or Create Event</h1>
+      {events.length > 0 ? (
+        <>
+          <div className="w-full max-w-md">
+            <Label htmlFor="eventSelect">Select an Existing Event</Label>
+            <Select
+              value={selectedEvent}
+              onValueChange={(value) => {
+                const event = events.find((e) => e.id === value);
+                if (event) {
+                  setSelectedEvent(event.id, event.name);
+                }
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Choose an event" />
+              </SelectTrigger>
+              <SelectContent>
+                {events.map((event) => (
+                  <SelectItem key={event.id} value={event.id}>
+                    {event.name} (
+                    {new Date(event.start_date).toLocaleDateString()})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="text-sm text-gray-500">or</div>
+        </>
+      ) : (
+        <p className="text-sm text-gray-500">No existing events found</p>
+      )}
+      <Button onClick={() => setShowCreateEvent(true)}>Create New Event</Button>
+    </div>
+  );
+}
+
 function MetadataForm({
   competitionName,
   setCompetitionName,
-  eventId,
-  setEventId,
+  championshipId,
+  setChampionshipId,
   platform,
 }: {
   competitionName: string;
   setCompetitionName: (name: string) => void;
-  eventId: string;
-  setEventId: (id: string) => void;
+  championshipId: string;
+  setChampionshipId: (id: string) => void;
   platform: string;
 }) {
   return (
@@ -443,15 +593,15 @@ function MetadataForm({
           />
         </div>
         <div>
-          <Label htmlFor="eventId">
+          <Label htmlFor="championshipId">
             {platform === "faceit"
               ? "Faceit Championship ID"
               : "Playfly Season ID (LeagueSpot)"}
           </Label>
           <Input
-            id="eventId"
-            value={eventId}
-            onChange={(e) => setEventId(e.target.value)}
+            id="championshipId"
+            value={championshipId}
+            onChange={(e) => setChampionshipId(e.target.value)}
             placeholder={
               platform === "faceit"
                 ? "Faceit Championship ID"
@@ -851,15 +1001,24 @@ function ImportMatches() {
   const [platform, setPlatform] = useState("faceit");
   const [eventType, setEventType] = useState("event");
   const [seasons, setSeasons] = useState<Season[]>([]);
+  const [events, setEvents] = useState<PublicEvent[]>([]);
   const [selectedSeason, setSelectedSeason] = useState("");
   const [showCreateSeason, setShowCreateSeason] = useState(false);
-  const [competitionName, setCompetitionName] = useState("");
+  const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [eventId, setEventId] = useState("");
+  const [eventName, setEventName] = useState("");
+  const [competitionName, setCompetitionName] = useState("");
+  const [championshipId, setChampionshipId] = useState(""); // Faceit/Leaguespot ID
   const [previewData, setPreviewData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [importStatus, setImportStatus] = useState<{
     success?: boolean;
     message?: string;
+    details?: {
+      new: number;
+      updated: number;
+      skipped: number;
+    };
   }>({});
   const [participantMatches, setParticipantMatches] = useState<
     Record<string, string>
@@ -882,10 +1041,55 @@ function ImportMatches() {
     getSeasons();
   }, []);
 
+  // Fetch events when season is selected (for event type)
+  useEffect(() => {
+    if (selectedSeason && eventType === "event") {
+      const getEvents = async () => {
+        try {
+          const eventsData = await fetchAllEvents();
+          // Filter events by selected season if needed
+          const filteredEvents = eventsData.filter(
+            (event) => !event.season || event.season.id === selectedSeason,
+          );
+          setEvents(filteredEvents);
+        } catch (error) {
+          console.error("Failed to fetch events:", error);
+        }
+      };
+
+      getEvents();
+    }
+  }, [selectedSeason, eventType]);
+
   const handleNewSeason = (newSeason: Season) => {
     setSeasons([...seasons, newSeason]);
     setSelectedSeason(newSeason.id);
     setShowCreateSeason(false);
+  };
+
+  const handleNewEvent = (newEventId: string, newEventName: string) => {
+    setEventId(newEventId);
+    setEventName(newEventName);
+    setShowCreateEvent(false);
+
+    // Refresh events list
+    const refreshEvents = async () => {
+      try {
+        const eventsData = await fetchAllEvents();
+        const filteredEvents = eventsData.filter(
+          (event) => !event.season || event.season.id === selectedSeason,
+        );
+        setEvents(filteredEvents);
+      } catch (error) {
+        console.error("Failed to refresh events:", error);
+      }
+    };
+    refreshEvents();
+  };
+
+  const handleSelectEvent = (eventId: string, eventName: string) => {
+    setEventId(eventId);
+    setEventName(eventName);
   };
 
   const nextStep = async () => {
@@ -895,21 +1099,30 @@ function ImportMatches() {
       return;
     }
 
-    if (step === 3 && (!competitionName || !eventId)) {
+    // For event type, validate event is created/selected (step 3)
+    if (eventType === "event" && step === 3 && !eventId) {
+      alert("Please create an event");
+      return;
+    }
+
+    // For both types, validate championship ID (step 4 for events, step 3 for leagues)
+    const metadataStep = eventType === "event" ? 4 : 3;
+    if (step === metadataStep && (!competitionName || !championshipId)) {
       alert("Please fill in all fields");
       return;
     }
 
     // Special handling for preview step
-    if (step === 3) {
+    const previewStep = eventType === "event" ? 5 : 4;
+    if (step === previewStep) {
       setIsLoading(true);
       try {
         let data;
         if (platform === "faceit") {
-          data = await fetchFaceitMatches(eventId);
+          data = await fetchFaceitMatches(championshipId);
         } else {
-          // Use LeagueSpot API for Playfly matches - eventId is now seasonId
-          data = await fetchPlayflyMatchesViaLeagueSpot(eventId);
+          // Use LeagueSpot API for Playfly matches - championshipId is now seasonId
+          data = await fetchPlayflyMatchesViaLeagueSpot(championshipId);
         }
         setPreviewData(data);
       } catch (error) {
@@ -924,7 +1137,8 @@ function ImportMatches() {
     }
 
     // Special handling for import step (now moved to after participant matching)
-    if (step === 5) {
+    const importStep = eventType === "event" ? 6 : 5;
+    if (step === importStep) {
       setIsLoading(true);
       try {
         // Include participant matches in the import request
@@ -934,11 +1148,35 @@ function ImportMatches() {
           season_id: selectedSeason,
           data: previewData,
           participant_matches: participantMatches,
+          event_id: eventType === "event" ? eventId : undefined,
+          import_type: eventType as "league" | "event",
         });
+
+        // Build detailed message
+        const messageParts = [];
+        if (result.matches_imported > 0) {
+          messageParts.push(`${result.matches_imported} new`);
+        }
+        if (result.matches_updated > 0) {
+          messageParts.push(`${result.matches_updated} updated`);
+        }
+        if (result.matches_skipped > 0) {
+          messageParts.push(`${result.matches_skipped} unchanged`);
+        }
+
+        const detailedMessage =
+          messageParts.length > 0
+            ? `Import complete: ${messageParts.join(", ")} match(es)`
+            : "No new matches to import";
 
         setImportStatus({
           success: true,
-          message: `Successfully imported ${result.matches_imported} matches!`,
+          message: detailedMessage,
+          details: {
+            new: result.matches_imported,
+            updated: result.matches_updated,
+            skipped: result.matches_skipped,
+          },
         });
       } catch (error: any) {
         console.error("Import failed:", error);
@@ -951,7 +1189,7 @@ function ImportMatches() {
       setIsLoading(false);
     }
 
-    setStep((prev) => Math.min(prev + 1, 6));
+    setStep((prev) => Math.min(prev + 1, eventType === "event" ? 7 : 6));
   };
 
   const prevStep = () => {
@@ -965,6 +1203,16 @@ function ImportMatches() {
         <CreateSeasonForm
           onCancel={() => setShowCreateSeason(false)}
           onSuccess={handleNewSeason}
+        />
+      );
+    }
+
+    if (showCreateEvent) {
+      return (
+        <CreateEventForm
+          onCancel={() => setShowCreateEvent(false)}
+          onSuccess={handleNewEvent}
+          selectedSeason={selectedSeason}
         />
       );
     }
@@ -989,41 +1237,197 @@ function ImportMatches() {
           />
         );
       case 3:
-        return (
-          <MetadataForm
-            competitionName={competitionName}
-            setCompetitionName={setCompetitionName}
-            eventId={eventId}
-            setEventId={setEventId}
-            platform={platform}
-          />
-        );
+        // For event type, show event selection/creation; for league, show metadata
+        if (eventType === "event") {
+          return eventId ? (
+            <div className="mb-8 flex flex-col items-center justify-center space-y-4">
+              <h1 className="text-3xl">Selected Event</h1>
+              <div className="w-full max-w-md space-y-4">
+                <Alert variant="default">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertTitle>Event Selected</AlertTitle>
+                  <AlertDescription>
+                    Event "{eventName}" has been selected.
+                  </AlertDescription>
+                </Alert>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEventId("");
+                    setEventName("");
+                  }}
+                  className="w-full"
+                >
+                  Select Different Event
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <SelectOrCreateEvent
+              events={events}
+              selectedEvent={eventId}
+              setSelectedEvent={handleSelectEvent}
+              setShowCreateEvent={setShowCreateEvent}
+            />
+          );
+        } else {
+          return (
+            <MetadataForm
+              competitionName={competitionName}
+              setCompetitionName={setCompetitionName}
+              championshipId={championshipId}
+              setChampionshipId={setChampionshipId}
+              platform={platform}
+            />
+          );
+        }
       case 4:
-        return (
-          <ImportPreview previewData={previewData} isLoading={isLoading} />
-        );
+        // For event type, show metadata form; for league, show preview
+        if (eventType === "event") {
+          return (
+            <MetadataForm
+              competitionName={competitionName}
+              setCompetitionName={setCompetitionName}
+              championshipId={championshipId}
+              setChampionshipId={setChampionshipId}
+              platform={platform}
+            />
+          );
+        } else {
+          return (
+            <ImportPreview previewData={previewData} isLoading={isLoading} />
+          );
+        }
       case 5:
-        return (
-          <ParticipantMatcher
-            previewData={previewData}
-            platform={platform}
-            selectedSeason={selectedSeason}
-            competitionName={competitionName}
-            isLoading={isLoading}
-            setIsLoading={setIsLoading}
-            setParticipantMatches={setParticipantMatches}
-          />
-        );
+        // For event type, show preview; for league, show participant matcher
+        if (eventType === "event") {
+          return (
+            <ImportPreview previewData={previewData} isLoading={isLoading} />
+          );
+        } else {
+          return (
+            <ParticipantMatcher
+              previewData={previewData}
+              platform={platform}
+              selectedSeason={selectedSeason}
+              competitionName={competitionName}
+              isLoading={isLoading}
+              setIsLoading={setIsLoading}
+              setParticipantMatches={setParticipantMatches}
+            />
+          );
+        }
       case 6:
+        // For event type, show participant matcher; for league, show complete
+        if (eventType === "event") {
+          return (
+            <ParticipantMatcher
+              previewData={previewData}
+              platform={platform}
+              selectedSeason={selectedSeason}
+              competitionName={competitionName}
+              isLoading={isLoading}
+              setIsLoading={setIsLoading}
+              setParticipantMatches={setParticipantMatches}
+            />
+          );
+        } else {
+          return (
+            <div className="mb-8 flex flex-col items-center justify-center space-y-4">
+              <h1 className="text-3xl">Import Complete</h1>
+              {importStatus.success ? (
+                <Alert variant="default" className="mb-4">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertTitle>Success</AlertTitle>
+                  <AlertDescription>{importStatus.message}</AlertDescription>
+                </Alert>
+              ) : (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>
+                    {importStatus.message || "An error occurred during import."}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          );
+        }
+      case 7:
+        // Event type complete step
         return (
           <div className="mb-8 flex flex-col items-center justify-center space-y-4">
             <h1 className="text-3xl">Import Complete</h1>
             {importStatus.success ? (
-              <Alert variant="default" className="mb-4">
-                <CheckCircle2 className="h-4 w-4" />
-                <AlertTitle>Success</AlertTitle>
-                <AlertDescription>{importStatus.message}</AlertDescription>
-              </Alert>
+              <>
+                <Alert variant="default" className="mb-4 w-full max-w-md">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertTitle>Success</AlertTitle>
+                  <AlertDescription>
+                    {importStatus.message}
+                    {importStatus.details && (
+                      <div className="mt-2 text-sm">
+                        <ul className="list-inside list-disc space-y-1">
+                          {importStatus.details.new > 0 && (
+                            <li>
+                              {importStatus.details.new} new match(es) imported
+                            </li>
+                          )}
+                          {importStatus.details.updated > 0 && (
+                            <li>
+                              {importStatus.details.updated} existing match(es)
+                              updated
+                            </li>
+                          )}
+                          {importStatus.details.skipped > 0 && (
+                            <li>
+                              {importStatus.details.skipped} match(es) unchanged
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                  </AlertDescription>
+                </Alert>
+
+                {/* Re-import option for events */}
+                <div className="w-full max-w-md space-y-4">
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Re-import Event Matches</AlertTitle>
+                    <AlertDescription>
+                      As the event progresses and new rounds are scheduled, you
+                      can re-import to add newly scheduled matches or update
+                      existing ones.
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => {
+                        // Reset to championship ID step but keep event and season
+                        setStep(4);
+                        setPreviewData(null);
+                        setParticipantMatches({});
+                        setImportStatus({});
+                      }}
+                      className="flex-1"
+                    >
+                      Re-import Event
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        // Full reset
+                        window.location.reload();
+                      }}
+                      className="flex-1"
+                    >
+                      Start New Import
+                    </Button>
+                  </div>
+                </div>
+              </>
             ) : (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
@@ -1048,38 +1452,69 @@ function ImportMatches() {
         {/* Progress indicator */}
         <div className="mb-8">
           <div className="flex justify-between">
-            {[
-              "Platform",
-              "Type",
-              "Season",
-              "Details",
-              "Preview",
-              "Match",
-              "Complete",
-            ].map((label, index) => (
-              <div
-                key={label}
-                className={`flex flex-col items-center ${index <= step ? "text-primary" : "text-muted-foreground"}`}
-              >
-                <div
-                  className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full ${
-                    index < step
-                      ? "bg-primary text-white"
-                      : index === step
-                        ? "border-primary border-2"
-                        : "border-muted border-2"
-                  }`}
-                >
-                  {index < step ? "✓" : ""}
-                </div>
-                <span className="text-xs">{label}</span>
-              </div>
-            ))}
+            {eventType === "event"
+              ? [
+                  "Platform",
+                  "Type",
+                  "Season",
+                  "Event",
+                  "Details",
+                  "Preview",
+                  "Match",
+                  "Complete",
+                ].map((label, index) => (
+                  <div
+                    key={label}
+                    className={`flex flex-col items-center ${index <= step ? "text-primary" : "text-muted-foreground"}`}
+                  >
+                    <div
+                      className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full ${
+                        index < step
+                          ? "bg-primary text-white"
+                          : index === step
+                            ? "border-primary border-2"
+                            : "border-muted border-2"
+                      }`}
+                    >
+                      {index < step ? "✓" : ""}
+                    </div>
+                    <span className="text-xs">{label}</span>
+                  </div>
+                ))
+              : [
+                  "Platform",
+                  "Type",
+                  "Season",
+                  "Details",
+                  "Preview",
+                  "Match",
+                  "Complete",
+                ].map((label, index) => (
+                  <div
+                    key={label}
+                    className={`flex flex-col items-center ${index <= step ? "text-primary" : "text-muted-foreground"}`}
+                  >
+                    <div
+                      className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full ${
+                        index < step
+                          ? "bg-primary text-white"
+                          : index === step
+                            ? "border-primary border-2"
+                            : "border-muted border-2"
+                      }`}
+                    >
+                      {index < step ? "✓" : ""}
+                    </div>
+                    <span className="text-xs">{label}</span>
+                  </div>
+                ))}
           </div>
           <div className="bg-muted mt-2 h-1">
             <div
               className="bg-primary h-full transition-all"
-              style={{ width: `${(step / 6) * 100}%` }}
+              style={{
+                width: `${(step / (eventType === "event" ? 7 : 6)) * 100}%`,
+              }}
             ></div>
           </div>
         </div>
@@ -1119,7 +1554,11 @@ function ImportMatches() {
             onClick={nextStep}
             disabled={isLoading}
           >
-            {isLoading ? "Loading..." : step === 5 ? "Import" : "Next"}
+            {isLoading
+              ? "Loading..."
+              : step === (eventType === "event" ? 6 : 5)
+                ? "Import"
+                : "Next"}
           </button>
         </div>
       </div>
