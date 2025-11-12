@@ -46,6 +46,33 @@ export function Events() {
 
   const events = eventsResponse?.results || [];
 
+  // Sort events by status (Live → Upcoming → Completed) and then by start date
+  const sortedEvents = [...events].sort((a, b) => {
+    const now = new Date();
+    const aStart = new Date(a.start_date);
+    const aEnd = new Date(a.end_date);
+    const bStart = new Date(b.start_date);
+    const bEnd = new Date(b.end_date);
+
+    // Determine status for each event
+    const getStatusPriority = (start: Date, end: Date) => {
+      if (start <= now && end >= now) return 0; // Live
+      if (start > now) return 1; // Upcoming
+      return 2; // Completed
+    };
+
+    const aStatus = getStatusPriority(aStart, aEnd);
+    const bStatus = getStatusPriority(bStart, bEnd);
+
+    // First sort by status
+    if (aStatus !== bStatus) {
+      return aStatus - bStatus;
+    }
+
+    // Then sort by start date (earliest first)
+    return aStart.getTime() - bStart.getTime();
+  });
+
   if (error) {
     return (
       <div className="app-container mx-4 flex justify-center">
@@ -76,7 +103,7 @@ export function Events() {
           <div className="flex h-40 items-center justify-center">
             <Spinner className="h-8 w-8" />
           </div>
-        ) : events.length === 0 ? (
+        ) : sortedEvents.length === 0 ? (
           <div className="flex h-40 flex-col items-center justify-center text-center">
             <Trophy className="text-muted-foreground mb-3 h-12 w-12" />
             <h3 className="mb-2 text-lg font-semibold">No Events Found</h3>
@@ -86,8 +113,8 @@ export function Events() {
           </div>
         ) : (
           <div className="flex justify-center">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {events.map((event) => (
+            <div className="grid w-full max-w-[488px] grid-cols-1 gap-6 lg:max-w-[1000px] lg:grid-cols-2">
+              {sortedEvents.map((event) => (
                 <Event key={event.id} event={event} />
               ))}
             </div>
@@ -143,7 +170,7 @@ function Event({ event }: EventProps) {
 
   return (
     <Card
-      className={`bg-background relative w-[488px] ${event.custom_details?.is_featured ? "drop-shadow-primary/40 border-primary border-2 drop-shadow-lg" : ""}`}
+      className={`bg-background relative w-full max-w-[488px] ${event.custom_details?.is_featured ? "drop-shadow-primary/40 border-primary border-2 drop-shadow-lg" : ""}`}
     >
       <div className="absolute right-2 top-1">{getStatusBadge()}</div>
       <div className="flex flex-col md:flex-row">
@@ -158,7 +185,7 @@ function Event({ event }: EventProps) {
                   ) : (
                     <div className="mb-1 flex items-center gap-4">
                       {event.picture && (
-                        <div className="h-18 w-18">
+                        <div className="h-18 w-18 hidden sm:block">
                           <img
                             src={event.picture}
                             alt={event.name}
@@ -167,7 +194,7 @@ function Event({ event }: EventProps) {
                         </div>
                       )}
                       <div>
-                        <h2 className="mb-1 overflow-ellipsis text-5xl">
+                        <h2 className="mb-1 overflow-ellipsis text-4xl">
                           {event.name}
                         </h2>
                         <p className="text-muted-foreground text-xs italic">

@@ -29,32 +29,6 @@ import { CountdownTimer } from "@/components/CountdownTimer";
 import Logo from "@/components/Logo";
 import { calculateEloChanges } from "@/services/elo";
 
-// Simple Badge component (reused from Events.tsx)
-function Badge({
-  variant = "default",
-  className = "",
-  children,
-}: {
-  variant?: "default" | "secondary" | "destructive" | "outline";
-  className?: string;
-  children: React.ReactNode;
-}) {
-  const baseStyles =
-    "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold";
-  const variantStyles = {
-    default: "bg-primary text-primary-foreground",
-    secondary: "bg-secondary text-secondary-foreground",
-    destructive: "bg-destructive text-destructive-foreground",
-    outline: "border border-input bg-background text-foreground",
-  };
-
-  return (
-    <span className={`${baseStyles} ${variantStyles[variant]} ${className}`}>
-      {children}
-    </span>
-  );
-}
-
 export function Event() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -175,14 +149,6 @@ export function Event() {
                   <h1>{event.name}</h1>
                 </div>
               )}
-              {event.winner && (
-                <div className="mb-2 flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-yellow-500" />
-                  <span className="text-lg font-medium">
-                    Winner: {event.winner.name}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
           <div className="hidden md:flex md:items-center md:justify-center">
@@ -195,6 +161,14 @@ export function Event() {
           <div className="space-y-6 lg:col-span-2">
             {event.custom_details && (
               <div className="space-y-4">
+                {event.winner && (
+                  <div className="border-primary shadow-primary/30 bg-primary/5 mb-6 flex items-center justify-center gap-2 rounded-lg border-2 py-4 shadow-lg">
+                    <Trophy className="h-5 w-5 text-yellow-500" />
+                    <span className="text-xl font-medium">
+                      Winner: {event.winner.name}
+                    </span>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                   {event.custom_details.prize_pool && (
                     <div className="flex items-center gap-3 rounded-lg bg-yellow-50 p-3 dark:bg-yellow-950/20">
@@ -395,19 +369,6 @@ export function Event() {
                       </Button>
                     )}
                   </div>
-                </CardContent>
-              </Card>
-            )}
-            {/* Season Info */}
-            {event.season && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Season</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Badge variant="outline" className="text-sm">
-                    {event.season.name}
-                  </Badge>
                 </CardContent>
               </Card>
             )}
