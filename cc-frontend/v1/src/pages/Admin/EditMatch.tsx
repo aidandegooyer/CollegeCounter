@@ -46,7 +46,7 @@ import SearchSelect, {
   useSearchSelectOptions,
 } from "@/components/SearchSelect";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
-import { AlertCircle, Check, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, Check, Plus, Trash2, Menu } from "lucide-react";
 
 // Helper functions for timezone conversion
 const dateToLocalInput = (isoString: string | null | undefined): string => {
@@ -86,6 +86,28 @@ function EditMatch() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+
+  // Filters for Edit Match tab
+  const [filters, setFilters] = useState({
+    startDate: "",
+    endDate: "",
+    eventId: "all",
+    seasonId: "all",
+    competitionId: "all",
+    status: "all",
+  });
+
+  // Filters for Edit Event Match tab
+  const [eventMatchFilters, setEventMatchFilters] = useState({
+    startDate: "",
+    endDate: "",
+    eventId: "all",
+    status: "all",
+  });
+
+  // Filter visibility state
+  const [showFilters, setShowFilters] = useState(false);
+  const [showEventMatchFilters, setShowEventMatchFilters] = useState(false);
 
   // Fetch all required data
   useEffect(() => {
@@ -192,23 +214,279 @@ function EditMatch() {
                     <Spinner />
                   </div>
                 ) : (
-                  <SearchSelect
-                    options={[...matches]
-                      .sort(
-                        (a, b) =>
-                          new Date(b.date).getTime() -
-                          new Date(a.date).getTime(),
-                      )
-                      .map((match) => ({
-                        value: match.id,
-                        label: `${match.team1.name} vs ${match.team2.name} (${new Date(match.date).toLocaleDateString()})${match.event_match ? ` - ${match.event_match.event.name}` : ""}`,
-                      }))}
-                    value={selectedMatchId || ""}
-                    onValueChange={setSelectedMatchId}
-                    placeholder="Select a match"
-                    searchPlaceholder="Search matches..."
-                    allowClear
-                  />
+                  <div className="space-y-4">
+                    {/* Filters */}
+                    <div className="space-y-3 rounded-lg border p-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-medium">Filters</h4>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 cursor-pointer p-0"
+                          onClick={() => setShowFilters(!showFilters)}
+                        >
+                          <Menu className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {showFilters && (
+                        <>
+                          <div className="space-y-2">
+                            <Label
+                              htmlFor="filter-start-date"
+                              className="text-xs"
+                            >
+                              Start Date
+                            </Label>
+                            <Input
+                              id="filter-start-date"
+                              type="date"
+                              value={filters.startDate}
+                              onChange={(e) =>
+                                setFilters((prev) => ({
+                                  ...prev,
+                                  startDate: e.target.value,
+                                }))
+                              }
+                              className="h-8 text-xs"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label
+                              htmlFor="filter-end-date"
+                              className="text-xs"
+                            >
+                              End Date
+                            </Label>
+                            <Input
+                              id="filter-end-date"
+                              type="date"
+                              value={filters.endDate}
+                              onChange={(e) =>
+                                setFilters((prev) => ({
+                                  ...prev,
+                                  endDate: e.target.value,
+                                }))
+                              }
+                              className="h-8 text-xs"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="filter-event" className="text-xs">
+                              Event
+                            </Label>
+                            <Select
+                              value={filters.eventId}
+                              onValueChange={(value) =>
+                                setFilters((prev) => ({
+                                  ...prev,
+                                  eventId: value,
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="All Events" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Events</SelectItem>
+                                {events.map((event) => (
+                                  <SelectItem key={event.id} value={event.id}>
+                                    {event.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="filter-season" className="text-xs">
+                              Season
+                            </Label>
+                            <Select
+                              value={filters.seasonId}
+                              onValueChange={(value) =>
+                                setFilters((prev) => ({
+                                  ...prev,
+                                  seasonId: value,
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="All Seasons" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Seasons</SelectItem>
+                                {seasons.map((season) => (
+                                  <SelectItem key={season.id} value={season.id}>
+                                    {season.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label
+                              htmlFor="filter-competition"
+                              className="text-xs"
+                            >
+                              Competition
+                            </Label>
+                            <Select
+                              value={filters.competitionId}
+                              onValueChange={(value) =>
+                                setFilters((prev) => ({
+                                  ...prev,
+                                  competitionId: value,
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="All Competitions" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">
+                                  All Competitions
+                                </SelectItem>
+                                {competitions.map((comp) => (
+                                  <SelectItem key={comp.id} value={comp.id}>
+                                    {comp.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="filter-status" className="text-xs">
+                              Status
+                            </Label>
+                            <Select
+                              value={filters.status}
+                              onValueChange={(value) =>
+                                setFilters((prev) => ({
+                                  ...prev,
+                                  status: value,
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="All Statuses" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">
+                                  All Statuses
+                                </SelectItem>
+                                <SelectItem value="scheduled">
+                                  Scheduled
+                                </SelectItem>
+                                <SelectItem value="in_progress">
+                                  In Progress
+                                </SelectItem>
+                                <SelectItem value="completed">
+                                  Completed
+                                </SelectItem>
+                                <SelectItem value="cancelled">
+                                  Cancelled
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() =>
+                              setFilters({
+                                startDate: "",
+                                endDate: "",
+                                eventId: "all",
+                                seasonId: "all",
+                                competitionId: "all",
+                                status: "all",
+                              })
+                            }
+                          >
+                            Clear Filters
+                          </Button>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Match Selection */}
+                    <SearchSelect
+                      options={(() => {
+                        let filteredMatches = [...matches];
+
+                        // Apply date range filter
+                        if (filters.startDate) {
+                          const startDate = new Date(filters.startDate);
+                          filteredMatches = filteredMatches.filter(
+                            (match) => new Date(match.date) >= startDate,
+                          );
+                        }
+                        if (filters.endDate) {
+                          const endDate = new Date(filters.endDate);
+                          endDate.setHours(23, 59, 59, 999); // End of day
+                          filteredMatches = filteredMatches.filter(
+                            (match) => new Date(match.date) <= endDate,
+                          );
+                        }
+
+                        // Apply event filter
+                        if (filters.eventId && filters.eventId !== "all") {
+                          filteredMatches = filteredMatches.filter(
+                            (match) =>
+                              match.event_match?.event.id === filters.eventId,
+                          );
+                        }
+
+                        // Apply season filter
+                        if (filters.seasonId && filters.seasonId !== "all") {
+                          filteredMatches = filteredMatches.filter(
+                            (match) => match.season?.id === filters.seasonId,
+                          );
+                        }
+
+                        // Apply competition filter
+                        if (
+                          filters.competitionId &&
+                          filters.competitionId !== "all"
+                        ) {
+                          filteredMatches = filteredMatches.filter(
+                            (match) =>
+                              match.competition?.id === filters.competitionId,
+                          );
+                        }
+
+                        // Apply status filter
+                        if (filters.status && filters.status !== "all") {
+                          filteredMatches = filteredMatches.filter(
+                            (match) => match.status === filters.status,
+                          );
+                        }
+
+                        return filteredMatches
+                          .sort(
+                            (a, b) =>
+                              new Date(b.date).getTime() -
+                              new Date(a.date).getTime(),
+                          )
+                          .map((match) => ({
+                            value: match.id,
+                            label: `${match.team1.name} vs ${match.team2.name} (${new Date(match.date).toLocaleDateString()})${match.event_match ? ` - ${match.event_match.event.name}` : ""}`,
+                          }));
+                      })()}
+                      value={selectedMatchId || ""}
+                      onValueChange={setSelectedMatchId}
+                      placeholder="Select a match"
+                      searchPlaceholder="Search matches..."
+                      allowClear
+                    />
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -294,24 +572,220 @@ function EditMatch() {
                     <Spinner />
                   </div>
                 ) : (
-                  <SearchSelect
-                    options={[...matches]
-                      .filter((match) => match.event_match)
-                      .sort(
-                        (a, b) =>
-                          new Date(b.date).getTime() -
-                          new Date(a.date).getTime(),
-                      )
-                      .map((match) => ({
-                        value: match.id,
-                        label: `${match.team1.name} vs ${match.team2.name} - ${match.event_match?.event.name} (${new Date(match.date).toLocaleDateString()})`,
-                      }))}
-                    value={selectedEventMatchId || ""}
-                    onValueChange={setSelectedEventMatchId}
-                    placeholder="Select an event match"
-                    searchPlaceholder="Search event matches..."
-                    allowClear
-                  />
+                  <div className="space-y-4">
+                    {/* Filters */}
+                    <div className="space-y-3 rounded-lg border p-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-medium">Filters</h4>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 cursor-pointer p-0"
+                          onClick={() =>
+                            setShowEventMatchFilters(!showEventMatchFilters)
+                          }
+                        >
+                          <Menu className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {showEventMatchFilters && (
+                        <>
+                          <div className="space-y-2">
+                            <Label
+                              htmlFor="event-filter-start-date"
+                              className="text-xs"
+                            >
+                              Start Date
+                            </Label>
+                            <Input
+                              id="event-filter-start-date"
+                              type="date"
+                              value={eventMatchFilters.startDate}
+                              onChange={(e) =>
+                                setEventMatchFilters((prev) => ({
+                                  ...prev,
+                                  startDate: e.target.value,
+                                }))
+                              }
+                              className="h-8 text-xs"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label
+                              htmlFor="event-filter-end-date"
+                              className="text-xs"
+                            >
+                              End Date
+                            </Label>
+                            <Input
+                              id="event-filter-end-date"
+                              type="date"
+                              value={eventMatchFilters.endDate}
+                              onChange={(e) =>
+                                setEventMatchFilters((prev) => ({
+                                  ...prev,
+                                  endDate: e.target.value,
+                                }))
+                              }
+                              className="h-8 text-xs"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label
+                              htmlFor="event-filter-event"
+                              className="text-xs"
+                            >
+                              Event
+                            </Label>
+                            <Select
+                              value={eventMatchFilters.eventId}
+                              onValueChange={(value) =>
+                                setEventMatchFilters((prev) => ({
+                                  ...prev,
+                                  eventId: value,
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="All Events" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Events</SelectItem>
+                                {events.map((event) => (
+                                  <SelectItem key={event.id} value={event.id}>
+                                    {event.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label
+                              htmlFor="event-filter-status"
+                              className="text-xs"
+                            >
+                              Status
+                            </Label>
+                            <Select
+                              value={eventMatchFilters.status}
+                              onValueChange={(value) =>
+                                setEventMatchFilters((prev) => ({
+                                  ...prev,
+                                  status: value,
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="All Statuses" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">
+                                  All Statuses
+                                </SelectItem>
+                                <SelectItem value="scheduled">
+                                  Scheduled
+                                </SelectItem>
+                                <SelectItem value="in_progress">
+                                  In Progress
+                                </SelectItem>
+                                <SelectItem value="completed">
+                                  Completed
+                                </SelectItem>
+                                <SelectItem value="cancelled">
+                                  Cancelled
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() =>
+                              setEventMatchFilters({
+                                startDate: "",
+                                endDate: "",
+                                eventId: "all",
+                                status: "all",
+                              })
+                            }
+                          >
+                            Clear Filters
+                          </Button>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Event Match Selection */}
+                    <SearchSelect
+                      options={(() => {
+                        let filteredMatches = [...matches].filter(
+                          (match) => match.event_match,
+                        );
+
+                        // Apply date range filter
+                        if (eventMatchFilters.startDate) {
+                          const startDate = new Date(
+                            eventMatchFilters.startDate,
+                          );
+                          filteredMatches = filteredMatches.filter(
+                            (match) => new Date(match.date) >= startDate,
+                          );
+                        }
+                        if (eventMatchFilters.endDate) {
+                          const endDate = new Date(eventMatchFilters.endDate);
+                          endDate.setHours(23, 59, 59, 999); // End of day
+                          filteredMatches = filteredMatches.filter(
+                            (match) => new Date(match.date) <= endDate,
+                          );
+                        }
+
+                        // Apply event filter
+                        if (
+                          eventMatchFilters.eventId &&
+                          eventMatchFilters.eventId !== "all"
+                        ) {
+                          filteredMatches = filteredMatches.filter(
+                            (match) =>
+                              match.event_match?.event.id ===
+                              eventMatchFilters.eventId,
+                          );
+                        }
+
+                        // Apply status filter
+                        if (
+                          eventMatchFilters.status &&
+                          eventMatchFilters.status !== "all"
+                        ) {
+                          filteredMatches = filteredMatches.filter(
+                            (match) =>
+                              match.status === eventMatchFilters.status,
+                          );
+                        }
+
+                        return filteredMatches
+                          .sort(
+                            (a, b) =>
+                              new Date(b.date).getTime() -
+                              new Date(a.date).getTime(),
+                          )
+                          .map((match) => ({
+                            value: match.id,
+                            label: `${match.team1.name} vs ${match.team2.name} - ${match.event_match?.event.name} (${new Date(match.date).toLocaleDateString()})`,
+                          }));
+                      })()}
+                      value={selectedEventMatchId || ""}
+                      onValueChange={setSelectedEventMatchId}
+                      placeholder="Select an event match"
+                      searchPlaceholder="Search event matches..."
+                      allowClear
+                    />
+                  </div>
                 )}
               </CardContent>
             </Card>
