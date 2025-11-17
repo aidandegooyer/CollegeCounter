@@ -151,24 +151,60 @@ export function Event() {
               )}
             </div>
           </div>
-          <div className="hidden md:flex md:items-center md:justify-center">
+          <div className="hidden md:items-center md:justify-center lg:flex">
             <CountdownTimer targetDate={startDateTime.full} />
+            {event.winner && (
+              <div className="border-primary shadow-primary/30 bg-primary/5 mb-6 w-full space-y-3 rounded-lg border-2 py-4 shadow-lg">
+                <div className="flex items-center justify-center gap-2">
+                  <Trophy className="h-5 w-5 text-yellow-500" />
+                  <span>Event Winner</span>
+                </div>
+                <div className="flex items-center justify-center gap-3">
+                  <Logo
+                    src={event.winner.picture}
+                    alt={event.winner.name}
+                    className="h-8 w-8 rounded-sm"
+                    type="team"
+                  />
+                  <NavLink
+                    className="text-xl font-medium underline"
+                    to={`/teams/${event.winner.id}`}
+                  >
+                    {event.winner.name}
+                  </NavLink>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Main Content */}
+          {event.winner && (
+            <div className="border-primary shadow-primary/30 bg-primary/5 mb-6 block space-y-3 rounded-lg border-2 py-4 shadow-lg lg:hidden">
+              <div className="flex items-center justify-center gap-2">
+                <Trophy className="h-5 w-5 text-yellow-500" />
+                <span>Event Winner</span>
+              </div>
+              <div className="flex items-center justify-center gap-3">
+                <Logo
+                  src={event.winner.picture}
+                  alt={event.winner.name}
+                  className="h-8 w-8 rounded-sm"
+                  type="team"
+                />
+                <NavLink
+                  className="text-xl font-medium underline"
+                  to={`/teams/${event.winner.id}`}
+                >
+                  {event.winner.name}
+                </NavLink>
+              </div>
+            </div>
+          )}
           <div className="space-y-6 lg:col-span-2">
             {event.custom_details && (
               <div className="space-y-4">
-                {event.winner && (
-                  <div className="border-primary shadow-primary/30 bg-primary/5 mb-6 flex items-center justify-center gap-2 rounded-lg border-2 py-4 shadow-lg">
-                    <Trophy className="h-5 w-5 text-yellow-500" />
-                    <span className="text-xl font-medium">
-                      Winner: {event.winner.name}
-                    </span>
-                  </div>
-                )}
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                   {event.custom_details.prize_pool && (
                     <div className="flex items-center gap-3 rounded-lg bg-yellow-50 p-3 dark:bg-yellow-950/20">
