@@ -950,15 +950,13 @@ function Result(props: ResultProps) {
         </div>
       </div>
       <hr className="my-2" />
-      <div className="flex items-end justify-between">
+      <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           {props.match.competition?.name && (
             <CompetitionLabel competition={props.match.competition.name} />
           )}
-          <div className="bg-muted rounded-sm px-1 py-0.5">
-            {props.match.season?.name || ""}
-          </div>
         </div>
+
         <p className="text-muted-foreground py-0.5">
           {new Date(props.match.date).toLocaleString(undefined, {
             year: "numeric",
