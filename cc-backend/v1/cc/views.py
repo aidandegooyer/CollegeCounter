@@ -535,30 +535,54 @@ def import_match_data(
         # If this is an event import, create an EventMatch entry
         if event and import_type == "event":
             # Extract event-specific data from match_data
-            # You can map Faceit's bracket data here
-            round_num = match_data.get("round", 1)  # Default to round 1 if not provided
-            num_in_bracket = match_data.get("position", len(imported_matches) + 1)
+            # Check for LeagueSpot event metadata first, then fall back to Faceit
+            event_metadata = match_data.get("_event_match_metadata", {})
 
-            # Check for bye matches
+            if event_metadata and platform == "leaguespot":
+                # Use LeagueSpot round metadata
+                round_num = event_metadata.get("round", 1)
+                num_in_bracket = event_metadata.get(
+                    "num_in_bracket", len(imported_matches) + 1
+                )
+
+                # Extra info contains LeagueSpot round metadata
+                extra_info = {
+                    "leaguespot_match_id": match_id,
+                    "original_status": status_value,
+                    "round_name": event_metadata.get("round_name", ""),
+                    "round_state": event_metadata.get("round_state", 0),
+                    "best_of": event_metadata.get("best_of", 1),
+                }
+            else:
+                # Faceit or legacy format
+                round_num = match_data.get(
+                    "round", 1
+                )  # Default to round 1 if not provided
+                num_in_bracket = match_data.get("position", len(imported_matches) + 1)
+
+                # Extra info can contain bracket-specific data
+                extra_info = {
+                    "faceit_match_id": match_id,
+                    "faceit_url": faceit_url,
+                    "original_status": status_value,
+                }
+
+                # Add any additional bracket metadata from Faceit
+                if "round" in match_data:
+                    extra_info["round_name"] = match_data.get("round")
+                if "group" in match_data:
+                    extra_info["group"] = match_data.get("group")
+
+            # Check for bye matches (TBD or Bye team names)
             is_bye = False
-            if (
-                team1_data.get("name", "").lower() == "bye"
-                or team2_data.get("name", "").lower() == "bye"
-            ):
+            team1_name = team1_data.get("name", "").lower()
+            team2_name = team2_data.get("name", "").lower()
+            if team1_name in ["bye", "tbd", "unknown team 1"] or team2_name in [
+                "bye",
+                "tbd",
+                "unknown team 2",
+            ]:
                 is_bye = True
-
-            # Extra info can contain bracket-specific data
-            extra_info = {
-                "faceit_match_id": match_id,
-                "faceit_url": faceit_url,
-                "original_status": status_value,
-            }
-
-            # Add any additional bracket metadata from Faceit
-            if "round" in match_data:
-                extra_info["round_name"] = match_data.get("round")
-            if "group" in match_data:
-                extra_info["group"] = match_data.get("group")
 
             # Create EventMatch
             EventMatch.objects.create(
