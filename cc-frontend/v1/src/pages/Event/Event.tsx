@@ -403,6 +403,13 @@ function MainContentSwitcher(
       return "ongoing";
     }
   };
+
+  // Check if bracket link is a Challonge link
+  const isChallongeBracket = () => {
+    const bracketUrl = event.custom_details?.bracket_link;
+    return bracketUrl && bracketUrl.toLowerCase().includes("challonge.com");
+  };
+
   return (
     <Tabs
       defaultValue={getStatus() === "ongoing" ? "stream" : "matches"}
@@ -423,12 +430,14 @@ function MainContentSwitcher(
         >
           Matches
         </TabsTrigger>
-        <TabsTrigger
-          value="bracket"
-          className="hover:text-foreground! cursor-pointer"
-        >
-          Bracket
-        </TabsTrigger>
+        {isChallongeBracket() && (
+          <TabsTrigger
+            value="bracket"
+            className="hover:text-foreground! cursor-pointer"
+          >
+            Bracket
+          </TabsTrigger>
+        )}
         <TabsTrigger
           value="teams"
           className="hover:text-foreground! cursor-pointer"
@@ -443,7 +452,9 @@ function MainContentSwitcher(
         </TabsTrigger>
       </TabsList>
       <TabsContent value="stream">{Stream(event)}</TabsContent>
-      <TabsContent value="bracket">{Bracket(event)}</TabsContent>
+      {isChallongeBracket() && (
+        <TabsContent value="bracket">{Bracket(event)}</TabsContent>
+      )}
       <TabsContent value="teams">
         {Teams(teams, { isLoading: teamsLoading, error: teamsError })}
       </TabsContent>
