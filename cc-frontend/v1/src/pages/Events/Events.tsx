@@ -46,7 +46,7 @@ export function Events() {
 
   const events = eventsResponse?.results || [];
 
-  // Sort events by status (Live → Upcoming → Completed) and then by start date
+  // Sort events by featured status (for live/upcoming), then status (Live → Upcoming → Completed), then by start date
   const sortedEvents = [...events].sort((a, b) => {
     const now = new Date();
     const aStart = new Date(a.start_date);
@@ -64,7 +64,15 @@ export function Events() {
     const aStatus = getStatusPriority(aStart, aEnd);
     const bStatus = getStatusPriority(bStart, bEnd);
 
-    // First sort by status
+    // Check if events are featured and live/upcoming
+    const aIsFeaturedAndActive = a.custom_details?.is_featured && aStatus <= 1;
+    const bIsFeaturedAndActive = b.custom_details?.is_featured && bStatus <= 1;
+
+    // Featured live/upcoming events always come first
+    if (aIsFeaturedAndActive && !bIsFeaturedAndActive) return -1;
+    if (!aIsFeaturedAndActive && bIsFeaturedAndActive) return 1;
+
+    // Then sort by status
     if (aStatus !== bStatus) {
       return aStatus - bStatus;
     }
@@ -170,7 +178,7 @@ function Event({ event }: EventProps) {
 
   return (
     <Card
-      className={`bg-background relative w-full max-w-[488px] ${event.custom_details?.is_featured ? "drop-shadow-primary/40 border-primary border-2 drop-shadow-lg" : ""}`}
+      className={`bg-background relative w-full max-w-[488px] ${event.custom_details?.is_featured && (isUpcoming || isOngoing) ? "drop-shadow-primary/40 border-primary border-2 drop-shadow-lg" : ""}`}
     >
       <div className="absolute right-2 top-1">{getStatusBadge()}</div>
       <div className="flex flex-col md:flex-row">
