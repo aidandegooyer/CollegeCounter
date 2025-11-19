@@ -4,7 +4,7 @@ import logo from "@/assets/0.5x/C Logo@0.5x.png";
 import { NavLink } from "react-router";
 import client from "@/services/sanity-client";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, formatDistanceToNowStrict } from "date-fns";
 import { useNavigate } from "react-router";
 
 interface PortableTextBlock {
@@ -27,7 +27,11 @@ interface SanityPost {
   publishedAt: string;
 }
 
-function NewsWidget() {
+interface NewsWidgetProps {
+  post_count?: number;
+}
+
+function NewsWidget({ post_count = 8 }: NewsWidgetProps) {
   const [posts, setPosts] = useState<SanityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +41,7 @@ function NewsWidget() {
       try {
         setLoading(true);
         // Query for posts, ordered by publishedAt date, limited to 3
-        const query = `*[_type == "post"] | order(publishedAt desc)[0...8]{
+        const query = `*[_type == "post"] | order(publishedAt desc)[0...${post_count}]{
           _id,
           title,
           slug,
@@ -123,7 +127,7 @@ function FeaturedNews({ post }: { post: SanityPost }) {
     >
       <img
         src={post.imageUrl || logo}
-        className="h-64 w-full rounded-xl object-cover"
+        className="max-h-64 w-full rounded-xl object-cover"
         alt={post.title}
       />
       <div className="p-4 pt-2">
@@ -134,7 +138,7 @@ function FeaturedNews({ post }: { post: SanityPost }) {
             {post.author || "College Counter Staff"}
           </span>
           <span className="text-muted-foreground text-sm">
-            {formatDistanceToNow(new Date(post.publishedAt), {
+            {formatDistanceToNowStrict(new Date(post.publishedAt), {
               addSuffix: true,
             })}
           </span>

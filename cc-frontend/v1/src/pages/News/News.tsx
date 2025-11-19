@@ -58,7 +58,7 @@ function News() {
       }
     };
 
-    fetchPosts(0, 10);
+    fetchPosts(0, 50);
   }, []);
 
   // If there are no posts but we're not loading, render a placeholder
@@ -120,7 +120,7 @@ function FeaturedNews({ post }: { post: SanityPost }) {
     >
       <img
         src={post.imageUrl || logo}
-        className="h-64 w-full rounded-xl object-cover"
+        className="max-h-64 w-full rounded-xl object-cover"
         alt={post.title}
       />
       <div className="p-4 pt-2">
