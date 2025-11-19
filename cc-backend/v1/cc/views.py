@@ -440,40 +440,14 @@ def import_match_data(
         existing_match = Match.objects.filter(id=match_id).first()
 
         if existing_match:
-            # Update existing match with new information
-            updated = False
+            # Skip updating existing matches - only import new matches
+            # Updates should be done separately through the update_matches endpoint
+            skipped_matches.append(str(existing_match.id))
+            logger.info(
+                f"Skipped existing match {match_id} - use update endpoint to modify"
+            )
 
-            # Update status if changed
-            if existing_match.status != match_status:
-                existing_match.status = match_status
-                updated = True
-
-            # Update date if available and different
-            new_date = safe_parse_datetime(match_date) if match_date else None
-            if new_date and existing_match.date != new_date:
-                existing_match.date = new_date
-                updated = True
-
-            # Update scores and winner if available
-            if results:
-                if existing_match.score_team1 != score_team1:
-                    existing_match.score_team1 = score_team1
-                    updated = True
-                if existing_match.score_team2 != score_team2:
-                    existing_match.score_team2 = score_team2
-                    updated = True
-                if existing_match.winner != winner:
-                    existing_match.winner = winner
-                    updated = True
-
-            if updated:
-                existing_match.save()
-                updated_matches.append(str(existing_match.id))
-                logger.info(f"Updated existing match {match_id}")
-            else:
-                skipped_matches.append(str(existing_match.id))
-
-            # For event imports, check if EventMatch exists
+            # For event imports, check if EventMatch exists and create link if needed
             if event and import_type == "event":
                 event_match = EventMatch.objects.filter(
                     match=existing_match, event=event
@@ -481,28 +455,51 @@ def import_match_data(
 
                 if not event_match:
                     # Match exists but not linked to this event - create EventMatch
-                    round_num = match_data.get("round", 1)
-                    num_in_bracket = match_data.get(
-                        "position", len(imported_matches) + len(updated_matches) + 1
-                    )
+                    # Extract event-specific data from match_data
+                    event_metadata = match_data.get("_event_match_metadata", {})
 
+                    if event_metadata and platform == "leaguespot":
+                        # Use LeagueSpot round metadata
+                        round_num = event_metadata.get("round", 1)
+                        num_in_bracket = event_metadata.get(
+                            "num_in_bracket", len(imported_matches) + 1
+                        )
+
+                        extra_info = {
+                            "leaguespot_match_id": match_id,
+                            "original_status": status_value,
+                            "round_name": event_metadata.get("round_name", ""),
+                            "round_state": event_metadata.get("round_state", 0),
+                            "best_of": event_metadata.get("best_of", 1),
+                        }
+                    else:
+                        # Faceit or legacy format
+                        round_num = match_data.get("round", 1)
+                        num_in_bracket = match_data.get(
+                            "position", len(imported_matches) + 1
+                        )
+
+                        extra_info = {
+                            "faceit_match_id": match_id,
+                            "faceit_url": faceit_url,
+                            "original_status": status_value,
+                        }
+
+                        if "round" in match_data:
+                            extra_info["round_name"] = match_data.get("round")
+                        if "group" in match_data:
+                            extra_info["group"] = match_data.get("group")
+
+                    # Check for bye matches
                     is_bye = False
-                    if (
-                        team1_data.get("name", "").lower() == "bye"
-                        or team2_data.get("name", "").lower() == "bye"
-                    ):
+                    team1_name = team1_data.get("name", "").lower()
+                    team2_name = team2_data.get("name", "").lower()
+                    if team1_name in ["bye", "tbd", "unknown team 1"] or team2_name in [
+                        "bye",
+                        "tbd",
+                        "unknown team 2",
+                    ]:
                         is_bye = True
-
-                    extra_info = {
-                        "faceit_match_id": match_id,
-                        "faceit_url": faceit_url,
-                        "original_status": status_value,
-                    }
-
-                    if "round" in match_data:
-                        extra_info["round_name"] = match_data.get("round")
-                    if "group" in match_data:
-                        extra_info["group"] = match_data.get("group")
 
                     EventMatch.objects.create(
                         match=existing_match,
