@@ -583,9 +583,14 @@ function Teams(
 
   return (
     <div className="space-y-4">
-      {teams.map((team) => (
-        <Team key={team.id} team={team} />
-      ))}
+      {teams
+        .sort(
+          (a, b) =>
+            (a.current_ranking?.rank || 0) - (b.current_ranking?.rank || 0),
+        )
+        .map((team) => (
+          <Team key={team.id} team={team} />
+        ))}
     </div>
   );
 }
