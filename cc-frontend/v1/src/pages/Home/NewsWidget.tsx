@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { ChevronRight } from "lucide-react";
-import logo from "@/assets/0.5x/C Logo@0.5x.png";
 import { NavLink } from "react-router";
 import client from "@/services/sanity-client";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { formatDistanceToNow, formatDistanceToNowStrict } from "date-fns";
 import { useNavigate } from "react-router";
+import cc_news from "@/assets/cc news.png";
 
 interface PortableTextBlock {
   _type: "block";
@@ -126,7 +126,7 @@ function FeaturedNews({ post }: { post: SanityPost }) {
       onClick={handleClick}
     >
       <img
-        src={post.imageUrl || logo}
+        src={post.imageUrl || cc_news}
         className="max-h-64 w-full rounded-xl object-cover"
         alt={post.title}
       />
