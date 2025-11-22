@@ -207,9 +207,11 @@ function Upcoming() {
   const [minStarCount, setMinStarCount] = useState<number>(0);
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 
-  // Get upcoming matches for today
+  // Get upcoming matches for today (using local timezone)
   const today = new Date();
-  const todayStr = today.toISOString().split("T")[0];
+  // Format date in local timezone as YYYY-MM-DD
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  console.log("Today:", todayStr);
   // Set end of today (23:59:59) as the cutoff for today's matches
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
@@ -220,7 +222,8 @@ function Upcoming() {
 
   // Get later matches (beyond this week)
   const monthFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-  const monthStr = monthFromNow.toISOString().split("T")[0];
+  // Format date in local timezone as YYYY-MM-DD
+  const monthStr = `${monthFromNow.getFullYear()}-${String(monthFromNow.getMonth() + 1).padStart(2, "0")}-${String(monthFromNow.getDate()).padStart(2, "0")}`;
 
   // Single API call to get all upcoming matches
   const {
