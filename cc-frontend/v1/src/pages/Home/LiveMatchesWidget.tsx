@@ -95,7 +95,7 @@ function Match(match: PublicMatch) {
             alt="Logo"
             type="team"
           />
-          <span className="max-w-[120px] truncate overflow-ellipsis whitespace-nowrap">
+          <span className="max-w-[220px] truncate overflow-ellipsis whitespace-nowrap">
             {match.team1.name}
           </span>
         </div>
@@ -106,41 +106,43 @@ function Match(match: PublicMatch) {
             alt="Logo"
             type="team"
           />
-          <span className="max-w-[120px] truncate overflow-ellipsis whitespace-nowrap">
+          <span className="max-w-[220px] truncate overflow-ellipsis whitespace-nowrap">
             {match.team2.name}
           </span>
         </div>
       </div>
-      <div className="flex-1 space-y-2 text-end">
-        <span className="flex justify-end">
-          <p
-            className={`font-mono ${
-              match.score_team1 === match.score_team2
-                ? "text-muted-foreground"
-                : match.score_team1 &&
-                    match.score_team1 > (match.score_team2 || 0)
-                  ? "text-green-500"
-                  : "text-red-500"
-            }`}
-          >
-            {match.score_team1 || 0}
-          </p>
-        </span>
-        <span className="flex justify-end">
-          <p
-            className={`font-mono ${
-              match.score_team1 === match.score_team2
-                ? "text-muted-foreground"
-                : match.score_team2 &&
-                    match.score_team2 > (match.score_team1 || 0)
-                  ? "text-green-500"
-                  : "text-red-500"
-            }`}
-          >
-            {match.score_team2 || 0}
-          </p>
-        </span>
-      </div>
+      {false && (
+        <div className="flex-1 space-y-2 text-end">
+          <span className="flex justify-end">
+            <p
+              className={`font-mono ${
+                match.score_team1 === match.score_team2
+                  ? "text-muted-foreground"
+                  : match.score_team1 &&
+                      match.score_team1 > (match.score_team2 || 0)
+                    ? "text-green-500"
+                    : "text-red-500"
+              }`}
+            >
+              {match.score_team1 || 0}
+            </p>
+          </span>
+          <span className="flex justify-end">
+            <p
+              className={`font-mono ${
+                match.score_team1 === match.score_team2
+                  ? "text-muted-foreground"
+                  : match.score_team2 &&
+                      match.score_team2 > (match.score_team1 || 0)
+                    ? "text-green-500"
+                    : "text-red-500"
+              }`}
+            >
+              {match.score_team2 || 0}
+            </p>
+          </span>
+        </div>
+      )}
     </li>
   );
 }
