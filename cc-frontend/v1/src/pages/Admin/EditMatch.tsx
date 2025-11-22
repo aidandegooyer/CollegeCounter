@@ -195,8 +195,8 @@ function EditMatch() {
         <TabsList className="mb-6 grid w-full grid-cols-4">
           <TabsTrigger value="edit">Edit Match</TabsTrigger>
           <TabsTrigger value="create">Create Match</TabsTrigger>
-          <TabsTrigger value="create-event">Create Event Match</TabsTrigger>
           <TabsTrigger value="edit-event">Edit Event Match</TabsTrigger>
+          <TabsTrigger value="create-event">Create Event Match</TabsTrigger>
         </TabsList>
 
         <TabsContent value="edit">
