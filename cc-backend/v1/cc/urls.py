@@ -44,6 +44,11 @@ urlpatterns = [
     ),
     # Team and player update endpoints (admin functionality)
     path("teams/<uuid:team_id>/", admin_views.update_team, name="update_team"),
+    path(
+        "teams/import-faceit/",
+        admin_views.import_team_from_faceit,
+        name="import_team_from_faceit",
+    ),
     path("players/<uuid:player_id>/", admin_views.update_player, name="update_player"),
     # Image proxy endpoint for CORS-free image access
     path("proxy/image/", admin_views.proxy_image, name="proxy_image"),

@@ -2,6 +2,35 @@ import { api } from "./api-config";
 import type { Team, Player } from "./api";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
+// Team creation from Faceit
+export interface ImportTeamFromFaceitRequest {
+  team_url?: string;
+  team_id?: string;
+}
+
+export interface ImportTeamFromFaceitResponse {
+  message: string;
+  team: {
+    id: string;
+    name: string;
+    picture: string;
+    elo: number;
+  };
+  players: Array<{
+    id: string;
+    name: string;
+    existed: boolean;
+  }>;
+  faceit_team_id: string;
+}
+
+export const importTeamFromFaceit = async (
+  data: ImportTeamFromFaceitRequest
+): Promise<ImportTeamFromFaceitResponse> => {
+  const response = await api.post(`/teams/import-faceit/`, data);
+  return response.data;
+};
+
 // Team update and image upload functions
 export const updateTeam = async (
   teamId: string,

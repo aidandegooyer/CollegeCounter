@@ -5,6 +5,7 @@ import {
   uploadTeamPicture,
   updatePlayer,
   uploadPlayerPicture,
+  importTeamFromFaceit,
 } from "@/services/api-team-player-edit";
 import type { Team, Player } from "@/services/api";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,9 @@ import { AlertCircle, Check, Upload } from "lucide-react";
 import imageCompression from "browser-image-compression";
 
 function EditTeamPlayer() {
-  const [activeTab, setActiveTab] = useState<"teams" | "players">("teams");
+  const [activeTab, setActiveTab] = useState<"teams" | "players" | "create">(
+    "teams",
+  );
   const [teams, setTeams] = useState<Team[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,11 +94,12 @@ function EditTeamPlayer() {
 
       <Tabs
         value={activeTab}
-        onValueChange={(v) => setActiveTab(v as "teams" | "players")}
+        onValueChange={(v) => setActiveTab(v as "teams" | "players" | "create")}
       >
-        <TabsList className="mb-6 grid w-full grid-cols-2">
-          <TabsTrigger value="teams">Teams</TabsTrigger>
-          <TabsTrigger value="players">Players</TabsTrigger>
+        <TabsList className="mb-6 grid w-full grid-cols-3">
+          <TabsTrigger value="teams">Edit Teams</TabsTrigger>
+          <TabsTrigger value="players">Edit Players</TabsTrigger>
+          <TabsTrigger value="create">Create Team</TabsTrigger>
         </TabsList>
 
         <TabsContent value="teams">
@@ -204,6 +208,10 @@ function EditTeamPlayer() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="create">
+          <CreateTeamFromFaceit setNotification={setNotification} />
         </TabsContent>
       </Tabs>
     </div>
@@ -661,6 +669,150 @@ function PlayerEditForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+interface CreateTeamFromFaceitProps {
+  setNotification: (
+    notification: { type: "success" | "error"; message: string } | null,
+  ) => void;
+}
+
+function CreateTeamFromFaceit({ setNotification }: CreateTeamFromFaceitProps) {
+  const [faceitUrl, setFaceitUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    team: { id: string; name: string; picture: string; elo: number };
+    players: Array<{ id: string; name: string; existed: boolean }>;
+  } | null>(null);
+
+  const handleImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!faceitUrl.trim()) {
+      setNotification({
+        type: "error",
+        message: "Please enter a Faceit team URL",
+      });
+      return;
+    }
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const response = await importTeamFromFaceit({ team_url: faceitUrl });
+
+      setImportResult({
+        team: response.team,
+        players: response.players,
+      });
+
+      setNotification({
+        type: "success",
+        message: `Team "${response.team.name}" imported successfully with ${response.players.length} players`,
+      });
+
+      // Clear the form
+      setFaceitUrl("");
+    } catch (error: any) {
+      console.error("Error importing team:", error);
+      const errorMessage =
+        error.response?.data?.error || "Failed to import team from Faceit";
+      setNotification({
+        type: "error",
+        message: errorMessage,
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      <Card>
+        <CardHeader>
+          <CardTitle>Import Team from Faceit</CardTitle>
+          <CardDescription>
+            Create a new team by importing data from Faceit. Enter the team's
+            Faceit URL to automatically import team details and roster.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleImport} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="faceit-url">Faceit Team URL</Label>
+              <Input
+                id="faceit-url"
+                type="text"
+                placeholder="https://www.faceit.com/en/teams/abc123-team-name"
+                value={faceitUrl}
+                onChange={(e) => setFaceitUrl(e.target.value)}
+                disabled={importing}
+              />
+              <p className="text-muted-foreground text-sm">
+                You can find the team URL on the team's Faceit profile page
+              </p>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={importing}>
+              {importing ? (
+                <>
+                  <Spinner className="mr-2 h-4 w-4" />
+                  Importing Team...
+                </>
+              ) : (
+                "Import Team"
+              )}
+            </Button>
+          </form>
+
+          {importResult && (
+            <div className="mt-6 space-y-4">
+              <div className="rounded-lg border p-4">
+                <h3 className="mb-2 font-semibold">Team Created</h3>
+                <div className="flex items-center gap-3">
+                  {importResult.team.picture && (
+                    <img
+                      src={importResult.team.picture}
+                      alt={importResult.team.name}
+                      className="h-12 w-12 rounded"
+                    />
+                  )}
+                  <div>
+                    <p className="font-medium">{importResult.team.name}</p>
+                    <p className="text-muted-foreground text-sm">
+                      ELO: {importResult.team.elo}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {importResult.players.length > 0 && (
+                <div className="rounded-lg border p-4">
+                  <h3 className="mb-2 font-semibold">
+                    Players ({importResult.players.length})
+                  </h3>
+                  <div className="space-y-1">
+                    {importResult.players.map((player) => (
+                      <div
+                        key={player.id}
+                        className="text-muted-foreground flex items-center justify-between text-sm"
+                      >
+                        <span>{player.name}</span>
+                        {player.existed && (
+                          <span className="text-xs italic">(existing)</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

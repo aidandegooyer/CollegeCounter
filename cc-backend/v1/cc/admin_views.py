@@ -7,6 +7,8 @@ from .middleware import firebase_auth_required
 import logging
 import requests
 from decimal import Decimal
+from django.conf import settings
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -614,5 +616,182 @@ def create_event(request):
         logger.error(f"Error creating event: {str(e)}")
         return Response(
             {"error": f"Failed to create event: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@firebase_auth_required(min_role="admin")
+def import_team_from_faceit(request):
+    """
+    Import a team from Faceit using a team URL or team ID
+
+    Expected request format:
+    {
+        "team_url": "https://www.faceit.com/en/teams/abc123-team-name" // OR
+        "team_id": "abc123-team-id"
+    }
+
+    Returns created team with roster
+    """
+    try:
+        team_url = request.data.get("team_url", "")
+        team_id = request.data.get("team_id", "")
+
+        # Extract team ID from URL if provided
+        if team_url and not team_id:
+            # URL format: https://www.faceit.com/en/teams/{team_id}
+            match = re.search(r"/teams/([a-f0-9-]+)", team_url)
+            if match:
+                team_id = match.group(1)
+            else:
+                return Response(
+                    {"error": "Invalid Faceit team URL format"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if not team_id:
+            return Response(
+                {"error": "team_url or team_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Fetch team data from Faceit API
+        api_key = getattr(settings, "FACEIT_API_KEY", None)
+        if not api_key:
+            return Response(
+                {"error": "FACEIT_API_KEY not configured"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        headers = {"Authorization": f"Bearer {api_key}"}
+        team_url_api = f"https://open.faceit.com/data/v4/teams/{team_id}"
+
+        response = requests.get(team_url_api, headers=headers)
+
+        if response.status_code != 200:
+            return Response(
+                {"error": f"Failed to fetch team from Faceit: {response.status_code}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        team_data = response.json()
+
+        # Extract team info
+        team_name = team_data.get("nickname", team_data.get("name", "Unknown Team"))
+        team_avatar = team_data.get("avatar", "")
+
+        # Check if team already exists by name or if a participant with this faceit_id exists
+        existing_team = Team.objects.filter(name=team_name).first()
+        if not existing_team:
+            # Also check if there's a participant with this faceit team ID
+            from .models import Participant
+
+            existing_participant = Participant.objects.filter(faceit_id=team_id).first()
+            if existing_participant and existing_participant.team:
+                existing_team = existing_participant.team
+
+        if existing_team:
+            return Response(
+                {
+                    "error": f"Team already exists: {existing_team.name}",
+                    "team_id": str(existing_team.id),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Create the team
+        team = Team.objects.create(
+            name=team_name,
+            picture=team_avatar,
+            elo=1000,  # Default ELO
+        )
+
+        logger.info(f"Created team: {team_name} (ID: {team.id})")
+
+        # Import roster if available
+        members = team_data.get("members", [])
+        created_players = []
+
+        for member in members:
+            player_id = member.get("user_id")
+            if not player_id:
+                continue
+
+            # Check if player already exists
+            existing_player = Player.objects.filter(faceit_id=player_id).first()
+            if existing_player:
+                # Update team association if player exists
+                if not existing_player.team:
+                    existing_player.team = team
+                    existing_player.save()
+                    created_players.append(
+                        {
+                            "id": str(existing_player.id),
+                            "name": existing_player.name,
+                            "existed": True,
+                        }
+                    )
+                continue
+
+            # Fetch player details from Faceit API
+            try:
+                player_url = f"https://open.faceit.com/data/v4/players/{player_id}"
+                player_response = requests.get(player_url, headers=headers)
+
+                if player_response.status_code == 200:
+                    player_data = player_response.json()
+
+                    player_name = player_data.get("nickname", "Unknown Player")
+                    player_avatar = player_data.get("avatar", "")
+                    steam_id = (
+                        player_data.get("games", {})
+                        .get("cs2", {})
+                        .get("game_player_id")
+                    )
+
+                    # Get CS2 stats
+                    cs2_data = player_data.get("games", {}).get("cs2", {})
+                    player_elo = cs2_data.get("faceit_elo", 1000)
+                    skill_level = cs2_data.get("skill_level", 1)
+
+                    player = Player.objects.create(
+                        name=player_name,
+                        picture=player_avatar,
+                        faceit_id=player_id,
+                        steam_id=steam_id,
+                        elo=player_elo,
+                        skill_level=skill_level,
+                        team=team,
+                    )
+
+                    created_players.append(
+                        {"id": str(player.id), "name": player_name, "existed": False}
+                    )
+
+                    logger.info(f"Created player: {player_name} (ID: {player.id})")
+            except Exception as e:
+                logger.error(f"Error fetching player {player_id}: {str(e)}")
+                continue
+
+        # Return created team data
+        response_data = {
+            "message": "Team imported successfully",
+            "team": {
+                "id": str(team.id),
+                "name": team.name,
+                "picture": team.picture,
+                "elo": team.elo,
+            },
+            "players": created_players,
+            "faceit_team_id": team_id,
+        }
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        logger.error(f"Error importing team from Faceit: {str(e)}")
+        return Response(
+            {"error": f"Failed to import team: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
