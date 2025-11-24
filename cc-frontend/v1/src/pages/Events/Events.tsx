@@ -77,8 +77,8 @@ export function Events() {
       return aStatus - bStatus;
     }
 
-    // Then sort by start date (earliest first)
-    return aStart.getTime() - bStart.getTime();
+    // Then sort by start date (latest first)
+    return bStart.getTime() - aStart.getTime();
   });
 
   if (error) {
