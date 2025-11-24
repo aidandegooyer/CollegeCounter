@@ -38,6 +38,11 @@ urlpatterns = [
     path("merge-teams/", views.merge_teams, name="merge_teams"),
     path("competitions/", views.list_competitions, name="list_competitions"),
     path(
+        "competitions/create/",
+        admin_views.create_competition,
+        name="create_competition",
+    ),
+    path(
         "competitions/<uuid:competition_id>/",
         views.delete_competition,
         name="delete_competition",

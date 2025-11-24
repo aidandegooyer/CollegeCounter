@@ -4,6 +4,7 @@ import {
   fetchAllTeams,
   fetchSeasons,
   listCompetitions,
+  createCompetition,
   fetchAllEvents,
   createMatch,
   createEventMatch,
@@ -41,6 +42,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 import SearchSelect, {
   useSearchSelectOptions,
@@ -162,6 +172,15 @@ function EditMatch() {
       setMatches(matchesData);
     } catch (error) {
       console.error("Error refreshing matches:", error);
+    }
+  };
+
+  const refreshCompetitions = async () => {
+    try {
+      const competitionsData = await listCompetitions();
+      setCompetitions(competitionsData.competitions);
+    } catch (error) {
+      console.error("Error refreshing competitions:", error);
     }
   };
 
@@ -505,6 +524,7 @@ function EditMatch() {
                     competitions={competitions}
                     setNotification={setNotification}
                     onMatchUpdated={refreshMatches}
+                    onCompetitionCreated={refreshCompetitions}
                     onMatchDeleted={() => {
                       refreshMatches();
                       setSelectedMatchId(null);
@@ -533,6 +553,7 @@ function EditMatch() {
                 competitions={competitions}
                 setNotification={setNotification}
                 onMatchCreated={refreshMatches}
+                onCompetitionCreated={refreshCompetitions}
               />
             </CardContent>
           </Card>
@@ -554,6 +575,7 @@ function EditMatch() {
                 events={events}
                 setNotification={setNotification}
                 onMatchCreated={refreshMatches}
+                onCompetitionCreated={refreshCompetitions}
               />
             </CardContent>
           </Card>
@@ -807,6 +829,7 @@ function EditMatch() {
                     events={events}
                     setNotification={setNotification}
                     onMatchUpdated={refreshMatches}
+                    onCompetitionCreated={refreshCompetitions}
                     onMatchDeleted={() => {
                       refreshMatches();
                       setSelectedEventMatchId(null);
@@ -835,6 +858,7 @@ interface MatchEditFormProps {
     notification: { type: "success" | "error"; message: string } | null,
   ) => void;
   onMatchUpdated: () => void;
+  onCompetitionCreated: () => void;
   onMatchDeleted: () => void;
 }
 
@@ -845,6 +869,7 @@ function MatchEditForm({
   competitions,
   setNotification,
   onMatchUpdated,
+  onCompetitionCreated,
   onMatchDeleted,
 }: MatchEditFormProps) {
   const [formData, setFormData] = useState({
@@ -1087,7 +1112,16 @@ function MatchEditForm({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="competition_id">Competition (Optional)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="competition_id">Competition (Optional)</Label>
+              <CreateCompetitionDialog
+                onCompetitionCreated={(competition) => {
+                  onCompetitionCreated();
+                  handleSelectChange(competition.id, "competition_id");
+                }}
+                setNotification={setNotification}
+              />
+            </div>
             <SearchSelect
               options={[
                 { value: "", label: "No Competition" },
@@ -1175,6 +1209,7 @@ interface MatchCreateFormProps {
     notification: { type: "success" | "error"; message: string } | null,
   ) => void;
   onMatchCreated: () => void;
+  onCompetitionCreated: () => void;
 }
 
 interface EventMatchCreateFormProps {
@@ -1186,6 +1221,7 @@ interface EventMatchCreateFormProps {
     notification: { type: "success" | "error"; message: string } | null,
   ) => void;
   onMatchCreated: () => void;
+  onCompetitionCreated: () => void;
 }
 
 function MatchCreateForm({
@@ -1194,6 +1230,7 @@ function MatchCreateForm({
   competitions,
   setNotification,
   onMatchCreated,
+  onCompetitionCreated,
 }: MatchCreateFormProps) {
   const [formData, setFormData] = useState({
     team1_id: "",
@@ -1425,7 +1462,16 @@ function MatchCreateForm({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="competition_id">Competition (Optional)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="competition_id">Competition (Optional)</Label>
+              <CreateCompetitionDialog
+                onCompetitionCreated={(competition) => {
+                  onCompetitionCreated();
+                  handleSelectChange(competition.id, "competition_id");
+                }}
+                setNotification={setNotification}
+              />
+            </div>
             <SearchSelect
               options={[
                 { value: "", label: "No Competition" },
@@ -1494,6 +1540,7 @@ function EventMatchCreateForm({
   events,
   setNotification,
   onMatchCreated,
+  onCompetitionCreated,
 }: EventMatchCreateFormProps) {
   const [formData, setFormData] = useState({
     team1_id: "",
@@ -1827,7 +1874,16 @@ function EventMatchCreateForm({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="competition_id">Competition (Optional)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="competition_id">Competition (Optional)</Label>
+              <CreateCompetitionDialog
+                onCompetitionCreated={(competition) => {
+                  onCompetitionCreated();
+                  handleSelectChange(competition.id, "competition_id");
+                }}
+                setNotification={setNotification}
+              />
+            </div>
             <SearchSelect
               options={[
                 { value: "", label: "No Competition" },
@@ -2016,6 +2072,7 @@ interface EventMatchEditFormProps {
     notification: { type: "success" | "error"; message: string } | null,
   ) => void;
   onMatchUpdated: () => void;
+  onCompetitionCreated: () => void;
   onMatchDeleted: () => void;
 }
 
@@ -2027,6 +2084,7 @@ function EventMatchEditForm({
   events,
   setNotification,
   onMatchUpdated,
+  onCompetitionCreated,
   onMatchDeleted,
 }: EventMatchEditFormProps) {
   const eventMatch = match.event_match;
@@ -2376,7 +2434,16 @@ function EventMatchEditForm({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="competition_id">Competition (Optional)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="competition_id">Competition (Optional)</Label>
+              <CreateCompetitionDialog
+                onCompetitionCreated={(competition) => {
+                  onCompetitionCreated();
+                  handleSelectChange(competition.id, "competition_id");
+                }}
+                setNotification={setNotification}
+              />
+            </div>
             <SearchSelect
               options={[
                 { value: "", label: "No Competition" },
@@ -2574,6 +2641,109 @@ function EventMatchEditForm({
         </div>
       </div>
     </form>
+  );
+}
+
+interface CreateCompetitionDialogProps {
+  onCompetitionCreated: (competition: Competition) => void;
+  setNotification: (
+    notification: { type: "success" | "error"; message: string } | null,
+  ) => void;
+}
+
+function CreateCompetitionDialog({
+  onCompetitionCreated,
+  setNotification,
+}: CreateCompetitionDialogProps) {
+  const [open, setOpen] = useState(false);
+  const [competitionName, setCompetitionName] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const handleCreate = async () => {
+    if (!competitionName.trim()) {
+      setNotification({
+        type: "error",
+        message: "Please enter a competition name",
+      });
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const response = await createCompetition({ name: competitionName });
+      onCompetitionCreated(response.competition);
+      setNotification({
+        type: "success",
+        message: `Competition "${response.competition.name}" created successfully`,
+      });
+      setOpen(false);
+      setCompetitionName("");
+    } catch (error: any) {
+      console.error("Error creating competition:", error);
+      const errorMessage =
+        error.response?.data?.error || "Failed to create competition";
+      setNotification({
+        type: "error",
+        message: errorMessage,
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button type="button" variant="outline" size="sm">
+          <Plus className="mr-1 h-3 w-3" />
+          New Competition
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create New Competition</DialogTitle>
+          <DialogDescription>
+            Add a new competition to the database
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="competition-name">Competition Name</Label>
+            <Input
+              id="competition-name"
+              value={competitionName}
+              onChange={(e) => setCompetitionName(e.target.value)}
+              placeholder="e.g., NECC Spring 2025"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleCreate();
+                }
+              }}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleCreate} disabled={creating}>
+            {creating ? (
+              <>
+                <Spinner className="mr-2 h-4 w-4" />
+                Creating...
+              </>
+            ) : (
+              "Create Competition"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

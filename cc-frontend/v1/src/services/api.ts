@@ -261,6 +261,22 @@ export const listCompetitions = async (): Promise<CompetitionsResponse> => {
   return response.data;
 };
 
+export interface CreateCompetitionRequest {
+  name: string;
+}
+
+export interface CreateCompetitionResponse {
+  message: string;
+  competition: Competition;
+}
+
+export const createCompetition = async (
+  data: CreateCompetitionRequest
+): Promise<CreateCompetitionResponse> => {
+  const response = await api.post(`/competitions/create/`, data);
+  return response.data;
+};
+
 export const deleteCompetition = async (
   competitionId: string,
   securityKey: string

@@ -795,3 +795,56 @@ def import_team_from_faceit(request):
             {"error": f"Failed to import team: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["POST"])
+@firebase_auth_required(min_role="admin")
+def create_competition(request):
+    """
+    Create a new competition
+
+    Expected request format:
+    {
+        "name": "Competition Name"
+    }
+    """
+    try:
+        name = request.data.get("name")
+
+        if not name:
+            return Response(
+                {"error": "name is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if competition with this name already exists
+        from .models import Competition
+
+        existing_competition = Competition.objects.filter(name=name).first()
+        if existing_competition:
+            return Response(
+                {
+                    "error": f"Competition with name '{name}' already exists",
+                    "competition_id": str(existing_competition.id),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Create the competition
+        competition = Competition.objects.create(name=name)
+
+        logger.info(f"Created competition: {name} (ID: {competition.id})")
+
+        return Response(
+            {
+                "message": "Competition created successfully",
+                "competition": {"id": str(competition.id), "name": competition.name},
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    except Exception as e:
+        logger.error(f"Error creating competition: {str(e)}")
+        return Response(
+            {"error": f"Failed to create competition: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
