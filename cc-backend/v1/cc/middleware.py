@@ -25,7 +25,18 @@ def firebase_auth_required(view_func=None, min_role="base"):
     def decorator(func):
         @wraps(func)
         def _wrapped(request, *args, **kwargs):
+            # Development bypass: allow "dev" token when DEBUG is True
             auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+
+            if settings.DEBUG and auth_header == "Bearer dev":
+                # Create a fake decoded token for development
+                request.firebase_user = {
+                    "uid": "dev-user-id",
+                    "email": "dev@localhost",
+                    "role": "owner",  # Give full access in dev mode
+                }
+                return func(request, *args, **kwargs)
+
             if not auth_header.startswith("Bearer "):
                 return JsonResponse(
                     {"error": "Authentication credentials were not provided."},
