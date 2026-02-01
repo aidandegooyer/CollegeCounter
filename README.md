@@ -89,6 +89,24 @@ psql -h localhost -U ccdev -d cc
 # Password: dev
 ```
 
+#### Using a Dev Data Dump (Optional)
+
+If you want to work with realistic data instead of an empty database, contact [@aidandegooyer](https://github.com/aidandegooyer) (@aidanxi on discord) for a development database dump.
+
+Once you receive the `dev_dump.sql` or `dev_dump.sql.gz` file:
+
+```bash
+# For uncompressed dump
+psql -h localhost -U ccdev -d cc < dev_dump.sql
+
+# For compressed dump
+gunzip -c dev_dump.sql.gz | psql -h localhost -U ccdev -d cc
+
+# Then run migrations to ensure schema is up to date
+cd cc-backend/v1
+uv run python manage.py migrate
+```
+
 #### Backend (Django v1)
 
 ```bash
