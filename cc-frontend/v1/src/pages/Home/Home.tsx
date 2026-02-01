@@ -17,21 +17,13 @@ function Home() {
             <div className="col-span-5 my-4 flex h-32 w-full flex-col items-center justify-center rounded-xl border-2 md:col-span-3">
               <img src={c4_logo} alt="C4 Logo" className="-m-3 h-24" />
               <h1 className="flex items-center text-3xl">
-                Returns for January!
+                Returns for February!
               </h1>
             </div>
             <div className="col-span-2 my-4 hidden h-32 w-full flex-col items-center justify-center rounded-xl border-2 md:flex">
-              <h1 className="flex items-center text-3xl">
-                Previous Champions:
+              <h1 className="flex items-center text-center text-5xl">
+                Welcome Back for Spring 2026!
               </h1>
-              <img
-                src={
-                  "https://distribution.faceit-cdn.net/images/c27cbea5-0656-4d72-ab92-581b0c29abb2.jpg"
-                }
-                alt="C4 Logo"
-                className="h-16 w-16 rounded-md"
-              />
-              <h1 className="flex items-center text-xl">Ashland Eagles</h1>
             </div>
           </div>
         </NavLink>
