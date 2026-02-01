@@ -21,21 +21,36 @@ College Counter is a platform to view scores, rankings, and news for collegiate 
 
 ### Prerequisites
 
-- Node.js 18+ and npm
-- Python 3.9+
-- PostgreSQL 15+
+- Node.js 18+ and npm (newest version preferred)
+- Python 3.9+ (newest version preferred)
+- PostgreSQL 15+ (newest version preferred)
+- Homebrew (macOS)
+
+### Install Dependencies
+
+First, install all required dependencies:
+
+```bash
+# Install PostgreSQL 18
+brew install postgresql@18
+
+# Install Node.js (if not already installed)
+brew install node
+
+# Install Python 3.9+ (if not already installed)
+brew install python@3.14
+
+# Install uv (Python package manager)
+brew install uv
+```
 
 ### Local Development Setup
 
 #### Database Setup
 
-1. Install PostgreSQL 15:
+1. Start PostgreSQL:
 
 ```bash
-# macOS (via Homebrew)
-brew install postgresql@15
-
-# Start PostgreSQL
 brew services start postgresql@15
 ```
 
@@ -79,9 +94,6 @@ psql -h localhost -U ccdev -d cc
 ```bash
 # Navigate to backend directory
 cd cc-backend/v1
-
-# Install uv if not already installed
-curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Create virtual environment and install dependencies
 uv sync
