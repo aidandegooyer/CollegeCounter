@@ -5,8 +5,17 @@ import logo from "../assets/0.1x/C Logo@0.1x.png";
 function Navbar() {
   const location = useLocation();
 
+  const isDevelopment =
+    import.meta.env.VITE_API_BASE_URL?.includes("localhost") ||
+    import.meta.env.VITE_API_BASE_URL?.includes("127.0.0.1");
+
   return (
     <nav className="bg-background/80 border-border sticky top-0 z-50 w-full px-4 py-3 backdrop-blur-md">
+      {isDevelopment && (
+        <div className="mb-4 bg-yellow-500 px-4 py-2 text-center text-sm font-semibold text-black">
+          🚧 DEVELOPMENT MODE - Using local API
+        </div>
+      )}
       <div className="container mx-auto flex max-w-[1200px] items-center justify-between">
         <NavLink to="/" className="flex items-center">
           <img
