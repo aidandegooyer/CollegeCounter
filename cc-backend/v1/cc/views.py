@@ -2911,7 +2911,7 @@ def get_leaguespot_headers():
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "en-US,en;q=0.5",
         "X-App": "web",
-        "X-Version": "20250907.4",
+        "X-Version": "20251009.2",
         "X-League-Id": "53015f28-5b33-4882-9f8b-16dcbb13deee",
         "Origin": "https://esports.pcl.gg",
         "Connection": "keep-alive",
