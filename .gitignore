@@ -5,6 +5,8 @@ deploy.sh
 link_api_certs.sh
 .env
 credentials
+*.sql
+*.log
 
 # ignore TLS certs and keys and firebase service account json
 /certs/
