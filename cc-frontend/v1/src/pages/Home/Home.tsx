@@ -20,8 +20,21 @@ function Home() {
                 Returns for February!
               </h1>
             </div>
-            <div className="col-span-2 my-4 hidden h-32 w-full flex-col items-center justify-center rounded-xl border-2 md:flex">
-              <h1 className="flex items-center text-center text-5xl">
+            <div className="col-span-1 my-4 hidden h-32 w-full flex-col items-center justify-center rounded-xl border-2 md:flex">
+            <h1 className="flex items-center text-xl">
+                Previous Champions:
+              </h1>
+              <img
+                src={
+                  "https://legacyplatformapiprod.blob.core.windows.net/images/teams/4f0e0828-41d2-480e-869b-d274af8c13e6.jpg?v=638437415076048339"
+                }
+                alt="C4 Logo"
+                className="h-16 w-16 rounded-md"
+              />
+              <h1 className="flex items-center text-xl">RIT Orange</h1>
+            </div>
+            <div className="col-span-1 my-4 hidden h-32 w-full flex-col items-center justify-center rounded-xl border-2 md:flex">
+              <h1 className="flex items-center text-center text-2xl">
                 Welcome Back for Spring 2026!
               </h1>
             </div>
