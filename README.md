@@ -12,10 +12,8 @@ College Counter is a platform to view scores, rankings, and news for collegiate 
 
 ## Tech stack
 
-- Frontend: React + TypeScript + Vite (legacy and v1 frontends)
-  - Entry point: [cc-frontend/v1/src/App.tsx](cc-frontend/v1/src/App.tsx)
-- Backend (v1): Django REST / DRF (controllers at [cc-backend/v1/cc/views.py](cc-backend/v1/cc/views.py))
-  - Example API: [`cc.views.update_player_elo`](cc-backend/v1/cc/views.py)
+- Frontend: React + TypeScript + Vite
+- Backend : Django REST/DRF & Postgres
 
 ## Quick start (development)
 
@@ -27,6 +25,8 @@ College Counter is a platform to view scores, rankings, and news for collegiate 
 - Homebrew (macOS)
 
 ### Install Dependencies
+
+_Note: this entire section was written by Claude, It should be helpful but feel free to reach out to @aidanxi on discord with any questions_
 
 First, install all required dependencies:
 
@@ -297,8 +297,6 @@ docker-compose up --build [service_name]
 - `cc-frontend/v1/` - Current React + TypeScript + Vite frontend
 - `cc-frontend/legacy/` - Legacy frontend (deprecated)
 - `studio-cc-cms/` - Sanity CMS for content management
-- `certs/` - SSL certificates for production
-- `credentials/` - Firebase service account credentials
 
 ## Development Tips
 
