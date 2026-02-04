@@ -2,18 +2,16 @@
 
 Thank you for your interest in contributing to College Counter! We welcome contributions from the community.
 
+Note: this entire page was written by Claude, It should be helpful but feel free to reach out to @aidanxi on discord with any questions
+
 ## Table of Contents
-- [Code of Conduct](#code-of-conduct)
+
 - [Getting Started](#getting-started)
 - [How to Contribute](#how-to-contribute)
 - [Development Workflow](#development-workflow)
 - [Coding Standards](#coding-standards)
 - [Commit Guidelines](#commit-guidelines)
 - [Pull Request Process](#pull-request-process)
-
-## Code of Conduct
-
-This project adheres to a Code of Conduct that all contributors are expected to follow. Please read [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) before contributing.
 
 ## Getting Started
 
@@ -32,16 +30,19 @@ This project adheres to a Code of Conduct that all contributors are expected to 
 ## How to Contribute
 
 ### Reporting Bugs
+
 - Check if the bug has already been reported in [Issues](https://github.com/aidandegooyer/CollegeCounter/issues)
 - If not, create a new issue using the **Bug Report** template
 - Provide as much detail as possible: steps to reproduce, expected behavior, actual behavior, screenshots, etc.
 
 ### Suggesting Features
+
 - Check if the feature has already been requested
 - Create a new issue using the **Feature Request** template
 - Clearly describe the feature and its benefits
 
 ### Submitting Code Changes
+
 1. Create an issue describing the change (if one doesn't exist)
 2. Follow the development workflow below
 3. Submit a pull request
@@ -49,7 +50,9 @@ This project adheres to a Code of Conduct that all contributors are expected to 
 ## Development Workflow
 
 ### 1. Create a Branch
+
 Create a feature branch from `main`:
+
 ```bash
 git checkout main
 git pull upstream main
@@ -57,6 +60,7 @@ git checkout -b feature/your-feature-name
 ```
 
 **Branch naming conventions:**
+
 - `feature/description` - New features
 - `fix/description` - Bug fixes
 - `docs/description` - Documentation changes
@@ -65,21 +69,25 @@ git checkout -b feature/your-feature-name
 - `chore/description` - Maintenance tasks
 
 ### 2. Make Your Changes
+
 - Write clean, maintainable code
 - Follow the coding standards below
 - Add tests if applicable
 - Update documentation as needed
 
 ### 3. Test Your Changes
+
 Ensure your changes work correctly:
 
 **Backend:**
+
 ```bash
 cd cc-backend/v1
 uv run python manage.py test
 ```
 
 **Frontend:**
+
 ```bash
 cd cc-frontend/v1
 npm run lint
@@ -89,17 +97,21 @@ npm run build
 Test manually using the development servers (see README.md).
 
 ### 4. Commit Your Changes
+
 Follow the commit guidelines below.
 
 ### 5. Push and Create a Pull Request
+
 ```bash
 git push origin feature/your-feature-name
 ```
+
 Then create a pull request on GitHub using the PR template.
 
 ## Coding Standards
 
 ### Python (Backend)
+
 - Follow [PEP 8](https://pep8.org/) style guide
 - Use type hints where appropriate
 - Write docstrings for functions and classes
@@ -107,6 +119,7 @@ Then create a pull request on GitHub using the PR template.
 - Use meaningful variable names
 
 ### TypeScript/React (Frontend)
+
 - Follow the existing ESLint configuration
 - Use TypeScript strict mode
 - Prefer functional components with hooks
@@ -114,6 +127,7 @@ Then create a pull request on GitHub using the PR template.
 - Keep components focused and reusable
 
 ### General
+
 - Write self-documenting code
 - Add comments for complex logic
 - Avoid hardcoding values - use configuration/constants
@@ -126,6 +140,7 @@ Then create a pull request on GitHub using the PR template.
 Write clear, descriptive commit messages:
 
 ### Format:
+
 ```
 <type>: <subject>
 
@@ -135,6 +150,7 @@ Write clear, descriptive commit messages:
 ```
 
 ### Types:
+
 - `feat:` - New feature
 - `fix:` - Bug fix
 - `docs:` - Documentation changes
@@ -144,6 +160,7 @@ Write clear, descriptive commit messages:
 - `chore:` - Maintenance tasks, dependency updates
 
 ### Examples:
+
 ```
 feat: add ELO ranking history chart
 
@@ -155,6 +172,7 @@ refactor: extract match result parsing into separate utility function
 ```
 
 ### Guidelines:
+
 - Use the imperative mood in the subject line ("add" not "added")
 - Keep the subject line under 50 characters
 - Capitalize the subject line
@@ -175,6 +193,7 @@ refactor: extract match result parsing into separate utility function
 8. **Squash commits** if requested before merging
 
 ### PR Requirements:
+
 - All CI checks must pass
 - At least one approval from a maintainer
 - No merge conflicts
@@ -183,8 +202,9 @@ refactor: extract match result parsing into separate utility function
 ## Questions?
 
 If you have questions or need help:
+
 - Check existing [Issues](https://github.com/aidandegooyer/CollegeCounter/issues) and [Discussions](https://github.com/aidandegooyer/CollegeCounter/discussions)
 - Create a new discussion for general questions
 - Reach out to [@aidandegooyer](https://github.com/aidandegooyer) (@aidanxi on Discord)
 
-Thank you for contributing to College Counter! 🎮
+Thank you for contributing to College Counter!

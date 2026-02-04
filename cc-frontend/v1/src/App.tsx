@@ -32,6 +32,9 @@ const firebaseConfig = {
 };
 
 const queryClient = new QueryClient();
+const isDevelopment =
+  import.meta.env.VITE_API_BASE_URL.includes("localhost") ||
+  import.meta.env.VITE_API_BASE_URL.includes("127.0.0.1");
 
 initializeApp(firebaseConfig);
 
@@ -40,6 +43,13 @@ function ProtectedRoute({ children }: { children: React.ReactElement }) {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
+    // Bypass auth in development mode
+    if (isDevelopment) {
+      setUser({ email: "dev@localhost", displayName: "Dev User" });
+      setLoading(false);
+      return;
+    }
+
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
