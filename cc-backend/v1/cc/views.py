@@ -220,8 +220,8 @@ def import_matches(request):
         event_id = data.get("event_id")
         import_type = data.get("import_type", "league")
 
-        # Get or create the competition
-        competition, created = Competition.objects.get_or_create(name=competition_name)
+        # Create a new competition (do not merge with existing ones with the same name)
+        competition = Competition.objects.create(name=competition_name)
 
         # Get the season
         try:
