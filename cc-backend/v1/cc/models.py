@@ -355,6 +355,16 @@ class CustomEvent(models.Model):
         null=True,
         help_text="Game mode or ruleset (e.g., 5v5, Best of 3)",
     )
+    division = models.CharField(
+        max_length=20,
+        choices=[
+            ("honors", "Honors"),
+            ("open", "Open"),
+        ],
+        blank=True,
+        null=True,
+        help_text="Division type for the event (Honors or Open)",
+    )
     is_featured = models.BooleanField(
         default=False, help_text="Mark this event as featured on the website"
     )
