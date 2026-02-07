@@ -10,6 +10,7 @@ import ResultsWidget from "../Home/ResultsWidget";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { CompetitionLabel } from "@/components/CompetitionLabel";
+import RankBadge from "@/components/RankBadge";
 
 export function Team() {
   const { id } = useParams<{ id: string }>();
@@ -136,14 +137,17 @@ function PlayerComponent(props: PlayerComponentProps) {
               key={player.id}
               className="flex flex-col items-center space-y-2"
             >
-              <Logo
-                src={player.picture}
-                className="h-32 w-32 rounded-md"
-                alt="Player"
-                type="player"
-              />
-              <div className="text-center">
+              <div className="flex w-32 justify-center">
+                <Logo
+                  src={player.picture}
+                  className="h-32 rounded-md"
+                  alt="Player"
+                  type="player"
+                />
+              </div>
+              <div className="space-y-0.5 text-center">
                 <p className="font-semibold">{player.name}</p>
+                <RankBadge elo={player.elo || 0} className="mx-auto h-8 w-8" />
                 <p className="text-muted-foreground text-sm">
                   ELO: {player.elo || "N/A"}
                 </p>

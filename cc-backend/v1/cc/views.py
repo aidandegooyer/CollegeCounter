@@ -792,10 +792,8 @@ def process_player(player_data, team, season):
         # Update existing player with new information and move to new team
         old_team_name = player.team.name if player.team else "No team"
 
-        # Update player information
-        player.name = nickname
-        if avatar:
-            player.picture = avatar
+        # Update player information (but preserve manually set name and picture)
+        # Don't update name or picture as they may have been set manually
         if player_id and not player.faceit_id:
             player.faceit_id = player_id
         if game_player_id and not player.steam_id:
@@ -832,10 +830,8 @@ def process_player(player_data, team, season):
             try:
                 player = Player.objects.get(faceit_id=player_id)
                 print(f"Found existing player on retry by faceit_id: {player.name}")
-                # Update and move to new team
-                player.name = nickname
-                if avatar:
-                    player.picture = avatar
+                # Update and move to new team (but preserve manually set name and picture)
+                # Don't update name or picture as they may have been set manually
                 if game_player_id and not player.steam_id:
                     player.steam_id = game_player_id
                 player.elo = elo
