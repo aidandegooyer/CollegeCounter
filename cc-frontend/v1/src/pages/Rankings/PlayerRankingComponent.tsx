@@ -11,12 +11,14 @@ function PlayerRankingComponent(player: PublicPlayer & { rank: number }) {
           <span className="mr-3 text-end font-mono text-xl">
             {player.rank + 1}
           </span>
-          <Logo
-            src={player.picture}
-            className="h-8 w-8 rounded-sm"
-            alt="pfp"
-            type="player"
-          />
+          <div className="flex w-16 items-center justify-center">
+            <Logo
+              src={player.picture}
+              className="h-16 rounded-sm"
+              alt="pfp"
+              type="player"
+            />
+          </div>
           <span className="truncate overflow-ellipsis whitespace-nowrap text-xl">
             {player.name}
           </span>
