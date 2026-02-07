@@ -1,4 +1,5 @@
 import Logo from "@/components/Logo";
+import RankBadge from "@/components/RankBadge";
 import type { PublicPlayer } from "@/services/api";
 
 function PlayerRankingComponent(player: PublicPlayer & { rank: number }) {
@@ -27,6 +28,7 @@ function PlayerRankingComponent(player: PublicPlayer & { rank: number }) {
           </div>
         </div>
         <div className="flex items-center space-x-4">
+          <RankBadge elo={player.elo || 0} className="h-8 w-8" />
           <div className="bg-primary drop-shadow-primary drop-shadow-lg/50 rounded-md p-1 px-2 font-mono text-lg">
             {player.elo}
           </div>
