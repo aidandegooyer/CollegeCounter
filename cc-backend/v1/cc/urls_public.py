@@ -11,6 +11,8 @@ urlpatterns = [
     path("matches", public_views.public_matches, name="public_matches"),
     # Season endpoints
     path("seasons", public_views.public_seasons, name="public_seasons"),
+    # Competition endpoints
+    path("competitions", public_views.public_competitions, name="public_competitions"),
     # Ranking endpoints
     path("rankings", public_views.public_rankings, name="public_rankings"),
     path(

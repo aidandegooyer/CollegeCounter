@@ -752,6 +752,88 @@ def public_seasons(request):
 
 
 @api_view(["GET"])
+def public_competitions(request):
+    """
+    Public API endpoint to fetch competitions with optional season filtering.
+
+    Query Parameters:
+    - season_id: Filter competitions by season (optional)
+    - page: Page number (default: 1)
+    - page_size: Items per page (default: 20, max: 100)
+    - sort: Sort field (default: name)
+    - order: Sort order (asc or desc, default: asc)
+
+    Returns a paginated list of competitions, optionally filtered by season.
+    """
+    from .models import Competition
+
+    # Parse query parameters
+    season_id = request.query_params.get("season_id", "")
+
+    page = int(request.query_params.get("page", "1"))
+    page_size = min(int(request.query_params.get("page_size", "100")), MAX_PAGE_SIZE)
+
+    sort_field = request.query_params.get("sort", "name")
+    sort_order = request.query_params.get("order", "asc")
+
+    # Sort
+    valid_sort_fields = ["name"]
+    if sort_field not in valid_sort_fields:
+        sort_field = "name"
+
+    if sort_order.lower() == "desc":
+        sort_field = f"-{sort_field}"
+
+    # Build query
+    query = Q()
+
+    # If season_id is provided, filter competitions that have matches in that season
+    if season_id:
+        try:
+            season_uuid = safe_uuid(season_id)
+            # Get distinct competitions from matches in this season
+            competitions = (
+                Competition.objects.filter(matches__season_id=season_uuid)
+                .distinct()
+                .order_by(sort_field)
+            )
+        except ValueError:
+            return Response(
+                {"error": "Invalid season_id format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    else:
+        # Get all competitions
+        competitions = Competition.objects.filter(query).order_by(sort_field)
+
+    paginator = Paginator(competitions, page_size)
+
+    try:
+        paginated_competitions = paginator.page(page)
+    except Exception:
+        paginated_competitions = paginator.page(paginator.num_pages)
+
+    # Format response
+    result = {
+        "count": paginator.count,
+        "total_pages": paginator.num_pages,
+        "current_page": page,
+        "page_size": page_size,
+        "results": [],
+    }
+
+    for competition in paginated_competitions:
+        result["results"].append(
+            {
+                "id": competition.id,
+                "name": competition.name,
+            }
+        )
+
+    return Response(result)
+
+
+@api_view(["GET"])
 def public_rankings(request):
     """
     Public API endpoint to fetch rankings with various filters.

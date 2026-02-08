@@ -2,7 +2,11 @@ import { ArrowRight, Menu, Star } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
-import { usePublicMatches, usePublicSeasons } from "@/services/hooks";
+import {
+  usePublicMatches,
+  usePublicSeasons,
+  usePublicCompetitions,
+} from "@/services/hooks";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { PublicMatch, MatchQueryParams } from "@/services/api";
@@ -981,6 +985,14 @@ function MatchesFilter({ filters, onFilterChange }: MatchesFilterProps) {
   const { data: seasonsData, isLoading } = usePublicSeasons();
   const seasons = seasonsData?.results || [];
 
+  // Fetch competitions based on selected season
+  const { data: competitionsData, isLoading: isLoadingCompetitions } =
+    usePublicCompetitions({
+      season_id: filters.season_id || undefined,
+      page_size: 100,
+    });
+  const competitions = competitionsData?.results || [];
+
   if (isLoading) {
     return (
       <div className="matches-filter mt-4 w-full rounded-xl border-2 p-4 md:mt-0 md:w-auto">
@@ -1045,14 +1057,22 @@ function MatchesFilter({ filters, onFilterChange }: MatchesFilterProps) {
               competition_name: value === "all_competitions" ? "" : value,
             })
           }
+          disabled={isLoadingCompetitions}
         >
           <SelectTrigger id="competition">
-            <SelectValue placeholder="Select a competition" />
+            <SelectValue
+              placeholder={
+                isLoadingCompetitions ? "Loading..." : "Select a competition"
+              }
+            />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all_competitions">All Competitions</SelectItem>
-            <SelectItem value="necc">NECC</SelectItem>
-            <SelectItem value="playfly">Playfly</SelectItem>
+            {competitions.map((competition) => (
+              <SelectItem key={competition.id} value={competition.name}>
+                {competition.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

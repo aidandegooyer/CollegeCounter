@@ -672,6 +672,11 @@ export interface PublicSeason {
   is_current: boolean;
 }
 
+export interface PublicCompetition {
+  id: string;
+  name: string;
+}
+
 export interface PublicRanking {
   id: string;
   date: string;
@@ -748,6 +753,14 @@ export interface SeasonQueryParams {
   page?: number;
   page_size?: number;
   sort?: "name" | "start_date" | "end_date";
+  order?: "asc" | "desc";
+}
+
+export interface CompetitionQueryParams {
+  season_id?: string;
+  page?: number;
+  page_size?: number;
+  sort?: "name";
   order?: "asc" | "desc";
 }
 
@@ -839,6 +852,16 @@ export const fetchPublicSeasons = async (
   const queryString = convertToQueryString(params);
   const response = await api.get(
     `/public/seasons${queryString ? `?${queryString}` : ""}`,
+  );
+  return response.data;
+};
+
+export const fetchPublicCompetitions = async (
+  params: CompetitionQueryParams = {},
+): Promise<PaginatedResponse<PublicCompetition>> => {
+  const queryString = convertToQueryString(params);
+  const response = await api.get(
+    `/public/competitions${queryString ? `?${queryString}` : ""}`,
   );
   return response.data;
 };
