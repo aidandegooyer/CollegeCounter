@@ -491,9 +491,9 @@ export const fetchPlayflyMatches = async (eventId: string): Promise<any> => {
   return response.data;
 };
 
-export const fetchRegentsLeagueMatches = async (): Promise<any> => {
+export const fetchRegentsLeagueMatches = async (division: string): Promise<any> => {
   const response = await axios.get(
-    'https://regent-league-api.poopdealer.lol/cc/matches',
+    `https://regent-league-api.poopdealer.lol/cc/matches?div=${division}`,
   );
   return response.data;
 }
