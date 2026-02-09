@@ -828,7 +828,7 @@ def process_player(player_data, team, season):
     Handles player transfers between teams and avoids unique constraint violations.
     """
     player_id = player_data.get("player_id")
-    game_player_id = player_data.get("game_player_id")
+    game_player_id = player_data.get("game_player_id") or player_data.get("steam_id")
     nickname = player_data.get("nickname", "Unknown Player")
     avatar = player_data.get("avatar")
 
