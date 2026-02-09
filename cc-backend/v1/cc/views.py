@@ -706,6 +706,7 @@ def get_or_create_team(team_data, competition, season, platform):
     team_faceit_id = team_data.get("faction_id")
     team_regentsleague_id = None
     if platform == "regentsleague":
+        team_avatar = team_data.get("picture")
         team_regentsleague_id = team_data.get("id")
 
     # Only process LeagueSpot/Playfly IDs if we're actually importing from those platforms
