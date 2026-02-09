@@ -41,6 +41,9 @@ def safe_parse_datetime(dt):
         # Try to parse ISO format with Z
         parsed = parse_datetime(dt)
         if parsed:
+            # If no timezone info, assume UTC
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
             return parsed
         # If parse_datetime fails, try to parse as unix timestamp string
         try:
