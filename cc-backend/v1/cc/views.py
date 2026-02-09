@@ -1,3 +1,4 @@
+import uuid
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_datetime
@@ -201,10 +202,10 @@ def index(request):
 @firebase_auth_required(min_role="owner")
 def import_matches(request):
     """
-    Import matches from an external API (Faceit or Playfly) into the database.
+    Import matches from an external API (Faceit or Playfly or Regents League) into the database.
     Expected request format:
     {
-        "platform": "faceit" | "leaguespot",
+        "platform": "faceit" | "leaguespot" | "regentsleague",
         "competition_name": "string",
         "season_id": "uuid",
         "data": {...}, // API response data
@@ -304,6 +305,12 @@ def import_matches(request):
                 event=event,
                 import_type=import_type,
             )
+        elif platform == "regentsleague":
+            result = import_regentsleague_match_data(
+                api_data, 
+                competition, 
+                season
+            )
         else:
             return Response(
                 {"error": "Unsupported platform"}, status=status.HTTP_400_BAD_REQUEST
@@ -342,6 +349,93 @@ def import_matches(request):
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+def import_regentsleague_match_data(
+    matches: list[dict], competition, season
+):
+    """
+    Process Regents League API data and import matches
+
+    Args:
+        matches: The API response data containing match information
+        season: Season object
+
+    Returns:
+        dict: Contains lists of imported_matches, updated_matches, and skipped_matches
+    """
+    imported_matches = []
+    updated_matches = []
+    skipped_matches = []
+
+    for match_data in matches:
+        match_id = uuid.uuid5(uuid.NAMESPACE_DNS, f"regentsleague-{match_data.get("id")}") # Create a UUID based on the Regents League match ID. In the miniscule offchance this conflicts with an existing ID from a different league out of pure unluckiness I'll do a backflip.
+        team1_data: dict = match_data.get("team1")
+        team2_data: dict = match_data.get("team2")
+        team1_key = team1_data.get("id")
+        team2_key = team2_data.get("id")
+        team1, _ = get_or_create_team(team1_data, competition, season, "regentsleague")
+        team2, _ = get_or_create_team(team2_data, competition, season, "regentsleague")
+
+        if not team1 or not team2:
+            continue  # Skip if teams could not be created
+
+        # Extract results if available
+        score_team1 = 0
+        score_team2 = 0
+        winner = None
+
+        status_mapping = {
+            "Completed": "completed",
+            "In Progress": "in_progress",
+            "Scheduled": "scheduled",
+            # Add other status mappings as needed
+        }
+        status = status_mapping.get(match_data.get("status"))
+
+        if status == "completed":
+            score_team1 = match_data.get("score_team1")
+            score_team2 = match_data.get("score_team2")
+
+            winner_key = match_data.get("winner").get("id")
+            if winner_key == team1_key:
+                winner = team1
+            elif winner_key == team2_key:
+                winner = team2
+
+        # Check if match already exists
+        existing_match = Match.objects.filter(id=match_id).first()
+
+        if existing_match:
+            # Skip updating existing matches - only import new matches
+            # Updates should be done separately through the update_matches endpoint
+            skipped_matches.append(str(existing_match.id))
+            logger.info(
+                f"Skipped existing match {match_id} - use update endpoint to modify"
+            )
+            continue  # Move to next match
+
+        # Create the match (only if it doesn't exist)
+        match_date = match_data.get("date")
+        match = Match.objects.create(
+            id=match_id,
+            team1=team1,
+            team2=team2,
+            date=safe_parse_datetime(match_date) if match_date else None,
+            status=status,
+            winner=winner,
+            score_team1=score_team1,
+            score_team2=score_team2,
+            platform="regentsleague",
+            season=season,
+            competition=competition,
+        )
+        imported_matches.append(str(match.id))
+
+    return {
+        "imported": imported_matches,
+        "updated": updated_matches,
+        "skipped": skipped_matches,
+    }
 
 def import_match_data(
     api_data, competition, season, platform, event=None, import_type="league"
@@ -602,7 +696,6 @@ def import_match_data(
         "skipped": skipped_matches,
     }
 
-
 def get_or_create_team(team_data, competition, season, platform):
     """
     Helper function to get or create a team from API data
@@ -610,6 +703,9 @@ def get_or_create_team(team_data, competition, season, platform):
     team_name = team_data.get("name", "Unknown Team")
     team_avatar = team_data.get("avatar")
     team_faceit_id = team_data.get("faction_id")
+    team_regentsleague_id = None
+    if platform == "regentsleague":
+        team_regentsleague_id = team_data.get("id")
 
     # Only process LeagueSpot/Playfly IDs if we're actually importing from those platforms
     team_playfly_id = None

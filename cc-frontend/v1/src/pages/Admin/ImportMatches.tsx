@@ -25,6 +25,7 @@ import {
   fetchLeagueSpotMatch,
   fetchLeagueSpotParticipants,
   fetchAllEvents,
+  fetchRegentsLeagueMatches,
 } from "@/services/api";
 
 import type { Season, Team, PublicEvent } from "@/services/api";
@@ -47,6 +48,10 @@ function SelectPlatform({
         <div className="flex items-center space-x-2">
           <RadioGroupItem value="leaguespot" id="leaguespot" />
           <Label htmlFor="leaguespot">Leaguespot</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <RadioGroupItem value="regentsleague" id="regentsleague" />
+          <Label htmlFor="regentsleague">Regents League</Label>
         </div>
       </RadioGroup>
     </div>
@@ -1284,6 +1289,8 @@ function ImportMatches() {
               `Filtered Faceit matches: ${originalCount} → ${data.items.length}`,
             );
           }
+        } else if (platform === "regentsleague") {
+          data = await fetchRegentsLeagueMatches();
         } else {
           // Use LeagueSpot API for Playfly matches
           // For events, use the selected ID type (season or stage)
@@ -1314,7 +1321,7 @@ function ImportMatches() {
       try {
         // Include participant matches in the import request
         const result = await importMatches({
-          platform: platform as "faceit" | "leaguespot",
+          platform: platform as "faceit" | "leaguespot" | "regentsleague",
           competition_name: competitionName,
           season_id: selectedSeason,
           data: previewData,
