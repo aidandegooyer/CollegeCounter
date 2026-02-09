@@ -2688,8 +2688,7 @@ def update_regentsleague_match(match: Match):
     try:
         regentsleague_match_id = match.regentsleague_id
         response = requests.get(
-            # f"https://regent-league-api.poopdealer.lol/cc/match?id={regentsleague_match_id}",
-            f"http://localhost:8001/cc/match?id={regentsleague_match_id}",
+            f"https://regent-league-api.poopdealer.lol/cc/match?id={regentsleague_match_id}",
             timeout=30,
         )
 
