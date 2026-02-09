@@ -2817,7 +2817,7 @@ def update_regentsleague_match(match: Match):
         return updated
     
     except Exception as e:
-        logger.error(f"Error updating Faceit match {match.id}: {str(e)}")
+        logger.error(f"Error updating Regents League match {match.id}: {str(e)}")
         raise
         
 
