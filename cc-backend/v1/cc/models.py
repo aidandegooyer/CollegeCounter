@@ -158,6 +158,9 @@ class Participant(models.Model):
     playfly_participant_id = models.CharField(
         max_length=100, unique=False, blank=True, null=True, db_index=True
     )
+    regentsleague_id = models.IntegerField(
+        blank=True, unique=False, null=True, db_index=True
+    )
     season = models.ForeignKey(
         Season,
         on_delete=models.CASCADE,

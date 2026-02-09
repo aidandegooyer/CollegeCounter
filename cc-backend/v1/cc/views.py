@@ -8,6 +8,7 @@ from django.conf import settings
 from rest_framework import status
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone as dt_timezone
 from django.utils import timezone
 from django.db import models
 from django.shortcuts import get_object_or_404
@@ -44,7 +45,7 @@ def safe_parse_datetime(dt):
         if parsed:
             # If no timezone info, assume UTC
             if parsed.tzinfo is None:
-                parsed = parsed.replace(tzinfo=timezone.utc)
+                parsed = timezone.make_aware(parsed, dt_timezone.utc)
             return parsed
         # If parse_datetime fails, try to parse as unix timestamp string
         try:
@@ -752,6 +753,17 @@ def get_or_create_team(team_data, competition, season, platform):
             )
         except Participant.DoesNotExist:
             pass
+    
+    # Try Regents League ID if team Faceit and Playfly failed
+    if not existing_participant and team_regentsleague_id:
+        try:
+            existing_participant = Participant.objects.get(
+                regentsleague_id=team_regentsleague_id,
+                competition=competition,
+                season=season,
+            )
+        except Participant.DoesNotExist:
+            pass
 
     # If we found a participant with a team, use that team
     if existing_participant and existing_participant.team:
@@ -775,6 +787,8 @@ def get_or_create_team(team_data, competition, season, platform):
         participant_defaults["playfly_id"] = team_playfly_id
     if participant_id:
         participant_defaults["playfly_participant_id"] = participant_id
+    if team_regentsleague_id:
+        participant_defaults["regentsleague_id"] = team_regentsleague_id
 
     participant, created = Participant.objects.get_or_create(
         team=team, competition=competition, season=season, defaults=participant_defaults
@@ -791,6 +805,9 @@ def get_or_create_team(team_data, competition, season, platform):
             updated = True
         if participant_id and not participant.playfly_participant_id:
             participant.playfly_participant_id = participant_id
+            updated = True
+        if team_regentsleague_id and not participant.regentsleague_id:
+            participant.regentsleague_id = team_regentsleague_id
             updated = True
 
         if updated:
