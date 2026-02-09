@@ -108,7 +108,7 @@ export interface EventMatch {
 }
 
 export interface ImportMatchesRequest {
-  platform: "faceit" | "leaguespot";
+  platform: "faceit" | "leaguespot" | "regentsleague";
   competition_name: string;
   season_id: string;
   data: any; // The raw API response data
@@ -490,6 +490,13 @@ export const fetchPlayflyMatches = async (eventId: string): Promise<any> => {
   );
   return response.data;
 };
+
+export const fetchRegentsLeagueMatches = async (): Promise<any> => {
+  const response = await axios.get(
+    'https://regent-league-api.poopdealer.lol/cc/matches',
+  );
+  return response.data;
+}
 
 // LeagueSpot API interfaces
 export interface LeagueSpotSeason {
