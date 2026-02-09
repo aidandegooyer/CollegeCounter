@@ -369,7 +369,8 @@ def import_regentsleague_match_data(
     skipped_matches = []
 
     for match_data in matches:
-        match_id = uuid.uuid5(uuid.NAMESPACE_DNS, f"regentsleague-{match_data.get("id")}") # Create a UUID based on the Regents League match ID. In the miniscule offchance this conflicts with an existing ID from a different league out of pure unluckiness I'll do a backflip.
+        regentsleague_match_id = match_data.get("id")
+        match_id = uuid.uuid5(uuid.NAMESPACE_DNS, f"regentsleague-{regentsleague_match_id}") # Create a UUID based on the Regents League match ID. In the miniscule offchance this conflicts with an existing ID from a different league out of pure unluckiness I'll do a backflip.
         team1_data: dict = match_data.get("team1")
         team2_data: dict = match_data.get("team2")
         team1_key = team1_data.get("id")
@@ -419,6 +420,7 @@ def import_regentsleague_match_data(
         match_date = match_data.get("date")
         match = Match.objects.create(
             id=match_id,
+            regentsleague_id=regentsleague_match_id,
             team1=team1,
             team2=team2,
             date=safe_parse_datetime(match_date) if match_date else None,
@@ -2636,6 +2638,8 @@ def update_matches(request):
                     updated = update_faceit_match(match)
                 elif match.platform == "leaguespot":
                     updated = update_leaguespot_match(match)
+                elif match.platform == "regentsleague":
+                    updated = update_regentsleague_match(match)
                 else:
                     logger.warning(
                         f"Unsupported platform for match {match.id}: {match.platform}"
@@ -2675,6 +2679,148 @@ def update_matches(request):
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+def update_regentsleague_match(match: Match):
+    """
+    Update a single Regents League match with fresh data from the API
+    Returns True if the match was updated, False if no changes
+    """
+    try:
+        regentsleague_match_id = match.regentsleague_id
+        response = requests.get(
+            # f"https://regent-league-api.poopdealer.lol/cc/match?id={regentsleague_match_id}",
+            f"http://localhost:8001/cc/match?id={regentsleague_match_id}",
+            timeout=30,
+        )
+
+        if response.status_code != 200:
+            logger.warning(
+                f"Regent League API returned {response.status_code} for match {regentsleague_match_id}"
+            )
+            return False
+        
+        match_data: dict = response.json()
+        # Check if any updates are needed
+        updated = False
+
+        # Update status
+        status_mapping = {
+            "Completed": "completed",
+            "In Progress": "in_progress",
+            "Scheduled": "scheduled",
+        }
+        new_status = status_mapping.get(match_data.get("status"), "scheduled")
+        if new_status != match.status:
+            match.status = new_status
+            updated = True
+
+        parsed_date = safe_parse_datetime(match_data.get("date"))
+        if parsed_date and parsed_date != match.date:
+            match.date = parsed_date
+            updated = True
+
+        # Update results if match is finished
+        if new_status == "completed":
+            # Get team data to map factions to our teams using Faceit IDs
+            team1_data: dict = match_data.get("team1")
+            team2_data: dict = match_data.get("team2")
+
+            team1_id = team1_data.get("id")
+            team2_id = team2_data.get("id")
+
+            flipped = False
+            try:
+                team1_participant = Participant.objects.get(
+                    team=match.team1,
+                    competition=match.competition,
+                    season=match.season,
+                    regentsleague_id=team1_id,
+                )
+            except Participant.DoesNotExist:
+                # Sometimes team1 and team2 gets flipped after scored are entered.
+                try:
+                    team1_participant = Participant.objects.get(
+                        team=match.team1,
+                        competition=match.competition,
+                        season=match.season,
+                        regentsleague_id=team2_id,
+                    )
+                    flipped = True
+                except Participant.DoesNotExist:
+                    logger.warning(
+                        f"Could not find participant for team1 {match.team1.name} in match {match.id}"
+                    )
+            
+            try:
+                team2_participant = Participant.objects.get(
+                    team=match.team2,
+                    competition=match.competition,
+                    season=match.season,
+                    regentsleague_id=team2_id,
+                )
+            except Participant.DoesNotExist:
+                # Sometimes team1 and team2 gets flipped after scored are entered.
+                try:
+                    team2_participant = Participant.objects.get(
+                        team=match.team2,
+                        competition=match.competition,
+                        season=match.season,
+                        regentsleague_id=team1_id,
+                    )
+                    flipped = True
+                except Participant.DoesNotExist:
+                    logger.warning(
+                        f"Could not find participant for team1 {match.team1.name} in match {match.id}"
+                    )
+
+            if team1_participant and team2_participant:
+                if flipped:
+                    team1 = match.team1
+                    team2 = match.team2
+
+                    match.team2 = team1
+                    match.team1 = team2
+                logger.info(
+                    f"Match {match.id}: {match.team1.name} -> {team1_participant}, {match.team2.name} -> {team2_participant}"
+                )
+
+                # Get scores
+                new_score_team1 = match_data.get("score_team1")
+                new_score_team2 = match_data.get("score_team2")
+
+                # Update scores if they changed
+                if new_score_team1 != match.score_team1:
+                    match.score_team1 = new_score_team1
+                    updated = True
+                if new_score_team2 != match.score_team2:
+                    match.score_team2 = new_score_team2
+                    updated = True
+
+                # Determine winner
+                winner_team: dict = match_data.get("winner")
+                new_winner = None
+                if winner_team.get("id") == team1_participant.regentsleague_id:
+                    new_winner = match.team1
+                elif winner_team.get("id") == team2_participant.regentsleague_id:
+                    new_winner = match.team2
+
+                if new_winner != match.winner:
+                    match.winner = new_winner
+                    updated = True
+        if updated:
+            match.save()
+            logger.info(f"Updated Regent League match {match.id}")
+
+            # Update team ELOs if the match is now completed
+            if match.status == "completed":
+                update_match_elos(match)
+
+        return updated
+    
+    except Exception as e:
+        logger.error(f"Error updating Faceit match {match.id}: {str(e)}")
+        raise
+        
 
 def update_faceit_match(match):
     """
