@@ -731,24 +731,45 @@ function MetadataForm({
           </div>
         )}
 
-        <div>
-          <Label htmlFor="championshipId">
-            {platform === "faceit"
-              ? "Faceit Championship ID"
-              : getLeagueSpotLabel()}
-          </Label>
-          <Input
-            id="championshipId"
-            value={championshipId}
-            onChange={(e) => setChampionshipId(e.target.value)}
-            placeholder={
-              platform === "faceit"
+        {platform === "regentsleague" && (
+          <div>
+            <Label className="mb-4">Division</Label>
+            <RadioGroup
+              value={championshipId}
+              onValueChange={setChampionshipId}
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="Elites" id="division" />
+                <Label htmlFor="division">Elites</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="Challengers" id="division" />
+                <Label htmlFor="division">Challengers</Label>
+              </div>
+            </RadioGroup>
+          </div>
+        )}
+
+        {platform !== "regentsleague" && (
+          <div>
+            <Label htmlFor="championshipId">
+              {platform === "faceit"
                 ? "Faceit Championship ID"
-                : getLeagueSpotPlaceholder()
-            }
-            className="max-w-xl"
-          />
-        </div>
+                : getLeagueSpotLabel()}
+            </Label>
+            <Input
+              id="championshipId"
+              value={championshipId}
+              onChange={(e) => setChampionshipId(e.target.value)}
+              placeholder={
+                platform === "faceit"
+                  ? "Faceit Championship ID"
+                  : getLeagueSpotPlaceholder()
+              }
+              className="max-w-xl"
+            />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1290,7 +1311,7 @@ function ImportMatches() {
             );
           }
         } else if (platform === "regentsleague") {
-          data = await fetchRegentsLeagueMatches();
+          data = await fetchRegentsLeagueMatches(championshipId);
         } else {
           // Use LeagueSpot API for Playfly matches
           // For events, use the selected ID type (season or stage)
