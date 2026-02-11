@@ -771,7 +771,7 @@ function Past() {
   const [filters, setFilters] = useState<MatchQueryParams>({
     date_from: "",
     date_to: "",
-    season_id: "",
+    season_id: import.meta.env.VITE_CURRENT_SEASON_ID || "",
     competition_name: "",
     sort: "date",
     order: "desc",
