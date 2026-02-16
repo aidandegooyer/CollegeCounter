@@ -48,6 +48,8 @@ else:
         "https://www.collegecounter.org",
         "https://collegecounter.org",
         "http://localhost:5173",
+        "https://regentsleague.com",
+        "https://www.regentsleague.com",
     ]
 
 
@@ -70,8 +72,6 @@ CSRF_TRUSTED_ORIGINS = [
     "https://api.collegecounter.org",
     "https://www.collegecounter.org",
     "https://collegecounter.org",
-    "https://regentsleague.com",
-    "https://www.regentsleague.com",
 ]
 
 
