@@ -884,7 +884,7 @@ function MatchEditForm({
     url: match.url || "",
     score_team1: match.score_team1,
     score_team2: match.score_team2,
-    platform: match.platform as "faceit" | "playfly" | "other",
+    platform: match.platform as "faceit" | "playfly" | "regentsleague" | "other",
     season_id: "", // Will be set from match data
     competition_id: "", // Will be set from match data
     winner_id: match.winner?.id || "",
@@ -906,7 +906,7 @@ function MatchEditForm({
       url: match.url || "",
       score_team1: match.score_team1,
       score_team2: match.score_team2,
-      platform: match.platform as "faceit" | "playfly" | "other",
+      platform: match.platform as "faceit" | "playfly" | "regentsleague" | "other",
       season_id: match.season?.id || "",
       competition_id: match.competition?.id || "",
       winner_id: match.winner?.id || "",
@@ -1090,6 +1090,7 @@ function MatchEditForm({
               <SelectContent>
                 <SelectItem value="faceit">Faceit</SelectItem>
                 <SelectItem value="playfly">Playfly</SelectItem>
+                <SelectItem value="regentsleague">Regents League</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
@@ -1244,7 +1245,7 @@ function MatchCreateForm({
     url: "",
     score_team1: 0,
     score_team2: 0,
-    platform: "other" as "faceit" | "playfly" | "other",
+    platform: "other" as "faceit" | "playfly" | "regentsleague" | "other",
     season_id: "",
     competition_id: "",
     winner_id: "",
@@ -1440,6 +1441,7 @@ function MatchCreateForm({
               <SelectContent>
                 <SelectItem value="faceit">Faceit</SelectItem>
                 <SelectItem value="playfly">Playfly</SelectItem>
+                <SelectItem value="regentsleague">Regents League</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
@@ -1557,7 +1559,7 @@ function EventMatchCreateForm({
     url: "",
     score_team1: 0,
     score_team2: 0,
-    platform: "other" as "faceit" | "playfly" | "other",
+    platform: "other" as "faceit" | "playfly" | "regentsleague" | "other",
     season_id: "",
     competition_id: "",
     winner_id: "",
@@ -1852,6 +1854,7 @@ function EventMatchCreateForm({
               <SelectContent>
                 <SelectItem value="faceit">Faceit</SelectItem>
                 <SelectItem value="playfly">Playfly</SelectItem>
+                <SelectItem value="regentsleague">Regents League</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
@@ -2112,7 +2115,7 @@ function EventMatchEditForm({
     url: match.url || "",
     score_team1: match.score_team1,
     score_team2: match.score_team2,
-    platform: match.platform as "faceit" | "playfly" | "other",
+    platform: match.platform as "faceit" | "playfly" | "regentsleague" | "other",
     season_id: match.season?.id || "",
     competition_id: match.competition?.id || "",
     winner_id: match.winner?.id || "",
@@ -2148,7 +2151,7 @@ function EventMatchEditForm({
         url: match.url || "",
         score_team1: match.score_team1,
         score_team2: match.score_team2,
-        platform: match.platform as "faceit" | "playfly" | "other",
+        platform: match.platform as "faceit" | "playfly" | "regentsleague" | "other",
         season_id: match.season?.id || "",
         competition_id: match.competition?.id || "",
         winner_id: match.winner?.id || "",
@@ -2412,6 +2415,7 @@ function EventMatchEditForm({
               <SelectContent>
                 <SelectItem value="faceit">Faceit</SelectItem>
                 <SelectItem value="playfly">Playfly</SelectItem>
+                <SelectItem value="regentsleague">Regents League</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
