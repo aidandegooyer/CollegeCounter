@@ -491,12 +491,14 @@ export const fetchPlayflyMatches = async (eventId: string): Promise<any> => {
   return response.data;
 };
 
-export const fetchRegentsLeagueMatches = async (division: string): Promise<any> => {
+export const fetchRegentsLeagueMatches = async (
+  division: string,
+): Promise<any> => {
   const response = await axios.get(
     `https://regent-league-api.poopdealer.lol/cc/matches?div=${division}`,
   );
   return response.data;
-}
+};
 
 // LeagueSpot API interfaces
 export interface LeagueSpotSeason {
@@ -933,7 +935,7 @@ export interface CreateMatchRequest {
   url?: string;
   score_team1?: number;
   score_team2?: number;
-  platform?: "faceit" | "playfly" | "other";
+  platform?: "faceit" | "playfly" | "regentsleague" | "other";
   season_id?: string;
   competition_id?: string;
   winner_id?: string; // Must be team1_id or team2_id
@@ -956,7 +958,7 @@ export interface CreateEventMatchRequest {
   url?: string;
   score_team1?: number;
   score_team2?: number;
-  platform?: "faceit" | "playfly" | "other";
+  platform?: "faceit" | "playfly" | "regentsleague" | "other";
   season_id?: string;
   competition_id?: string;
   winner_id?: string;
@@ -972,7 +974,7 @@ export interface UpdateMatchRequest {
   url?: string;
   score_team1?: number;
   score_team2?: number;
-  platform?: "faceit" | "playfly" | "other";
+  platform?: "faceit" | "playfly" | "regentsleague" | "other";
   season_id?: string;
   competition_id?: string;
   winner_id?: string;
@@ -1051,7 +1053,7 @@ export interface UpdateEventMatchRequest {
   url?: string;
   score_team1?: number;
   score_team2?: number;
-  platform?: "faceit" | "playfly" | "other";
+  platform?: "faceit" | "playfly" | "regentsleague" | "other";
   season_id?: string;
   competition_id?: string;
   winner_id?: string;
