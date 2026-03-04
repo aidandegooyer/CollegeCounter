@@ -2799,10 +2799,9 @@ def update_regentsleague_match(match: Match):
                 winner_team: dict = match_data.get("winner")
                 new_winner = None
                 if winner_team.get("id") == team1_participant.regentsleague_id:
-                    new_winner = match.team1
+                    new_winner = team1_participant.team
                 elif winner_team.get("id") == team2_participant.regentsleague_id:
-                    new_winner = match.team2
-
+                    new_winner = team2_participant.team
                 if new_winner != match.winner:
                     match.winner = new_winner
                     updated = True
