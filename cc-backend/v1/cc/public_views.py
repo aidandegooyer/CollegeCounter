@@ -1183,7 +1183,9 @@ def public_events(request):
 
     name = request.query_params.get("name", "").strip()
     season_id = request.query_params.get("season_id", "").strip()
+    winner_id = request.query_params.get("winner_id", "").strip()
     featured = request.query_params.get("featured", "").lower()
+    trophycase = request.query_params.get("trophycase", "").lower()
     public_only = request.query_params.get("public_only", "true").lower() == "true"
 
     page = int(request.query_params.get("page", 1))
@@ -1220,6 +1222,21 @@ def public_events(request):
                 {"error": "Invalid season ID format"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+    if winner_id:
+        try:
+            queryset = queryset.filter(winner_id=safe_uuid(winner_id))
+        except ValueError:
+            return Response(
+                {"error": "Invalid winner ID format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    if trophycase == "true":
+        queryset = queryset.filter(custom_details__is_trophycase=True)
+
+    elif trophycase == "false":
+        queryset = queryset.exclude(custom_details__is_trophycase=True)
 
     # Filter by public/featured status if custom event exists
     if public_only or featured:
@@ -1302,6 +1319,7 @@ def public_events(request):
                 "game_mode": custom_event.game_mode,
                 "division": custom_event.division,
                 "is_featured": custom_event.is_featured,
+                "is_trophycase": custom_event.is_trophycase,
                 "is_public": custom_event.is_public,
                 "registration_open": custom_event.registration_open,
                 "registration_deadline": custom_event.registration_deadline,
@@ -1387,6 +1405,7 @@ def public_event_detail(request, event_id):
                 "game_mode": custom_event.game_mode,
                 "division": custom_event.division,
                 "is_featured": custom_event.is_featured,
+                "is_trophycase": custom_event.is_trophycase,
                 "is_public": custom_event.is_public,
                 "registration_open": custom_event.registration_open,
                 "registration_deadline": custom_event.registration_deadline,

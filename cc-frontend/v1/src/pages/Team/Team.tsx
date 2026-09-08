@@ -1,6 +1,7 @@
 import Logo from "@/components/Logo";
 import {
   usePublicPlayers,
+  usePublicEvents,
   usePublicTeams,
   useTeamRanking,
 } from "@/services/hooks";
@@ -11,6 +12,8 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { CompetitionLabel } from "@/components/CompetitionLabel";
 import RankBadge from "@/components/RankBadge";
+import { Link } from "react-router";
+import { Trophy } from "lucide-react";
 
 export function Team() {
   const { id } = useParams<{ id: string }>();
@@ -70,6 +73,7 @@ export function Team() {
             />
             <div>
               <h2 className="text-4xl">{team.name}</h2>
+              <TrophycaseLogos teamId={id} />
               <h4 className="text-muted-foreground text-lg">
                 {team.school_name}
               </h4>
@@ -102,11 +106,100 @@ export function Team() {
 
         <PlayerComponent team_id={id} />
 
+        {/* <Trophycase teamId={id} /> */}
+
         <div className="mx-4 mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
           <UpcomingMatchesWidget teamId={id} limit={20} />
           <ResultsWidget teamId={id} limit={20} />
         </div>
       </div>
+    </div>
+  );
+}
+
+interface TrophycaseProps {
+  teamId?: string;
+}
+
+interface EventTrophyLogoProps {
+  eventName: string;
+  eventPicture?: string;
+  className: string;
+}
+
+function EventTrophyLogo({eventName, eventPicture, className,}: 
+  EventTrophyLogoProps) {
+  return (
+    <span className="relative block">
+      <Logo
+        src={eventPicture}
+        className={className}
+        alt={eventName}
+        type="team"
+      />
+      <Trophy
+        className="absolute bottom-0 right-0 h-4 w-4 text-yellow-500"
+        aria-hidden="true"
+      />
+    </span>
+  );
+}
+
+function TrophycaseLogos({ teamId }: TrophycaseProps) {
+  const { data, isLoading, error } = usePublicEvents(
+    {
+      winner_id: teamId,
+      trophycase: true,
+      page_size: 100,
+      sort: "start_date",
+      order: "desc",
+    },
+    {
+      enabled: Boolean(teamId),
+    },
+  );
+
+  if (!teamId) return null;
+
+  if (isLoading) {
+    return (
+      <div className="mt-2" aria-label="Loading trophy case">
+        <Spinner className="h-4 w-4" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive" className="mt-2">
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>
+          There was an error loading the trophy case. Please try again later.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  const trophies = data?.results ?? [];
+  if (trophies.length === 0) return null;
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Trophy case">
+      {trophies.map((event) => (
+        <Link
+          key={event.id}
+          to={`/events/${event.id}`}
+          className="group block rounded p-0.5"
+          title={`${event.name} Champions`}
+          aria-label={event.name}
+        >
+          <EventTrophyLogo
+            eventPicture={event.picture}
+            eventName={event.name}
+            className="h-12 w-12 rounded object-contain transition-transform group-hover:scale-110"
+          />
+        </Link>
+      ))}
     </div>
   );
 }

@@ -1256,6 +1256,7 @@ export interface PublicEvent {
     game_mode?: string;
     division?: string;
     is_featured: boolean;
+    is_trophycase: boolean;
     is_public: boolean;
     registration_open: boolean;
     registration_deadline?: string;
@@ -1268,7 +1269,9 @@ export interface EventQueryParams {
   id?: string | string[];
   name?: string;
   season_id?: string;
+  winner_id?: string;
   featured?: boolean;
+  trophycase?: boolean;
   public_only?: boolean;
   page?: number;
   page_size?: number;
@@ -1322,6 +1325,7 @@ export interface CustomEvent {
   game_mode?: string;
   division?: string;
   is_featured: boolean;
+  is_trophycase: boolean; 
   is_public: boolean;
   registration_open: boolean;
   registration_deadline?: string;
@@ -1353,6 +1357,7 @@ export interface CustomEventCreateRequest {
   game_mode?: string;
   division?: string;
   is_featured?: boolean;
+  is_trophycase: boolean; 
   is_public?: boolean;
   registration_open?: boolean;
   registration_deadline?: string;

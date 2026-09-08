@@ -252,6 +252,7 @@ def custom_events(request):
                     "game_mode": custom_event.game_mode,
                     "division": custom_event.division,
                     "is_featured": custom_event.is_featured,
+                    "is_trophycase": custom_event.is_trophycase,
                     "is_public": custom_event.is_public,
                     "registration_open": custom_event.registration_open,
                     "registration_deadline": custom_event.registration_deadline,
@@ -331,6 +332,7 @@ def custom_events(request):
                 "game_mode": request.data.get("game_mode", ""),
                 "division": request.data.get("division", None),
                 "is_featured": request.data.get("is_featured", False),
+                "is_trophycase": request.data.get("is_trophycase", False),
                 "is_public": request.data.get("is_public", True),
                 "registration_open": request.data.get("registration_open", False),
                 "twitter_hashtag": request.data.get("twitter_hashtag", ""),
@@ -427,6 +429,7 @@ def custom_event_detail(request, custom_event_id):
                 "game_mode": custom_event.game_mode,
                 "division": custom_event.division,
                 "is_featured": custom_event.is_featured,
+                "is_trophycase": custom_event.is_trophycase,
                 "is_public": custom_event.is_public,
                 "registration_open": custom_event.registration_open,
                 "registration_deadline": custom_event.registration_deadline,
@@ -463,7 +466,7 @@ def custom_event_detail(request, custom_event_id):
                             status=status.HTTP_400_BAD_REQUEST,
                         )
                 else:
-                    event.winner = None
+                    event.winner = None                
             event.save()
 
             # Update custom event fields
@@ -509,6 +512,8 @@ def custom_event_detail(request, custom_event_id):
                 custom_event.division = request.data["division"]
             if "is_featured" in request.data:
                 custom_event.is_featured = bool(request.data["is_featured"])
+            if "is_trophycase" in request.data:
+                custom_event.is_trophycase = bool(request.data["is_trophycase"])
             if "is_public" in request.data:
                 custom_event.is_public = bool(request.data["is_public"])
             if "registration_open" in request.data:

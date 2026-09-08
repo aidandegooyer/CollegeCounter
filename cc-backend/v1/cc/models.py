@@ -377,6 +377,9 @@ class CustomEvent(models.Model):
     is_public = models.BooleanField(
         default=True, help_text="Whether this event is visible to public"
     )
+    is_trophycase = models.BooleanField(
+        default=False, help_text="Whether this event shows on a team trophy case"
+    )
     registration_open = models.BooleanField(
         default=False, help_text="Whether registration is currently open"
     )
