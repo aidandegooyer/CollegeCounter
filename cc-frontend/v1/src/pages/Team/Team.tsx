@@ -180,12 +180,7 @@ function TrophycaseLogos({ teamId }: TrophycaseProps) {
     );
   }
 
-  const trophies = (data?.results ?? []).filter(
-    (event) =>
-      event.winner?.id === teamId &&
-      event.custom_details?.is_trophycase === true
-  );
-
+  const trophies = data?.results ?? [];
   if (trophies.length === 0) return null;
 
   return (
