@@ -4,22 +4,24 @@ import PlayerRankingsWidget from "./PlayerRankingsWidget";
 import ResultsWidget from "./ResultsWidget";
 import TeamRankingsWidget from "./TeamRankingsWidget";
 import UpcomingMatchesWidget from "./UpcomingMatchesWidget";
-import c4_logo from "@/assets/c4 title noborder.svg";
-import { NavLink } from "react-router";
 
 function Home() {
   document.title = "College Counter";
   return (
     <div className="app-container mx-4 mt-2 flex justify-center">
       <div className="home w-full max-w-[1200px]">
-        <NavLink to="/events">
-          <div className="grid grid-cols-1 gap-4">
-            <div className="my-4 flex h-32 w-full flex-col items-center justify-center rounded-xl border-2 md:col-span-3">
-              <img src={c4_logo} alt="C4 Logo" className="-m-3 h-24" />
-              <h1 className="flex items-center text-3xl">Returns for April!</h1>
-            </div>
-          </div>
-        </NavLink>
+        <div
+          className="my-4 flex h-32 w-full items-center justify-center rounded-xl border-2"
+          style={{
+            backgroundPosition: "center", // Change to "top", "bottom", "left", "right", or "center" as needed
+            backgroundSize: "cover", // "cover" fills the div, "contain" fits the image, or use specific values
+            backgroundRepeat: "no-repeat",
+          }}
+        >
+          <h1 className="text-center text-4xl font-bold sm:text-6xl">
+            Welcome to Fall 2026!
+          </h1>
+        </div>
         <div className="hidden w-full sm:flex">
           <div className="mr-8 hidden flex-1 space-y-4 lg:block">
             <TeamRankingsWidget />
