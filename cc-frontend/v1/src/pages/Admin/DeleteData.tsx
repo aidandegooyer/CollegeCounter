@@ -18,6 +18,11 @@ import {
   type Competition,
 } from "@/services/api";
 
+const seasonLabel = (competition: Competition) =>
+  competition.seasons.length === 0
+    ? "No season"
+    : competition.seasons.map((season) => season.name).join(", ");
+
 function DeleteData() {
   const [securityKey, setSecurityKey] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -158,6 +163,7 @@ function DeleteData() {
                     <div>
                       <h5 className="font-medium">{competition.name}</h5>
                       <p className="text-sm text-gray-500">
+                        {seasonLabel(competition)} &middot;{" "}
                         {competition.teams_count} teams,{" "}
                         {competition.matches_count} matches,{" "}
                         {competition.participants_count} participants

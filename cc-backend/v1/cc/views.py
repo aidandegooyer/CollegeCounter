@@ -29,6 +29,7 @@ from .middleware import firebase_auth_required
 import logging
 import requests
 import statistics
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -3734,6 +3735,21 @@ def list_competitions(request):
         competitions = Competition.objects.all()
         result = []
 
+        # Competition has no season FK, so derive it from the participants and
+        # matches attached to each competition (3 queries total, not per-row).
+        season_ids_by_competition = defaultdict(set)
+        for source in (Participant, Match):
+            for competition_id, season_id in (
+                source.objects.filter(
+                    competition__isnull=False, season__isnull=False
+                )
+                .values_list("competition_id", "season_id")
+                .distinct()
+            ):
+                season_ids_by_competition[competition_id].add(season_id)
+
+        season_names = dict(Season.objects.values_list("id", "name"))
+
         for competition in competitions:
             participants_count = Participant.objects.filter(
                 competition=competition
@@ -3748,6 +3764,15 @@ def list_competitions(request):
                 .count()
             )
 
+            seasons = sorted(
+                (
+                    {"id": str(season_id), "name": season_names[season_id]}
+                    for season_id in season_ids_by_competition.get(competition.id, ())
+                    if season_id in season_names
+                ),
+                key=lambda season: season["name"],
+            )
+
             result.append(
                 {
                     "id": str(competition.id),
@@ -3755,6 +3780,7 @@ def list_competitions(request):
                     "participants_count": participants_count,
                     "matches_count": matches_count,
                     "teams_count": teams_count,
+                    "seasons": seasons,
                 }
             )
 
