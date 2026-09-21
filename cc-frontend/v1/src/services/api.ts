@@ -310,6 +310,7 @@ export interface Competition {
   participants_count: number;
   matches_count: number;
   teams_count: number;
+  seasons: { id: string; name: string }[];
 }
 
 export interface CompetitionsResponse {
