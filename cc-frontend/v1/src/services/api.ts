@@ -957,6 +957,7 @@ export const fetchAdminMatches = async (): Promise<Match[]> => {
 export interface MergeTeamsRequest {
   primary_team_id: string;
   secondary_team_id: string;
+  keep_secondary_elo?: boolean;
 }
 
 export interface MergeTeamsResponse {

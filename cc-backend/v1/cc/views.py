@@ -3378,7 +3378,8 @@ def merge_teams(request):
     Expected request format:
     {
         "primary_team_id": "uuid",    // Team to keep
-        "secondary_team_id": "uuid"   // Team to merge into primary (will be deleted)
+        "secondary_team_id": "uuid",  // Team to merge into primary (will be deleted)
+        "keep_secondary_elo": false   // Optional: give primary team the secondary team's ELO
     }
 
     This operation:
@@ -3390,6 +3391,7 @@ def merge_teams(request):
     try:
         primary_team_id = request.data.get("primary_team_id")
         secondary_team_id = request.data.get("secondary_team_id")
+        keep_secondary_elo = bool(request.data.get("keep_secondary_elo", False))
 
         if not primary_team_id or not secondary_team_id:
             return Response(
@@ -3588,7 +3590,16 @@ def merge_teams(request):
                 f"Updated match {match.id} winner from {secondary_team.name} to {primary_team.name}"
             )
 
-        # 4. Store secondary team info for response, then delete it
+        # 4. Optionally carry over the secondary team's ELO
+        if keep_secondary_elo:
+            logger.info(
+                f"Setting {primary_team.name} ELO from {primary_team.elo} to "
+                f"{secondary_team.elo} (from {secondary_team.name})"
+            )
+            primary_team.elo = secondary_team.elo
+            primary_team.save(update_fields=["elo"])
+
+        # 5. Store secondary team info for response, then delete it
         secondary_team_info = {
             "id": str(secondary_team.id),
             "name": secondary_team.name,
@@ -3605,6 +3616,7 @@ def merge_teams(request):
                 "id": str(primary_team.id),
                 "name": primary_team.name,
                 "player_count": Player.objects.filter(team=primary_team).count(),
+                "elo": primary_team.elo,
             },
             "secondary_team": secondary_team_info,
             "merged_data": {
