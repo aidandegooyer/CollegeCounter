@@ -2583,12 +2583,24 @@ def create_ranking_snapshot(request):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        # Get all teams with their current ELO values, ordered by ELO descending
-        teams = Team.objects.filter(elo__gt=0).order_by("-elo")
+        # Only rank teams that are active in this season (participant or match),
+        # ordered by current ELO descending
+        season_matches = Match.objects.filter(season=season)
+        teams = (
+            Team.objects.filter(elo__gt=0)
+            .filter(
+                models.Q(
+                    id__in=Participant.objects.filter(season=season).values("team_id")
+                )
+                | models.Q(id__in=season_matches.values("team1_id"))
+                | models.Q(id__in=season_matches.values("team2_id"))
+            )
+            .order_by("-elo")
+        )
 
         if not teams.exists():
             return Response(
-                {"error": "No teams found with ELO ratings"},
+                {"error": f"No teams with ELO ratings found in season {season.name}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
