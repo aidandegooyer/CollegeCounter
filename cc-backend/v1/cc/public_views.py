@@ -715,6 +715,25 @@ def public_matches(request):
     except Exception:
         paginated_matches = paginator.page(paginator.num_pages)
 
+    faceit_match_team_ids = {
+        team_id
+        for match in paginated_matches
+        if match.platform.lower() == "faceit"
+        for team_id in (match.team1_id, match.team2_id)
+    }
+    
+    faceit_participant_ids = {
+        (
+            participant.team_id,
+            participant.competition_id,
+            participant.season_id,
+        ): participant.faceit_id
+        for participant in Participant.objects.filter(
+            team_id__in=faceit_match_team_ids,
+            faceit_id__isnull=False,
+        )
+    }
+
     # Format response
     result = {
         "count": paginator.count,
@@ -725,6 +744,22 @@ def public_matches(request):
     }
 
     for match in paginated_matches:
+        is_faceit_match = match.platform.lower() == "faceit"
+        team1_faceit_id = (
+            faceit_participant_ids.get(
+                (match.team1_id, match.competition_id, match.season_id)
+            )
+            if is_faceit_match
+            else None
+        )
+        team2_faceit_id = (
+            faceit_participant_ids.get(
+                (match.team2_id, match.competition_id, match.season_id)
+            )
+            if is_faceit_match
+            else None
+        )
+
         winner = None
         if match.winner:
             winner = {
@@ -760,12 +795,14 @@ def public_matches(request):
                     "name": match.team1.name,
                     "picture": match.team1.picture,
                     "elo": match.team1.elo,
+                    "faceit_id": team1_faceit_id,
                 },
                 "team2": {
                     "id": match.team2.id,
                     "name": match.team2.name,
                     "picture": match.team2.picture,
                     "elo": match.team2.elo,
+                    "faceit_id": team2_faceit_id,
                 },
                 "date": match.date,
                 "status": match.status,
