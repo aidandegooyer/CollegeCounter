@@ -8,9 +8,13 @@ from .utils import (  # noqa: F401
 )
 from .elo import (  # noqa: F401
     calculate_new_elo,
+    match_elo_data,
     update_match_elos,
+    revert_match_elos,
+    revert_match_elos_if_outcome_changed,
     recalculate_all_elos,
     apply_match_elo,
+    revert_match_elo,
     recalculate_elos,
     calculate_team_elos,
     create_ranking_snapshot,

@@ -18,6 +18,7 @@ from .models import (
     Ranking,
     RankingItem,
 )
+from .views.elo import match_elo_data
 
 # Maximum items per page
 MAX_PAGE_SIZE = 100
@@ -773,6 +774,7 @@ def public_matches(request):
                 "winner": winner,
                 "score_team1": match.score_team1,
                 "score_team2": match.score_team2,
+                "elo": match_elo_data(match),
                 "platform": match.platform,
                 "season": {"id": match.season.id, "name": match.season.name}
                 if match.season

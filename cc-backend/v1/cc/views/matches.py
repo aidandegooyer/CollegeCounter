@@ -18,7 +18,12 @@ from ..middleware import firebase_auth_required
 
 import logging
 
-from .elo import update_match_elos
+from .elo import (
+    match_elo_data,
+    revert_match_elos,
+    revert_match_elos_if_outcome_changed,
+    update_match_elos,
+)
 from .utils import safe_parse_datetime
 
 logger = logging.getLogger(__name__)
@@ -87,6 +92,7 @@ def list_matches(request):
                 "winner": winner,
                 "score_team1": match.score_team1,
                 "score_team2": match.score_team2,
+                "elo": match_elo_data(match),
                 "platform": match.platform,
                 "season": {"id": match.season.id, "name": match.season.name}
                 if match.season
@@ -138,6 +144,7 @@ def get_match(request, match_id):
             "winner": winner,
             "score_team1": match.score_team1,
             "score_team2": match.score_team2,
+            "elo": match_elo_data(match),
             "platform": match.platform,
             "season": {"id": match.season.id, "name": match.season.name}
             if match.season
@@ -339,6 +346,7 @@ def create_match(request):
             "winner": winner_data,
             "score_team1": match.score_team1,
             "score_team2": match.score_team2,
+            "elo": match_elo_data(match),
             "platform": match.platform,
             "season": {"id": match.season.id, "name": match.season.name}
             if match.season
@@ -541,6 +549,7 @@ def create_event_match(request):
             "winner": winner_data,
             "score_team1": match.score_team1,
             "score_team2": match.score_team2,
+            "elo": match_elo_data(match),
             "platform": match.platform,
             "season": {"id": match.season.id, "name": match.season.name}
             if match.season
@@ -594,9 +603,6 @@ def update_event_match(request, match_id):
         event_match = get_object_or_404(EventMatch, match=match)
         is_full_update = request.method == "PUT"
 
-        # Store old match state for ELO management
-        old_status = match.status
-        old_winner = match.winner
 
         # Handle team updates
         team1_id = request.data.get("team1_id")
@@ -744,21 +750,14 @@ def update_event_match(request, match_id):
             else:
                 match.winner = None
 
+        # Undo applied Elo if the edit changed the outcome, then (re)apply it
+        revert_match_elos_if_outcome_changed(match)
+
         # Save both objects
         match.save()
         event_match.save()
 
-        # Handle ELO updates if match status or winner changed
-        if old_status == "completed" and old_winner:
-            if match.status != "completed" or match.winner != old_winner:
-                logger.warning(
-                    f"Match {match.id} was updated from completed status. "
-                    f"Consider running ELO recalculation to ensure accuracy."
-                )
-
-        # Apply new ELO changes if the match is now completed
-        if match.status == "completed" and match.winner and old_status != "completed":
-            update_match_elos(match)
+        update_match_elos(match)
 
         # Return the updated match with event match data
         winner_data = None
@@ -798,6 +797,7 @@ def update_event_match(request, match_id):
             "winner": winner_data,
             "score_team1": match.score_team1,
             "score_team2": match.score_team2,
+            "elo": match_elo_data(match),
             "platform": match.platform,
             "season": {"id": match.season.id, "name": match.season.name}
             if match.season
@@ -845,9 +845,6 @@ def update_match(request, match_id):
         match = get_object_or_404(Match, id=match_id)
         is_full_update = request.method == "PUT"
 
-        # Store old match state for ELO management
-        old_status = match.status
-        old_winner = match.winner
 
         # Handle team updates
         team1_id = request.data.get("team1_id")
@@ -957,22 +954,13 @@ def update_match(request, match_id):
             else:
                 match.winner = None
 
+        # Undo applied Elo if the edit changed the outcome, then (re)apply it
+        revert_match_elos_if_outcome_changed(match)
+
         # Save the match
         match.save()
 
-        # Handle ELO updates if match status or winner changed
-        if old_status == "completed" and old_winner:
-            # If the match was previously completed, we need to reverse the old ELO changes
-            # This is complex, so for now we'll log a warning and suggest recalculating ELOs
-            if match.status != "completed" or match.winner != old_winner:
-                logger.warning(
-                    f"Match {match.id} was updated from completed status. "
-                    f"Consider running ELO recalculation to ensure accuracy."
-                )
-
-        # Apply new ELO changes if the match is now completed
-        if match.status == "completed" and match.winner and old_status != "completed":
-            update_match_elos(match)
+        update_match_elos(match)
 
         # Return the updated match
         winner_data = None
@@ -1000,6 +988,7 @@ def update_match(request, match_id):
             "winner": winner_data,
             "score_team1": match.score_team1,
             "score_team2": match.score_team2,
+            "elo": match_elo_data(match),
             "platform": match.platform,
             "season": {"id": match.season.id, "name": match.season.name}
             if match.season
@@ -1050,6 +1039,9 @@ def delete_match(request, match_id):
             "date": match.date,
             "status": match.status,
         }
+
+        # Undo this match's Elo before deleting it
+        revert_match_elos(match)
 
         # Delete the match
         match.delete()

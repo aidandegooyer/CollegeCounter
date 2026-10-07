@@ -3,7 +3,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from django.db import models
+from django.db import models, transaction
 from django.shortcuts import get_object_or_404
 from ..models import (
     Team,
@@ -40,10 +40,39 @@ def calculate_new_elo(current_elo, opponent_elo, result):
     return round(new_elo)
 
 
+ELO_FIELDS_CLEARED = {
+    "elo_applied": False,
+    "team1_elo_before": None,
+    "team2_elo_before": None,
+    "team1_elo_change": None,
+    "team2_elo_change": None,
+}
+
+
+def _lock_teams(*team_ids):
+    """Lock team rows in a consistent order and return them keyed by id."""
+    teams = Team.objects.select_for_update().filter(id__in=team_ids).order_by("id")
+    return {team.id: team for team in teams}
+
+
+def match_elo_data(match):
+    """Elo bookkeeping for a match, as returned by the API."""
+    return {
+        "applied": match.elo_applied,
+        "team1_before": match.team1_elo_before,
+        "team2_before": match.team2_elo_before,
+        "team1_change": match.team1_elo_change,
+        "team2_change": match.team2_elo_change,
+    }
+
+
 def update_match_elos(match):
     """
-    Update team ELOs based on match result.
-    Only updates if the match is completed and has a winner.
+    Apply a completed match's result to both teams' Elo and record the
+    before/change values on the match.
+
+    Idempotent: does nothing if the match has already been applied. The match
+    must already be saved.
 
     Args:
         match (Match): The completed match to process
@@ -51,38 +80,120 @@ def update_match_elos(match):
     Returns:
         bool: True if ELOs were updated, False otherwise
     """
-    if match.status != "completed" or not match.winner:
+    if match.status != "completed" or match.winner_id is None:
+        return False
+    if match.winner_id not in (match.team1_id, match.team2_id):
         return False
 
-    # Get current ELOs
-    team1_elo = match.team1.elo
-    team2_elo = match.team2.elo
+    with transaction.atomic():
+        if Match.objects.select_for_update().get(pk=match.pk).elo_applied:
+            match.elo_applied = True
+            return False
 
-    # Determine results (1.0 for win, 0.0 for loss)
-    if match.winner == match.team1:
-        team1_result = 1.0
-        team2_result = 0.0
-    elif match.winner == match.team2:
-        team1_result = 0.0
-        team2_result = 1.0
-    else:
-        return False
+        teams = _lock_teams(match.team1_id, match.team2_id)
+        team1, team2 = teams[match.team1_id], teams[match.team2_id]
 
-    # Calculate new ELOs
-    new_team1_elo = calculate_new_elo(team1_elo, team2_elo, team1_result)
-    new_team2_elo = calculate_new_elo(team2_elo, team1_elo, team2_result)
+        # Results: 1.0 for win, 0.0 for loss
+        team1_result = 1.0 if match.winner_id == team1.id else 0.0
+        new_team1_elo = calculate_new_elo(team1.elo, team2.elo, team1_result)
+        new_team2_elo = calculate_new_elo(team2.elo, team1.elo, 1.0 - team1_result)
 
-    # Update teams
-    match.team1.elo = new_team1_elo
-    match.team2.elo = new_team2_elo
-    match.team1.save()
-    match.team2.save()
+        fields = {
+            "elo_applied": True,
+            "team1_elo_before": team1.elo,
+            "team2_elo_before": team2.elo,
+            "team1_elo_change": new_team1_elo - team1.elo,
+            "team2_elo_change": new_team2_elo - team2.elo,
+        }
+        Match.objects.filter(pk=match.pk).update(**fields)
+        for name, value in fields.items():
+            setattr(match, name, value)
+
+        team1.elo = new_team1_elo
+        team2.elo = new_team2_elo
+        team1.save(update_fields=["elo"])
+        team2.save(update_fields=["elo"])
+        # Keep the caller's cached team objects in sync
+        match.team1, match.team2 = team1, team2
 
     logger.info(
-        f"Updated ELOs for match {match.id}: {match.team1.name} {team1_elo}→{new_team1_elo}, {match.team2.name} {team2_elo}→{new_team2_elo}"
+        f"Updated ELOs for match {match.id}: "
+        f"{team1.name} {fields['team1_elo_before']}→{new_team1_elo}, "
+        f"{team2.name} {fields['team2_elo_before']}→{new_team2_elo}"
     )
 
     return True
+
+
+def revert_match_elos(match):
+    """
+    Undo a match's applied Elo by subtracting the recorded changes from the
+    teams it was applied to, and clear the match's Elo fields.
+
+    Uses the teams stored in the database, not the in-memory match, so it is
+    safe to call after editing match.team1/team2 but before saving.
+
+    Elo is path-dependent: reverting an older match doesn't re-derive later
+    matches. Run a full recalculation when exact history matters.
+
+    Returns:
+        bool: True if Elo was reverted, False if nothing was applied or the
+        match was applied before change tracking existed.
+    """
+    with transaction.atomic():
+        row = Match.objects.select_for_update().filter(pk=match.pk).first()
+        if row is None or not row.elo_applied:
+            return False
+        if row.team1_elo_change is None or row.team2_elo_change is None:
+            logger.warning(
+                f"Match {match.id} had Elo applied before change tracking; "
+                f"can't revert it. Run an Elo recalculation to correct ratings."
+            )
+            return False
+
+        teams = _lock_teams(row.team1_id, row.team2_id)
+        teams[row.team1_id].elo -= row.team1_elo_change
+        teams[row.team2_id].elo -= row.team2_elo_change
+        for team in teams.values():
+            team.save(update_fields=["elo"])
+
+        Match.objects.filter(pk=match.pk).update(**ELO_FIELDS_CLEARED)
+        for name, value in ELO_FIELDS_CLEARED.items():
+            setattr(match, name, value)
+
+    logger.info(
+        f"Reverted ELOs for match {match.id}: "
+        f"team1 {-row.team1_elo_change:+d}, team2 {-row.team2_elo_change:+d}"
+    )
+    return True
+
+
+def revert_match_elos_if_outcome_changed(match):
+    """
+    Call before saving edits to a match. If its applied Elo no longer matches
+    the edited outcome (no longer completed, or different teams/winner),
+    revert it so update_match_elos can re-apply after the save.
+
+    Returns:
+        bool: True if Elo was reverted.
+    """
+    if not match.elo_applied:
+        return False
+    saved = (
+        Match.objects.filter(pk=match.pk)
+        .values("team1_id", "team2_id", "winner_id")
+        .first()
+    )
+    if saved is None:
+        return False
+    unchanged = match.status == "completed" and saved == {
+        "team1_id": match.team1_id,
+        "team2_id": match.team2_id,
+        "winner_id": match.winner_id,
+    }
+    if unchanged:
+        return False
+    return revert_match_elos(match)
 
 
 def recalculate_all_elos(reset_to_default=False, default_elo=1000):
@@ -98,8 +209,11 @@ def recalculate_all_elos(reset_to_default=False, default_elo=1000):
         dict: Summary of the recalculation process
     """
     # Reset all team ELOs to default if requested
+    # Reset all team ELOs to default if requested. Otherwise matches that are
+    # already applied are skipped, so this only applies the ones that aren't.
     if reset_to_default:
         Team.objects.all().update(elo=default_elo)
+        Match.objects.update(**ELO_FIELDS_CLEARED)
         logger.info(f"Reset all team ELOs to {default_elo}")
 
     # Get all completed matches with winners, ordered by date
@@ -174,6 +288,12 @@ def apply_match_elo(request, match_id):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if match.elo_applied:
+            return Response(
+                {"error": "Elo has already been applied for this match"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         old_team1_elo = match.team1.elo
         old_team2_elo = match.team2.elo
 
@@ -207,6 +327,62 @@ def apply_match_elo(request, match_id):
         logger.error(f"Error applying Elo for match {match_id}: {str(e)}")
         return Response(
             {"error": f"Failed to apply match Elo: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@firebase_auth_required(min_role="admin")
+def revert_match_elo(request, match_id):
+    """
+    Undo the Elo applied for one match, using the changes recorded when it was
+    applied. Later matches are not recalculated.
+    """
+    try:
+        match = get_object_or_404(Match, id=match_id)
+
+        if not match.elo_applied:
+            return Response(
+                {"error": "Elo has not been applied for this match"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if match.team1_elo_change is None or match.team2_elo_change is None:
+            return Response(
+                {
+                    "error": "This match's Elo was applied before changes were "
+                    "tracked, so it can't be reverted. Run an Elo recalculation instead."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        team1_change = match.team1_elo_change
+        team2_change = match.team2_elo_change
+        revert_match_elos(match)
+        match.team1.refresh_from_db(fields=["elo"])
+        match.team2.refresh_from_db(fields=["elo"])
+
+        return Response(
+            {
+                "message": "Match Elo reverted successfully",
+                "match_id": str(match.id),
+                "team1": {
+                    "id": str(match.team1.id),
+                    "name": match.team1.name,
+                    "reverted_change": team1_change,
+                    "new_elo": match.team1.elo,
+                },
+                "team2": {
+                    "id": str(match.team2.id),
+                    "name": match.team2.name,
+                    "reverted_change": team2_change,
+                    "new_elo": match.team2.elo,
+                },
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error reverting Elo for match {match_id}: {str(e)}")
+        return Response(
+            {"error": f"Failed to revert match Elo: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
