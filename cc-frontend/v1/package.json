@@ -32,7 +32,7 @@
     "date-fns": "^3.6.0",
     "dotenv": "^17.2.2",
     "firebase": "^11.10.0",
-    "lucide-react": "^0.511.0",
+    "lucide-react": "^1.52.0",
     "modern-screenshot": "^4.6.6",
     "radix-ui": "^1.4.3",
     "react": "^19.1.0",
