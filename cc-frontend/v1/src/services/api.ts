@@ -23,9 +23,13 @@ api.interceptors.request.use(
     }
 
     // Wait for Firebase to restore the persisted session on first load;
-    // resolves immediately once auth state is known
+    // resolves immediately once auth state is known. Capped so a stalled
+    // Firebase init can't hang every request (it then goes out without a token).
     const auth = getAuth();
-    await auth.authStateReady();
+    await Promise.race([
+      auth.authStateReady(),
+      new Promise((resolve) => setTimeout(resolve, 5000)),
+    ]);
     const user = auth.currentUser;
 
     if (user) {

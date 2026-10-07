@@ -2,14 +2,16 @@
 # Postgres backups for the db-backup compose service.
 #
 #   backup-db.sh         dump now, then daily at BACKUP_HOUR_UTC (runs forever)
-#   backup-db.sh once    dump now and exit (e.g. before a risky deploy)
+#   backup-db.sh once    dump now and exit (e.g. before a risky deploy):
+#                          docker compose run --rm db-backup once
 #
 # Connection comes from the standard PG* env vars. Dumps are plain SQL,
 # gzipped, so they restore with psql / load_db.sh.
 set -eu
+umask 077   # dumps contain the whole database; owner-only
 
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
-RETENTION_DAYS="${RETENTION_DAYS:-14}"
+KEEP_BACKUPS="${KEEP_BACKUPS:-14}"
 BACKUP_HOUR_UTC="${BACKUP_HOUR_UTC:-9}"   # 09:00 UTC = 4-5am US Eastern
 
 dump() {
@@ -28,8 +30,13 @@ dump() {
         return 1
     fi
 
-    find "$BACKUP_DIR" -name 'cc_*.sql.gz' -mtime +"$RETENTION_DAYS" -print -delete \
-        | sed 's/^/[backup] pruned /'
+    # Keep the newest KEEP_BACKUPS dumps by count, not age, so a run of failed
+    # backups never prunes the last good ones. Names sort chronologically.
+    ls -1 "$BACKUP_DIR"/cc_*.sql.gz | sort -r | tail -n +"$((KEEP_BACKUPS + 1))" \
+        | while read -r old; do
+            rm -f "$old"
+            echo "[backup] pruned $old"
+        done
 }
 
 seconds_until_next_run() {

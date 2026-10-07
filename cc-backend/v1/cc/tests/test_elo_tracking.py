@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import MagicMock, patch
 
 from django.db import connection
@@ -6,9 +7,11 @@ from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from cc.models import Competition, Match, Participant, Season, Team
+from cc.models import Competition, Event, EventMatch, Match, Participant, Season, Team
 from cc.views import (
     calculate_new_elo,
+    save_match_and_sync_elo,
+    update_faceit_match,
     recalculate_all_elos,
     revert_match_elos,
     update_match_elos,
@@ -176,6 +179,115 @@ class AdminEndpointTests(EloTrackingTestCase):
         self.assertEqual(self.client.post(revert_url).status_code, 400)  # nothing applied
 
 
+    def test_failed_save_rolls_back_revert(self):
+        match = self.make_match(winner=self.alpha)
+        update_match_elos(match)
+        after_apply = self.elos()
+
+        with patch("cc.views.elo.update_match_elos", side_effect=RuntimeError):
+            response = self.client.patch(
+                reverse("update_match", args=[match.id]),
+                {"winner_id": str(self.bravo.id)},
+                format="json",
+            )
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(self.elos(), after_apply)
+        match.refresh_from_db()
+        self.assertTrue(match.elo_applied)
+        self.assertEqual(match.winner_id, self.alpha.id)
+
+    def test_legacy_match_outcome_edit_returns_warning(self):
+        match = self.make_match(winner=self.alpha, elo_applied=True)
+        body = self.patch_match(match, {"winner_id": str(self.bravo.id)})
+        self.assertIsNotNone(body["elo_warning"])
+        self.assertEqual(self.elos(), [1000, 1200, 900])
+
+        body = self.patch_match(match, {"score_team1": 3})
+        self.assertIsNone(body["elo_warning"])
+
+    def test_legacy_match_delete_returns_warning(self):
+        match = self.make_match(winner=self.alpha, elo_applied=True)
+        response = self.client.delete(reverse("delete_match", args=[match.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(response.json()["elo_warning"])
+
+    def test_missing_match_returns_404(self):
+        missing = uuid.uuid4()
+        for name in ("apply_match_elo", "revert_match_elo"):
+            with self.subTest(name=name):
+                response = self.client.post(reverse(name, args=[missing]))
+                self.assertEqual(response.status_code, 404)
+
+    def test_create_completed_match_applies(self):
+        response = self.client.post(
+            reverse("create_match"),
+            {
+                "team1_id": str(self.alpha.id),
+                "team2_id": str(self.bravo.id),
+                "date": "2025-10-01T18:00:00Z",
+                "status": "completed",
+                "winner_id": str(self.alpha.id),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertTrue(response.json()["elo"]["applied"])
+        self.assertEqual(self.elos()[0], calculate_new_elo(1000, 1200, 1.0))
+
+    def test_update_event_match_winner_change(self):
+        season = Season.objects.create(
+            name="S", start_date="2025-08-01", end_date="2026-05-01"
+        )
+        event = Event.objects.create(
+            name="E", start_date="2025-10-01", end_date="2025-10-02", season=season
+        )
+        match = self.make_match(winner=self.alpha)
+        EventMatch.objects.create(event=event, match=match)
+        update_match_elos(match)
+
+        response = self.client.patch(
+            reverse("update_event_match", args=[match.id]),
+            {"winner_id": str(self.bravo.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(
+            self.elos()[:2],
+            [calculate_new_elo(1000, 1200, 0.0), calculate_new_elo(1200, 1000, 1.0)],
+        )
+
+
+class StaleInstanceTests(EloTrackingTestCase):
+    def test_stale_instance_save_does_not_clobber_elo_state(self):
+        match = self.make_match(winner=self.alpha)
+        stale = Match.objects.get(pk=match.pk)  # loaded before Elo is applied
+        update_match_elos(match)
+        after_apply = self.elos()
+
+        stale.score_team1 = 2
+        save_match_and_sync_elo(stale)
+
+        match.refresh_from_db()
+        self.assertTrue(match.elo_applied)
+        self.assertEqual(self.elos(), after_apply)
+        # And a later apply still doesn't double count
+        self.assertFalse(update_match_elos(Match.objects.get(pk=match.pk)))
+
+
+class PublicEndpointTests(EloTrackingTestCase):
+    def test_public_matches_include_elo_and_filter_by_status(self):
+        match = self.make_match(winner=self.alpha)
+        update_match_elos(match)
+        self.make_match(status="scheduled")
+
+        response = self.client.get(reverse("public_matches") + "?status=completed")
+        self.assertEqual(response.status_code, 200)
+        results = response.json()["results"]
+        self.assertEqual([r["id"] for r in results], [str(match.id)])
+        self.assertTrue(results[0]["elo"]["applied"])
+        self.assertEqual(results[0]["elo"]["team1_change"], match.team1_elo_change)
+
+
 class RecalculateTests(EloTrackingTestCase):
     def test_reset_recalculation_populates_tracking(self):
         first = self.make_match(winner=self.alpha, date="2025-10-01T18:00:00Z")
@@ -207,8 +319,11 @@ class RecalculateTests(EloTrackingTestCase):
             date="2025-10-02T18:00:00Z",
         )
 
+        alpha_before = Team.objects.get(pk=self.alpha.pk).elo
         result = recalculate_all_elos(reset_to_default=False)
         self.assertEqual(result["processed_count"], 1)
+        # alpha only played the already-applied match
+        self.assertEqual(Team.objects.get(pk=self.alpha.pk).elo, alpha_before)
 
 
 class PlatformRefreshTests(EloTrackingTestCase):
@@ -270,6 +385,67 @@ class PlatformRefreshTests(EloTrackingTestCase):
             self.elos()[:2],
             [calculate_new_elo(1000, 1200, 0.0), calculate_new_elo(1200, 1000, 1.0)],
         )
+
+
+    def test_team_flip_on_refresh_moves_elo_to_correct_orientation(self):
+        # Stored with teams swapped relative to the platform
+        match = self.make_match(
+            team1=self.bravo,
+            team2=self.alpha,
+            winner=self.alpha,
+            regentsleague_id=42,
+            competition=self.competition,
+            season=self.season,
+            platform="regentsleague",
+        )
+        update_match_elos(match)
+
+        self.refresh(match, winner_id=1, score=(1, 0))
+
+        match.refresh_from_db()
+        self.assertEqual(match.team1_id, self.alpha.id)
+        self.assertEqual(match.team1_elo_change, calculate_new_elo(1000, 1200, 1.0) - 1000)
+        # Applied once, not twice
+        self.assertEqual(
+            self.elos()[:2],
+            [calculate_new_elo(1000, 1200, 1.0), calculate_new_elo(1200, 1000, 0.0)],
+        )
+
+    @override_settings(FACEIT_API_KEY="test")
+    def test_faceit_score_change_does_not_double_apply(self):
+        for team, faction in [(self.alpha, "f-alpha"), (self.bravo, "f-bravo")]:
+            Participant.objects.create(
+                team=team,
+                competition=self.competition,
+                season=self.season,
+                faceit_id=faction,
+            )
+        match = self.make_match(
+            winner=self.alpha,
+            competition=self.competition,
+            season=self.season,
+            platform="faceit",
+            url="https://www.faceit.com/en/cs2/room/1-abc",
+        )
+        update_match_elos(match)
+        after_apply = self.elos()
+
+        response = MagicMock(status_code=200)
+        response.json.return_value = {
+            "status": "FINISHED",
+            "finished_at": "2025-10-01T19:00:00Z",
+            "teams": {
+                "faction1": {"faction_id": "f-alpha"},
+                "faction2": {"faction_id": "f-bravo"},
+            },
+            "results": {"winner": "faction1", "score": {"faction1": 2, "faction2": 0}},
+        }
+        with patch("cc.views.platform_sync.requests.get", return_value=response):
+            self.assertTrue(update_faceit_match(Match.objects.get(pk=match.pk)))
+
+        match.refresh_from_db()
+        self.assertEqual(match.score_team1, 2)
+        self.assertEqual(self.elos(), after_apply)
 
 
 class MigrationCompatibilityTests(EloTrackingTestCase):

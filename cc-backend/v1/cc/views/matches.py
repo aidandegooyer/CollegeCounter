@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from django.conf import settings
 from rest_framework import status
 from django.utils import timezone
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from ..models import (
     Team,
@@ -19,9 +20,9 @@ from ..middleware import firebase_auth_required
 import logging
 
 from .elo import (
+    delete_match_and_revert_elo,
     match_elo_data,
-    revert_match_elos,
-    revert_match_elos_if_outcome_changed,
+    save_match_and_sync_elo,
     update_match_elos,
 )
 from .utils import safe_parse_datetime
@@ -750,14 +751,10 @@ def update_event_match(request, match_id):
             else:
                 match.winner = None
 
-        # Undo applied Elo if the edit changed the outcome, then (re)apply it
-        revert_match_elos_if_outcome_changed(match)
-
-        # Save both objects
-        match.save()
-        event_match.save()
-
-        update_match_elos(match)
+        # Save both objects, reverting/applying Elo if the outcome changed
+        with transaction.atomic():
+            elo_warning = save_match_and_sync_elo(match)
+            event_match.save()
 
         # Return the updated match with event match data
         winner_data = None
@@ -798,6 +795,7 @@ def update_event_match(request, match_id):
             "score_team1": match.score_team1,
             "score_team2": match.score_team2,
             "elo": match_elo_data(match),
+            "elo_warning": elo_warning,
             "platform": match.platform,
             "season": {"id": match.season.id, "name": match.season.name}
             if match.season
@@ -954,13 +952,8 @@ def update_match(request, match_id):
             else:
                 match.winner = None
 
-        # Undo applied Elo if the edit changed the outcome, then (re)apply it
-        revert_match_elos_if_outcome_changed(match)
-
-        # Save the match
-        match.save()
-
-        update_match_elos(match)
+        # Save the match, reverting/applying Elo if the outcome changed
+        elo_warning = save_match_and_sync_elo(match)
 
         # Return the updated match
         winner_data = None
@@ -989,6 +982,7 @@ def update_match(request, match_id):
             "score_team1": match.score_team1,
             "score_team2": match.score_team2,
             "elo": match_elo_data(match),
+            "elo_warning": elo_warning,
             "platform": match.platform,
             "season": {"id": match.season.id, "name": match.season.name}
             if match.season
@@ -1040,11 +1034,8 @@ def delete_match(request, match_id):
             "status": match.status,
         }
 
-        # Undo this match's Elo before deleting it
-        revert_match_elos(match)
-
-        # Delete the match
-        match.delete()
+        # Undo this match's Elo and delete it
+        elo_warning = delete_match_and_revert_elo(match)
 
         logger.info(
             f"Deleted match {match_info['id']}: {match_info['team1_name']} vs {match_info['team2_name']}"
@@ -1054,6 +1045,7 @@ def delete_match(request, match_id):
             {
                 "message": f"Successfully deleted match between {match_info['team1_name']} and {match_info['team2_name']}",
                 "deleted_match": match_info,
+                "elo_warning": elo_warning,
             }
         )
 

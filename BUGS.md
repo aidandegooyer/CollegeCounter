@@ -26,66 +26,35 @@ Found during automated code review on 2026-07-09. Re-verified against `main`
 
 ## Elo integrity
 
-Elo is applied by mutating `Team.elo` in place (`update_match_elos`,
-`views.py:80`) with no record on the `Match` of whether/how much was applied.
-That makes every code path below either double-apply, fail to revert, or depend
-on a full recalculation to repair. See **Planned: Elo tracking on Match** below
-for the fix that addresses most of these at once.
+Until `e36167b`, Elo was applied by mutating `Team.elo` in place with no record
+on the `Match` of whether or how much was applied, so several code paths
+double-applied Elo or never reverted it. `Match` now records `elo_applied` and
+each team's before/change values (migrations 0012/0013), and every edit path
+goes through `save_match_and_sync_elo` / `delete_match_and_revert_elo` in
+`cc/views/elo.py`, which revert, save and re-apply in one transaction.
 
-- [x] **Double Elo on platform refresh** — *(fixed 2026-10-07, Elo tracking)* `update_faceit_match` (`views.py:3051`), `update_leaguespot_match` (`:3213`), `update_regentsleague_match` (`:2877`) call `update_match_elos` whenever *anything* changed and the match is completed — including score/date tweaks on an already-completed match. Default refresh only targets scheduled/in-progress matches (`update_matches`, `:2676`), but refreshing by `match_ids` or `status_filter: "completed"` re-applies Elo. Likely root cause of manual Elo fixups.
-- [x] **`recalculate_all_elos(reset_to_default=False)`** (`views.py:125`) — *(fixed 2026-10-07, Elo tracking)* now skips already-applied matches. Was: replays every completed match on top of current Elo, i.e. applies every match a second time. Only safe with reset=true (the default).
-- [x] **Winner change / un-complete doesn't revert** — *(fixed 2026-10-07, Elo tracking)* admin match updates (`views.py:1819`, `:2031`) only log a warning when a completed match's winner or status changes; old Elo stays applied, and the new winner never gets Elo (the transition guard `old_status != "completed"` blocks it).
-- [x] **`delete_match`** (`views.py:2143`) — *(fixed 2026-10-07, Elo tracking)* deleting a completed match left its Elo applied to both teams.
+Line references below are from `bec1ac2` (pre-split `views.py`).
+
+- [x] **Double Elo on platform refresh** — *(fixed `e36167b`)* `update_faceit_match`, `update_leaguespot_match` and `update_regentsleague_match` re-applied Elo on any change to a completed match (score/date tweaks), e.g. when refreshing by `match_ids` or `status_filter: "completed"`. Likely root cause of manual Elo fixups.
+- [x] **`recalculate_all_elos(reset_to_default=False)`** — *(fixed `e36167b`)* replayed every completed match on top of current Elo. Now skips applied matches; the whole recalculation also runs in one transaction.
+- [x] **Winner change / un-complete didn't revert** — *(fixed `e36167b`)* admin updates only logged a warning; the new winner never got Elo.
+- [x] **`delete_match` left Elo applied** — *(fixed `e36167b`)*.
+- [x] **Regents League team flip after Elo** — *(fixed `e36167b`)* a flip changes the team ids, so the applied Elo is reverted and re-applied in the new orientation. (The flip itself isn't saved when nothing else changed — see Ops.)
+- [x] **`update_match_elos` wasn't atomic** — *(fixed `e36167b`)* now locks the match and both teams.
+- [x] **Edit/delete flows weren't atomic** — *(fixed, review follow-up)* revert, save and apply committed separately, and the full-row `save()` of a stale instance could overwrite `elo_applied`. Now one transaction; edit saves never write the Elo fields.
 - [ ] **Bulk deletes** — `delete_competition` / season deletes still leave Elo applied. Deliberately not auto-reverted (path-dependent across many matches); run a reset recalculation after bulk deletes.
-- [x] **Regents League team flip after Elo** — *(fixed 2026-10-07, Elo tracking)* handled by `revert_match_elos_if_outcome_changed` (team ids differ → revert, then re-apply). Was: `update_regentsleague_match` (`:2833`) swaps `team1`/`team2` if the platform flipped them; if Elo was already applied to the old orientation, nothing corrects it.
-- [x] **`update_match_elos` isn't atomic** — *(fixed 2026-10-07, Elo tracking)* saves team1 then team2 separately (`views.py:113–114`) with no `transaction.atomic()` / `select_for_update`; a crash or concurrent refresh between saves leaves one team updated. Also reads `team.elo` from possibly stale cached FKs.
+- [ ] **Legacy matches (0013 backfill)** — completed matches from before tracking have `elo_applied=True` with NULL changes. Editing their outcome or deleting them can't adjust Elo; the update/delete responses include an `elo_warning` and the fix is a reset recalculation.
 
-### Planned: Elo tracking on Match
+### Remaining Elo work
 
-Goal: make Elo application idempotent and reversible, and show per-match Elo
-swings in the UI.
+- [ ] Show `+18 / −18` on match cards, match page and team history (API returns an `elo` object on admin + public match payloads; `MatchElo` TS type exists).
+- [ ] Admin UI — "Elo applied" badge on EditMatch with Apply / Revert buttons (`POST matches/<id>/apply-elo/`, `POST matches/<id>/revert-elo/`, `revertMatchElo()` in `api.ts`), and surface `elo_warning` from update/delete responses.
+- [ ] Optional: management command to replay history and fill before/change values on legacy matches without touching current team Elo (backfill option 3).
 
-**Schema (all nullable/defaulted → backwards compatible, no data loss):**
+**Caveats:**
 
-| Field | Type | Purpose |
-|---|---|---|
-| `elo_applied` | `BooleanField(default=False)` | Has this match's result been applied to team Elo? |
-| `team1_elo_before` | `IntegerField(null=True)` | team1's Elo at application time |
-| `team2_elo_before` | `IntegerField(null=True)` | team2's Elo at application time |
-| `team1_elo_change` | `IntegerField(null=True)` | Signed delta applied to team1 (e.g. `+18`) |
-| `team2_elo_change` | `IntegerField(null=True)` | Signed delta applied to team2 (e.g. `-18`) |
-
-(Optional: `elo_applied_at = DateTimeField(null=True)` for auditing.)
-
-**Code changes:**
-
-- [x] `update_match_elos(match)` — no-op if `match.elo_applied`; otherwise, inside `transaction.atomic()` with `select_for_update()` on both teams, compute deltas, update teams, write the five fields, save. This alone fixes the double-apply on platform refresh.
-- [x] New `revert_match_elos(match)` — if applied, subtract stored deltas from both teams, clear the fields, `elo_applied=False`. Call it from:
-  - admin match update when status leaves `completed` or the winner changes (then re-apply if still completed with a winner);
-  - `delete_match`, and competition/season deletes (or just recommend a recalc after bulk deletes);
-  - Regents League flip handling (revert before swapping, re-apply after).
-- [x] `recalculate_all_elos` — when resetting, clear all five fields on every match first, then replay; the replay naturally repopulates them. When not resetting, skip `elo_applied` matches (makes the non-reset mode safe).
-- [x] `apply_match_elo` endpoint (`views.py:2090`) — return 400 (done; plus new `POST matches/<id>/revert-elo/`) "already applied" if `elo_applied`, or add a `force` option that reverts first.
-- [x] `merge_teams` — when moving matches from secondary to primary, the stored deltas stay valid as history; no Elo arithmetic needed (the `keep_secondary_elo` checkbox already handles the team value).
-- [x] *(API done: `elo` object on admin + public match payloads; `MatchElo` TS type)* Serializers — expose `elo_applied` and the deltas in admin and public match payloads; show `+18 / −18` on match cards / match page / team history.
-- [ ] Admin UI — show an "Elo applied" badge on EditMatch with a manual Apply / Revert button.
-
-- [x] Backfill data migration — option 1 chosen 2026-10-07: `0013_backfill_match_elo_applied` marks every completed match with a winner as applied (before/change stay NULL).
-
-**Caveats to document:**
-
-- Elo is path-dependent: reverting an *old* match by its stored delta doesn't re-derive every later match. Revert is exact for the most recent match per team and a good approximation otherwise; full recalc remains the source of truth.
-- Teams whose Elo is set by hand (`update_player_elo`-style tools, merges with `keep_secondary_elo`) will drift from the sum of stored deltas — expected.
-
-**Backfill decision — DONE (option 1, migration 0013):**
-
-Existing completed matches have `elo_applied=False` after the schema migration,
-so the next refresh of any of them would apply Elo again. Options:
-
-1. Data migration that sets `elo_applied=True` (deltas NULL) for every `completed` match with a winner — assumes they were applied once. Cheap, no Elo change, but no historical deltas.
-2. After deploying, run **Recalculate Elos (reset)** once — repopulates every match's before/delta values exactly, but recomputes current team Elo, which will differ from today's hand-fixed values.
-
-Recommendation: ship (1) in the migration so nothing double-applies, then run (2) later if/when you're happy for the recalc values to replace the current ones.
+- Elo is path-dependent: reverting an *old* match by its stored change doesn't re-derive later matches. Revert is exact for each team's most recent match and an approximation otherwise; a reset recalculation is the source of truth.
+- Teams whose Elo is set by hand (e.g. merges with `keep_secondary_elo`) drift from the sum of stored changes — expected.
 
 ## Security
 
@@ -129,7 +98,9 @@ Recommendation: ship (1) in the migration so nothing double-applies, then run (2
 
 - [ ] **`update_regentsleague_match` flip isn't saved on its own** — when team1/team2 are swapped (`platform_sync.py`, `if flipped:`) `updated` isn't set, so a flip with unchanged scores/winner is never saved.
 - [ ] **`load_db.sh` piped mode** — `cat dump.sql | ./load_db.sh` runs `read` for the confirm prompt on the same stdin, eating the first byte of the SQL. Use file mode (`gunzip -k backup.sql.gz && ./load_db.sh backup.sql`).
-- [ ] **Off-site backups** — `db-backup` service writes daily dumps to `./backups` on the same host as the DB; a disk/host loss takes both. Needs an off-site copy.
+- [ ] **Off-site backups** — `db-backup` writes daily dumps to `./backups` on the same host as the DB; a disk/host loss takes both. Needs an off-site copy (rclone → Google Drive or Backblaze B2). Undecided.
+- [ ] **Backup alerting** — a failing `db-backup` only shows as `unhealthy` in `docker compose ps`; nothing notifies. Could post to `DISCORD_WEBHOOK_URL` on failure.
+- [ ] **Startup migrations** — a failed migration leaves the backend unable to start (no restart policy, so it stays down rather than looping); nothing takes a backup right before migrating. Run `docker compose run --rm db-backup once` before deploys with migrations.
 
 ## Low priority
 

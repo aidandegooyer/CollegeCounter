@@ -37,14 +37,15 @@ class RegentsLeagueWinnerTests(TestCase):
 
     def test_import_completed_match_without_winner(self):
         for winner in (None, {}):
-            Match.objects.all().delete()
-            result = import_regentsleague_match_data(
-                [regents_match(winner)], self.competition, self.season
-            )
-            self.assertEqual(len(result["imported"]), 1)
-            match = Match.objects.get()
-            self.assertEqual(match.status, "completed")
-            self.assertIsNone(match.winner)
+            with self.subTest(winner=winner):
+                Match.objects.all().delete()
+                result = import_regentsleague_match_data(
+                    [regents_match(winner)], self.competition, self.season
+                )
+                self.assertEqual(len(result["imported"]), 1)
+                match = Match.objects.get()
+                self.assertEqual(match.status, "completed")
+                self.assertIsNone(match.winner)
 
     def test_import_unknown_status_defaults_to_scheduled(self):
         import_regentsleague_match_data(
@@ -78,4 +79,7 @@ class RegentsLeagueWinnerTests(TestCase):
     def test_refresh_with_missing_participants_does_not_crash(self):
         Participant.objects.all().delete()
         match = self._refresh(regents_match({"id": 1}))
+        # Status/date still sync; scores and winner need participants
+        self.assertEqual(match.status, "completed")
         self.assertIsNone(match.winner)
+        self.assertEqual((match.score_team1, match.score_team2), (0, 0))

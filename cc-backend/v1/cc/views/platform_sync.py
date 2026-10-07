@@ -16,7 +16,7 @@ from ..middleware import firebase_auth_required
 import logging
 import requests
 
-from .elo import revert_match_elos_if_outcome_changed, update_match_elos
+from .elo import save_match_and_sync_elo
 from .proxies import get_leaguespot_headers
 from .utils import safe_parse_datetime
 
@@ -257,13 +257,9 @@ def update_regentsleague_match(match: Match):
                     match.winner = new_winner
                     updated = True
         if updated:
-            revert_match_elos_if_outcome_changed(match)
-            match.save()
+            # Saves and reverts/applies Elo if the outcome changed
+            save_match_and_sync_elo(match)
             logger.info(f"Updated Regent League match {match.id}")
-
-            # Update team ELOs if the match is now completed
-            if match.status == "completed":
-                update_match_elos(match)
 
         return updated
 
@@ -432,13 +428,9 @@ def update_faceit_match(match):
                     )
 
         if updated:
-            revert_match_elos_if_outcome_changed(match)
-            match.save()
+            # Saves and reverts/applies Elo if the outcome changed
+            save_match_and_sync_elo(match)
             logger.info(f"Updated Faceit match {match.id}")
-
-            # Update team ELOs if the match is now completed
-            if match.status == "completed":
-                update_match_elos(match)
 
         return updated
 
@@ -504,8 +496,7 @@ def update_leaguespot_match(match):
 
         if match.status != "completed":
             # If match is not completed, no need to update scores/winner
-            revert_match_elos_if_outcome_changed(match)
-            match.save()
+            save_match_and_sync_elo(match)
             print(f"Updated scheduled LeagueSpot match {match.id}")
             return updated
 
@@ -596,13 +587,9 @@ def update_leaguespot_match(match):
             )
 
         if updated:
-            revert_match_elos_if_outcome_changed(match)
-            match.save()
+            # Saves and reverts/applies Elo if the outcome changed
+            save_match_and_sync_elo(match)
             logger.info(f"Updated LeagueSpot match {match.id}")
-
-            # Update team ELOs if the match is now completed
-            if match.status == "completed":
-                update_match_elos(match)
 
         return updated
 
