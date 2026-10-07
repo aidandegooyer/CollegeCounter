@@ -30,5 +30,9 @@ COPY . .
 # gunicorn config
 COPY gunicorn.conf.py .
 
+# Runs migrations before starting gunicorn
+RUN chmod +x entrypoint.sh
+
 EXPOSE 8000
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["gunicorn", "--config", "gunicorn.conf.py", "v1.wsgi:application"]

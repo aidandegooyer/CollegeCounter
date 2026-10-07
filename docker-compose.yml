@@ -67,7 +67,8 @@ services:
     expose:
       - "8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:15
@@ -78,6 +79,31 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # Daily pg_dump to ./backups (kept 14 days). One-off backup:
+  #   docker compose run --rm db-backup /backup-db.sh once
+  db-backup:
+    image: postgres:15
+    restart: always
+    entrypoint: ["/backup-db.sh"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      RETENTION_DAYS: 14
+      BACKUP_HOUR_UTC: 9
+    volumes:
+      - ./scripts/backup-db.sh:/backup-db.sh:ro
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   pgdata:
