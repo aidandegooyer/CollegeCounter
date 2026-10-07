@@ -66,4 +66,5 @@ from .proxies import (  # noqa: F401
     proxy_leaguespot_match,
     proxy_leaguespot_participants,
     proxy_nwes,
+    proxy_faceit_match_stats,
 )
