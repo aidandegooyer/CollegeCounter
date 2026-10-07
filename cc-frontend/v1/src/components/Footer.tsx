@@ -31,6 +31,12 @@ function Footer() {
           <p className="text-muted-foreground mt-2 text-xs italic">
             Thank you to our community volunteers for their contributions ♥
           </p>
+          <p className="text-muted-foreground mx-auto mt-2 max-w-2xl text-xs">
+            College Counter is not affiliated with or endorsed by Valve
+            Corporation, FACEIT, or any college, university, or league.
+            Counter-Strike is a trademark of Valve Corporation. All other
+            trademarks and logos belong to their respective owners.
+          </p>
         </div>
       </footer>
     </div>
