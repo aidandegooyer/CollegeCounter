@@ -111,6 +111,19 @@ class Match(models.Model):
         max_length=20,
         default="other",
     )
+    # Elo bookkeeping, written by views.elo.update_match_elos / revert_match_elos.
+    # The *_elo_change values are what was added to each team's Elo, so a match
+    # can be reverted exactly. Completed matches with a winner that existed
+    # before tracking (migration 0013) have elo_applied=True with NULL
+    # before/change values, and can't be reverted.
+    elo_applied = models.BooleanField(
+        default=False,
+        help_text="Whether this match's result has been applied to team Elo",
+    )
+    team1_elo_before = models.IntegerField(null=True, blank=True)
+    team2_elo_before = models.IntegerField(null=True, blank=True)
+    team1_elo_change = models.IntegerField(null=True, blank=True)
+    team2_elo_change = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
         return (

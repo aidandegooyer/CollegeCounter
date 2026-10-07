@@ -34,10 +34,15 @@ api.interceptors.request.use(
       return config;
     }
 
+    // Wait for Firebase to restore the persisted session on first load;
+    // resolves immediately once auth state is known. Capped so a stalled
+    // Firebase init can't hang every request (it then goes out without a token).
     const auth = getAuth();
+    await Promise.race([
+      auth.authStateReady(),
+      new Promise((resolve) => setTimeout(resolve, 5000)),
+    ]);
     const user = auth.currentUser;
-
-    await new Promise((resolve) => setTimeout(resolve, 300));
 
     if (user) {
       try {
@@ -85,6 +90,16 @@ export interface Player {
   visible: boolean;
 }
 
+// Elo applied for a match. before/change are null for matches applied before
+// change tracking existed.
+export interface MatchElo {
+  applied: boolean;
+  team1_before: number | null;
+  team2_before: number | null;
+  team1_change: number | null;
+  team2_change: number | null;
+}
+
 export interface Match {
   id: string;
   team1: Team;
@@ -96,6 +111,7 @@ export interface Match {
   score_team1: number;
   score_team2: number;
   platform: string;
+  elo?: MatchElo;
   season?: {
     id: string;
     name: string;
@@ -322,6 +338,7 @@ export interface Competition {
   participants_count: number;
   matches_count: number;
   teams_count: number;
+  seasons: { id: string; name: string }[];
 }
 
 export interface CompetitionsResponse {
@@ -734,6 +751,7 @@ export interface PublicMatch {
   score_team1: number;
   score_team2: number;
   platform: string;
+  elo?: MatchElo;
   competition?: {
     id: string;
     name: string;
@@ -970,6 +988,7 @@ export const fetchAdminMatches = async (): Promise<Match[]> => {
 export interface MergeTeamsRequest {
   primary_team_id: string;
   secondary_team_id: string;
+  keep_secondary_elo?: boolean;
 }
 
 export interface MergeTeamsResponse {
@@ -1078,6 +1097,7 @@ export interface CreateMatchResponse {
   score_team1: number;
   score_team2: number;
   platform: string;
+  elo?: MatchElo;
   season?: {
     id: string;
     name: string;
@@ -1197,6 +1217,20 @@ export const applyMatchElo = async (
   matchId: string,
 ): Promise<ApplyMatchEloResponse> => {
   const response = await api.post(`/matches/${matchId}/apply-elo/`);
+  return response.data;
+};
+
+export interface RevertMatchEloResponse {
+  message: string;
+  match_id: string;
+  team1: { id: string; name: string; reverted_change: number; new_elo: number };
+  team2: { id: string; name: string; reverted_change: number; new_elo: number };
+}
+
+export const revertMatchElo = async (
+  matchId: string,
+): Promise<RevertMatchEloResponse> => {
+  const response = await api.post(`/matches/${matchId}/revert-elo/`);
   return response.data;
 };
 

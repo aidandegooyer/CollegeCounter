@@ -18,6 +18,7 @@ from .models import (
     Ranking,
     RankingItem,
 )
+from .views.elo import match_elo_data
 
 # Maximum items per page
 MAX_PAGE_SIZE = 100
@@ -564,7 +565,7 @@ def public_matches(request):
     team_id = request.query_params.get("team_id", "")
     team_id_1 = request.query_params.get("team_id_1", "")
     team_id_2 = request.query_params.get("team_id_2", "")
-    status = request.query_params.get("status", "")
+    status_filter = request.query_params.get("status", "")
     platform = request.query_params.get("platform", "")
     date_from = request.query_params.get("date_from", "")
     date_to = request.query_params.get("date_to", "")
@@ -623,8 +624,8 @@ def public_matches(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if status and status in ["scheduled", "in_progress", "completed", "cancelled"]:
-        query &= Q(status=status)
+    if status_filter in ["scheduled", "in_progress", "completed", "cancelled"]:
+        query &= Q(status=status_filter)
 
     if platform and platform in ["faceit", "playfly"]:
         query &= Q(platform=platform)
@@ -810,6 +811,7 @@ def public_matches(request):
                 "winner": winner,
                 "score_team1": match.score_team1,
                 "score_team2": match.score_team2,
+                "elo": match_elo_data(match),
                 "platform": match.platform,
                 "season": {"id": match.season.id, "name": match.season.name}
                 if match.season

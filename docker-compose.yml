@@ -67,7 +67,8 @@ services:
     expose:
       - "8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:15
@@ -78,6 +79,36 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # Daily pg_dump to ./backups (newest 14 kept). One-off backup:
+  #   docker compose run --rm db-backup once
+  # Shows "unhealthy" in `docker compose ps` if no dump in the last 26h.
+  db-backup:
+    image: postgres:15
+    restart: always
+    entrypoint: ["/backup-db.sh"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      KEEP_BACKUPS: 14
+      BACKUP_HOUR_UTC: 9
+    volumes:
+      - ./scripts/backup-db.sh:/backup-db.sh:ro
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "find /backups -name 'cc_*.sql.gz' -mmin -1560 | grep -q ."]
+      interval: 1h
+      start_period: 5m
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   pgdata:
