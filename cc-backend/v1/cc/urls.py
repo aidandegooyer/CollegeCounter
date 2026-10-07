@@ -27,6 +27,11 @@ urlpatterns = [
         views.apply_match_elo,
         name="apply_match_elo",
     ),
+    path(
+        "matches/<uuid:match_id>/revert-elo/",
+        views.revert_match_elo,
+        name="revert_match_elo",
+    ),
     path("matches/<uuid:match_id>/delete/", views.delete_match, name="delete_match"),
     path("matches/update/", views.update_matches, name="update_matches"),
     path("clear-database/", views.clear_database, name="clear_database"),

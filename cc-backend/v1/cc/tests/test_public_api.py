@@ -161,3 +161,10 @@ class PublicAPITestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         content = json.loads(response.content)
         self.assertEqual(content["total_results"], 0)
+
+    def test_public_matches_invalid_params_return_400(self):
+        """Validation errors after the status filter return 400, not 500"""
+        url = reverse("public_matches")
+        for query in ["status=completed&team_id=not-a-uuid", "season_id=not-a-uuid"]:
+            response = self.client.get(f"{url}?{query}")
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, query)
