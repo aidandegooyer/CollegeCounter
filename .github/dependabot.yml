@@ -1,0 +1,47 @@
+# Dependabot version updates. Minor/patch bumps are grouped into one weekly PR
+# per ecosystem; major bumps get their own PRs so they can be reviewed alone.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /cc-frontend/v1
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      frontend-minor-and-patch:
+        update-types: [minor, patch]
+
+  # requirements.txt is what the backend Docker image installs, so it's the
+  # one that matters in production (pyproject.toml/uv.lock are local dev).
+  - package-ecosystem: pip
+    directory: /cc-backend/v1
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      backend-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directories:
+      - /cc-backend/v1
+      - /cc-frontend/v1
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      docker-images:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    ignore:
+      # A Postgres major upgrade needs a dump/restore of the data volume,
+      # not just a tag bump.
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
