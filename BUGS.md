@@ -3,6 +3,12 @@
 Found during automated code review on 2026-07-09. Re-verified against `main`
 (`c9c3433`) on 2026-10-07; line numbers updated. Check items off as they're fixed.
 
+> **`views.py` was split into a `cc/views/` package after `bec1ac2`.** All
+> `views.py:NNN` references below are line numbers in `bec1ac2` (view with
+> `git show bec1ac2:cc-backend/v1/cc/views.py`). Function names are unchanged —
+> search `cc/views/` for them: `elo.py`, `imports.py`, `platform_sync.py`,
+> `matches.py`, `teams.py`, `admin_data.py`, `proxies.py`, `utils.py`.
+
 > **Note (2026-10-07):** three items below were previously written as "Fixed…"
 > (`proxy_image` SSRF, Sanity webhook secret, double Elo in the platform update
 > functions). **None of those fixes are in the codebase** — no IP blocking in

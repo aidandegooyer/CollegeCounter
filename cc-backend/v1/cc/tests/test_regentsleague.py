@@ -65,7 +65,7 @@ class RegentsLeagueWinnerTests(TestCase):
         )
         response = MagicMock(status_code=200)
         response.json.return_value = payload
-        with patch("cc.views.requests.get", return_value=response):
+        with patch("cc.views.platform_sync.requests.get", return_value=response):
             update_regentsleague_match(match)
         match.refresh_from_db()
         return match
