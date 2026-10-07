@@ -389,13 +389,14 @@ def import_regentsleague_match_data(matches: list[dict], competition, season):
             "Scheduled": "scheduled",
             # Add other status mappings as needed
         }
-        status = status_mapping.get(match_data.get("status"))
+        match_status = status_mapping.get(match_data.get("status"), "scheduled")
 
-        if status == "completed":
+        if match_status == "completed":
             score_team1 = match_data.get("score_team1")
             score_team2 = match_data.get("score_team2")
 
-            winner_key = match_data.get("winner").get("id")
+            # The API omits "winner" (or sends null) for some completed matches
+            winner_key = (match_data.get("winner") or {}).get("id")
             if winner_key == team1_key:
                 winner = team1
             elif winner_key == team2_key:
@@ -421,7 +422,7 @@ def import_regentsleague_match_data(matches: list[dict], competition, season):
             team1=team1,
             team2=team2,
             date=safe_parse_datetime(match_date) if match_date else None,
-            status=status,
+            status=match_status,
             winner=winner,
             score_team1=score_team1,
             score_team2=score_team2,
@@ -2792,6 +2793,8 @@ def update_regentsleague_match(match: Match):
             team2_id = team2_data.get("id")
 
             flipped = False
+            team1_participant = None
+            team2_participant = None
             try:
                 team1_participant = Participant.objects.get(
                     team=match.team1,
@@ -2833,7 +2836,7 @@ def update_regentsleague_match(match: Match):
                     flipped = True
                 except Participant.DoesNotExist:
                     logger.warning(
-                        f"Could not find participant for team1 {match.team1.name} in match {match.id}"
+                        f"Could not find participant for team2 {match.team2.name} in match {match.id}"
                     )
 
             if team1_participant and team2_participant:
@@ -2860,11 +2863,11 @@ def update_regentsleague_match(match: Match):
                     updated = True
 
                 # Determine winner
-                winner_team: dict = match_data.get("winner")
+                winner_id = (match_data.get("winner") or {}).get("id")
                 new_winner = None
-                if winner_team.get("id") == team1_participant.regentsleague_id:
+                if winner_id is not None and winner_id == team1_participant.regentsleague_id:
                     new_winner = team1_participant.team
-                elif winner_team.get("id") == team2_participant.regentsleague_id:
+                elif winner_id is not None and winner_id == team2_participant.regentsleague_id:
                     new_winner = team2_participant.team
                 if new_winner != match.winner:
                     match.winner = new_winner

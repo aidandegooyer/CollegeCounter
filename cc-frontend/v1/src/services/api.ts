@@ -22,10 +22,11 @@ api.interceptors.request.use(
       return config;
     }
 
+    // Wait for Firebase to restore the persisted session on first load;
+    // resolves immediately once auth state is known
     const auth = getAuth();
+    await auth.authStateReady();
     const user = auth.currentUser;
-
-    await new Promise((resolve) => setTimeout(resolve, 300));
 
     if (user) {
       try {
