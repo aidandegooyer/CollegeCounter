@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch/PR cancels the run in progress
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: cc-backend/v1
+
+    services:
+      postgres:
+        # Same major version as production (docker-compose.yml)
+        image: postgres:15
+        env:
+          POSTGRES_USER: ccdev
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: cc
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ccdev -d cc"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      SECRET_KEY: ci-not-secret
+      DATABASE_URL: postgresql://ccdev:dev@localhost:5432/cc
+      DJANGO_ALLOWED_HOSTS: localhost
+      # No real API keys: tests mock every external call, and cc/tests
+      # blocks real HTTP so a missed mock fails instead of calling out.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Matches the backend Dockerfile
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: cc-backend/v1/requirements.txt
+
+      - name: Install dependencies
+        # requirements.txt is what the production image installs
+        run: pip install -r requirements.txt coverage
+
+      - name: Django system check
+        run: python manage.py check
+
+      - name: Check for missing migrations
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run tests
+        run: coverage run manage.py test cc --noinput
+
+      - name: Coverage report
+        if: always()
+        run: |
+          coverage report
+          coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: cc-frontend/v1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the frontend Dockerfile
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: cc-frontend/v1/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check and build
+        run: npm run build
+
+      - name: Lint
+        # Not blocking yet: main has ~100 existing lint errors. Remove this
+        # once they're fixed so new ones fail the build.
+        continue-on-error: true
+        run: npm run lint
+
+  docker:
+    name: Docker images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            context: cc-backend/v1
+          - name: frontend
+            context: cc-frontend/v1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Build only (nothing is pushed), to catch Dockerfile breakage
+      - name: Build ${{ matrix.name }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}

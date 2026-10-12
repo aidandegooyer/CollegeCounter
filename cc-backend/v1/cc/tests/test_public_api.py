@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.test import TestCase
+from django.utils import timezone
 from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
@@ -28,8 +31,12 @@ class PublicAPITestCase(TestCase):
             name="Test Player 2", skill_level=8, elo=1400, team=self.team2
         )
 
+        # A season spanning today, so it counts as the current season
+        now = timezone.now()
         self.season = Season.objects.create(
-            name="Test Season", start_date="2023-01-01", end_date="2023-12-31"
+            name="Test Season",
+            start_date=now - timedelta(days=90),
+            end_date=now + timedelta(days=90),
         )
 
         self.match = Match.objects.create(
@@ -40,6 +47,7 @@ class PublicAPITestCase(TestCase):
             score_team1=16,
             score_team2=14,
             winner=self.team1,
+            season=self.season,
         )
 
         self.event = Event.objects.create(
@@ -154,7 +162,6 @@ class PublicAPITestCase(TestCase):
         self.assertTrue("teams" in content)
         self.assertTrue("players" in content)
         self.assertTrue("events" in content)
-        self.assertTrue("matches" in content)
 
         # Empty query should return no results without error
         response = self.client.get(url)

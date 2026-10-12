@@ -16,6 +16,12 @@ Found during automated code review on 2026-07-09. Re-verified against `main`
 > `update_*_match`. They were likely lost from an uncommitted branch/stash. The
 > wording below now describes the bug and the intended fix.
 
+> **Tests (2026-10-12):** bugs marked *(xfail: `test_name`)* have an
+> `@unittest.expectedFailure` test in `cc-backend/v1/cc/tests/` that asserts
+> the correct behaviour. When you fix one, that test becomes an "unexpected
+> success", which **fails the test run (and CI)** — remove the decorator in the
+> same PR as the fix and check the item off here.
+
 ## Critical — verified in source
 
 - [x] **`cc-backend/v1/cc/public_views.py:567`** — *(fixed 2026-10-07: renamed to `status_filter`; regression test added)* local variable `status` shadows the DRF `status` module in `public_matches`; every validation-error path after it (lines 602–698) raises `AttributeError` and returns a 500 instead of a 400. Rename the local.
@@ -69,10 +75,14 @@ Line references below are from `bec1ac2` (pre-split `views.py`).
 ## Backend correctness
 
 - [ ] **`views.py:3386` `merge_teams`** — multi-object write with no `transaction.atomic()` (none anywhere in `views.py`); exception mid-merge leaves half-merged state.
-- [ ] **`views.py:3653` `delete_competition`** — deletes events and event-matches by *season* (`:3693`, `:3703`) instead of by competition; can delete other competitions' events in the same season.
+- [ ] **`views.py:3653` `delete_competition`** — deletes events and event-matches by *season* (`:3693`, `:3703`) instead of by competition; can delete other competitions' events in the same season. *(xfail: `test_delete_keeps_unrelated_events_in_same_season`)*
+- [ ] **`cc/views/matches.py` `get_match`, `update_match`, `update_event_match`, `delete_match`** — `get_object_or_404` runs inside `try/except Exception`, which catches `Http404` and returns a 500 for a missing match. *(xfail: `test_get_missing_match_is_404`)*
+- [ ] **`Match.date` is NOT NULL but treated as optional** — `create_match` / `create_event_match` document `date` as optional and 500 without it; `import_match_data` crashes (IntegrityError) on a Faceit/LeagueSpot match with no scheduled/started/finished time. Either require a date or make the column nullable (additive migration). *(xfail: `test_date_is_optional`)*
+- [ ] **`public_views.py` `public_matches` `date_to`** — on Django 5 / Python 3.11+, `parse_datetime("2025-10-05")` succeeds as midnight, so the `T23:59:59Z` fallback never runs and `date_to=YYYY-MM-DD` excludes every match on that day. *(xfail: `test_date_to_includes_the_whole_day`)*
+- [ ] **Public paginated endpoints** — `page` / `page_size` / `limit` go straight to `int()`, so `?page=abc` is a 500 on teams, players, matches, seasons, rankings, ranking-items, events and team_recent_form. *(xfail: `test_non_numeric_page_is_not_a_server_error`)*
 - [x] **`views.py:2795–2830` `update_regentsleague_match`** — *(fixed 2026-10-07)* `team1_participant`/`team2_participant` were unbound if both lookups failed → `UnboundLocalError`. Also the team2 warning message said "team1".
 - [ ] **`views.py:230`** — `Competition.objects.create` runs before Season/Event validation; failed validation leaves an orphaned Competition row.
-- [ ] **`views.py:50–58` `safe_parse_datetime`** — unix timestamps parsed with `datetime.fromtimestamp()` → naive datetime under `USE_TZ=True`.
+- [ ] **`views.py:50–58` `safe_parse_datetime`** — unix timestamps parsed with `datetime.fromtimestamp()` → naive datetime under `USE_TZ=True`. Knock-on effect: a naive datetime never equals the aware one from the DB, so `update_faceit_match` re-saves every match and reports it as "updated" on every refresh, even when nothing changed. *(xfail: `test_unix_timestamp_is_timezone_aware`, `test_unchanged_refresh_is_not_an_update`)*
 - [ ] ~~`views.py:467–473` — explicit `visible=false` ANDed with `visible=True` default~~ — FALSE POSITIVE: the default only applies when the param is absent; logic verified correct.
 - [ ] **N+1 queries** — `list_teams`, `list_players`, `list_matches` (per-match `EventMatch` query defeats prefetch), `public_views.py:304` `public_teams` (~4 queries per team per page).
 - [ ] **`settings.py:156`** — `TIME_ZONE = "EST"` is not a valid IANA key; use `America/New_York`. Related: naive `datetime.now()` in `public_views.py:315, 839, 862, 1084`.
@@ -89,6 +99,8 @@ Line references below are from `bec1ac2` (pre-split `views.py`).
 - [ ] **`pages/Search/Search.tsx:35`** — no abort/cleanup on Sanity fetch → stale results race when typing fast; `:168` — players without a team link to `/teams/undefined`.
 - [ ] **`services/api.ts:1157` `fetchAllEvents`** — caps at 100 events, no pagination; admin dropdowns silently omit the rest.
 - [ ] **`pages/Admin/EditMatch.tsx` `EventMatchEditForm`** — calls hooks after a conditional early return (Rules of Hooks violation).
+- [ ] **14 `react-hooks/rules-of-hooks` lint errors** (e.g. `pages/Team/Team.tsx:217`, `usePublicPlayers` called conditionally) — can crash a page with "Rendered more hooks than during the previous render". Run `npm run lint` for the full list.
+- [ ] **Lint baseline** — `npm run lint` has ~100 errors on `main` (79 `no-explicit-any`, 14 `rules-of-hooks`, a few others), so the CI lint step is `continue-on-error`. Make it blocking once clean.
 - [ ] **`pages/Admin/EditMatch.tsx`** — `new Date("YYYY-MM-DD")` start-date filter parses as UTC midnight; excludes same-day matches in US timezones (endDate side is handled, startDate isn't).
 - [ ] **`pages/Admin/EditEvent.tsx`** — empty dates produce `Invalid Date`; `>=` comparison of two Invalid Dates is `false`, bypassing validation.
 - [ ] **`pages/Event/Event.tsx` `Stream()`** — returns `undefined` for non-Twitch stream links → blank Stream tab.
@@ -101,6 +113,9 @@ Line references below are from `bec1ac2` (pre-split `views.py`).
 - [ ] **Off-site backups** — `db-backup` writes daily dumps to `./backups` on the same host as the DB; a disk/host loss takes both. Needs an off-site copy (rclone → Google Drive or Backblaze B2). Undecided.
 - [ ] **Backup alerting** — a failing `db-backup` only shows as `unhealthy` in `docker compose ps`; nothing notifies. Could post to `DISCORD_WEBHOOK_URL` on failure.
 - [ ] **Startup migrations** — a failed migration leaves the backend unable to start (no restart policy, so it stays down rather than looping); nothing takes a backup right before migrating. Run `docker compose run --rm db-backup once` before deploys with migrations.
+
+- [ ] **No `.dockerignore`** in `cc-backend/v1` or `cc-frontend/v1` — a local `docker build` copies `.venv` / `node_modules` into the image (the frontend's `COPY . ./` overwrites the `npm ci` install with the host's `node_modules`). Harmless in CI and on a clean server checkout.
+- [x] **Backend test suite couldn't run** — *(fixed 2026-10-12)* an empty `cc/tests.py` clashed with the `cc/tests/` package, so `manage.py test cc` failed to import; three public-API tests were also stale. CI now runs the suite on every PR.
 
 ## Low priority
 
