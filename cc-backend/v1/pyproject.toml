@@ -7,7 +7,7 @@ dependencies = [
     "anyio==4.15.1",
     "asgiref==3.12.1",
     "cachecontrol==0.14.4",
-    "certifi==2025.1.31",
+    "certifi==2026.7.22",
     "cffi==2.1.1",
     "charset-normalizer==3.5.2",
     "cryptography==45.0.6",
