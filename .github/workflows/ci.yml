@@ -124,7 +124,7 @@ jobs:
 
       # Build only (nothing is pushed), to catch Dockerfile breakage
       - name: Build ${{ matrix.name }} image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           push: false
