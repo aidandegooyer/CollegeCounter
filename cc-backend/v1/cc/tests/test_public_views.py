@@ -278,14 +278,11 @@ class PublicMatchesTests(PublicFixtures, TestCase):
         )
         self.assertEqual(self.ids(f"season_id={self.season.id}"), [str(self.m1.id)])
         self.assertEqual(self.ids(f"competition_id={self.competition.id}"), [str(self.m1.id)])
-        self.assertEqual(self.ids("competition_name=spring"), [str(self.m1.id)])
+        self.assertEqual(self.ids("competition_name=spring league"), [str(self.m1.id)])
+        self.assertEqual(self.ids("competition_name=spring"), [])
         self.assertEqual(self.ids(f"event_id={self.event.id}"), [str(self.m2.id)])
 
-    @unittest.expectedFailure
     def test_date_to_includes_the_whole_day(self):
-        # BUG: parse_datetime("2025-10-05") succeeds (as midnight) on Django 5 /
-        # Python 3.11+, so the T23:59:59Z fallback never runs and date_to
-        # excludes every match played on that day.
         self.assertEqual(self.ids("date_to=2025-10-05"), [str(self.m2.id), str(self.m1.id)])
 
     def test_unparseable_dates_are_ignored(self):
@@ -323,6 +320,28 @@ class PublicMatchesTests(PublicFixtures, TestCase):
         body = self.get("public_matches", "page_size=2&page=9").json()
         self.assertEqual(body["total_pages"], 2)
         self.assertEqual(len(body["results"]), 1)
+
+
+class PublicCompetitionsTests(PublicFixtures, TestCase):
+    def names(self, query=""):
+        return [c["name"] for c in self.get("public_competitions", query).json()["results"]]
+
+    def test_dedupes_by_name_and_sorts(self):
+        # A re-imported competition shares its name with the original
+        Competition.objects.create(name="Spring League")
+        Competition.objects.create(name="spring league ")
+        Competition.objects.create(name="Autumn Cup")
+        self.assertEqual(self.names(), ["Autumn Cup", "Spring League"])
+
+    def test_season_filter(self):
+        Competition.objects.create(name="Autumn Cup")
+        Match.objects.create(
+            team1=self.alpha, team2=self.bravo, date="2025-10-01T18:00:00Z",
+            season=self.season, competition=self.competition,
+        )
+        self.assertEqual(self.names(f"season_id={self.season.id}"), ["Spring League"])
+        self.assertEqual(self.names(f"season_id={self.old_season.id}"), [])
+        self.assertEqual(self.get("public_competitions", "season_id=nope").status_code, 400)
 
 
 class PublicSeasonsTests(PublicFixtures, TestCase):
