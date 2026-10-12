@@ -10,6 +10,7 @@ from .elo import (  # noqa: F401
     calculate_new_elo,
     match_elo_data,
     update_match_elos,
+    apply_elos_in_date_order,
     revert_match_elos,
     save_match_and_sync_elo,
     delete_match_and_revert_elo,

@@ -127,6 +127,29 @@ def update_match_elos(match):
     return True
 
 
+def apply_elos_in_date_order(matches):
+    """
+    Apply Elo for each completed match in chronological order, so a batch of
+    backfilled matches is applied in the order they were played. Matches
+    against a bye are skipped, as in recalculate_all_elos.
+
+    Returns:
+        int: How many matches had Elo applied.
+    """
+
+    def sort_key(match):
+        # Undated matches last
+        return (match.date is None, match.date)
+
+    applied = 0
+    for match in sorted(matches, key=sort_key):
+        if "bye" in (match.team1.name.lower(), match.team2.name.lower()):
+            continue
+        if update_match_elos(match):
+            applied += 1
+    return applied
+
+
 def revert_match_elos(match):
     """
     Undo a match's applied Elo by subtracting the recorded changes from the

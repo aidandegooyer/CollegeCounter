@@ -22,6 +22,7 @@ from ..middleware import firebase_auth_required
 import logging
 import requests
 
+from .elo import apply_elos_in_date_order
 from .utils import safe_parse_datetime
 
 logger = logging.getLogger(__name__)
@@ -190,6 +191,7 @@ def import_regentsleague_match_data(matches: list[dict], competition, season):
     imported_matches = []
     updated_matches = []
     skipped_matches = []
+    created_matches = []
 
     for match_data in matches:
         regentsleague_match_id = match_data.get("id")
@@ -259,6 +261,10 @@ def import_regentsleague_match_data(matches: list[dict], competition, season):
             competition=competition,
         )
         imported_matches.append(str(match.id))
+        created_matches.append(match)
+
+    # Matches imported already completed need their result applied to team Elo
+    apply_elos_in_date_order(created_matches)
 
     return {
         "imported": imported_matches,
@@ -287,6 +293,7 @@ def import_match_data(
     imported_matches = []
     updated_matches = []
     skipped_matches = []
+    created_matches = []
 
     # Extract matches from the API response
     matches = api_data.get("items", [])
@@ -519,6 +526,10 @@ def import_match_data(
             )
 
         imported_matches.append(str(match.id))
+        created_matches.append(match)
+
+    # Matches imported already completed need their result applied to team Elo
+    apply_elos_in_date_order(created_matches)
 
     return {
         "imported": imported_matches,
