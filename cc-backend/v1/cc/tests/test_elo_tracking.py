@@ -11,6 +11,7 @@ from cc.models import Competition, Event, EventMatch, Match, Participant, Season
 from cc.views import (
     apply_elos_in_date_order,
     calculate_new_elo,
+    import_match_data,
     import_regentsleague_match_data,
     save_match_and_sync_elo,
     update_faceit_match,
@@ -393,6 +394,55 @@ class ImportTests(EloTrackingTestCase):
         )
         self.assertEqual(self.elos(), [1000, 1200, 900])
         self.assertFalse(Match.objects.get().elo_applied)
+
+    def test_reimport_links_teams_by_platform_id_not_name(self):
+        # A new import gets a new competition, and the platform's team names no
+        # longer match ours (e.g. after a merge kept the other team's name)
+        new_competition = Competition.objects.create(name="Regents reimport")
+        teams_before = Team.objects.count()
+        import_regentsleague_match_data(
+            [self.regents_match(1, 1, 2, 1, "2025-10-01T18:00:00Z")],
+            new_competition,
+            self.season,
+        )
+
+        self.assertEqual(Team.objects.count(), teams_before)
+        match = Match.objects.get()
+        self.assertEqual((match.team1_id, match.team2_id), (self.alpha.id, self.bravo.id))
+        self.assertEqual(self.elos()[0], calculate_new_elo(1000, 1200, 1.0))
+
+    def test_faceit_reimport_links_teams_by_faction_id(self):
+        Participant.objects.filter(team=self.alpha).update(faceit_id="f-alpha")
+        Participant.objects.filter(team=self.bravo).update(faceit_id="f-bravo")
+        new_competition = Competition.objects.create(name="Faceit reimport")
+        teams_before = Team.objects.count()
+        import_match_data(
+            {
+                "items": [
+                    {
+                        "match_id": "1-6f1c2a8e-4b1d-4c7e-9a52-0d3e8b7f1a90",
+                        "status": "FINISHED",
+                        "finished_at": 1759341600,
+                        "teams": {
+                            "faction1": {"faction_id": "f-alpha", "name": "Old Alpha"},
+                            "faction2": {"faction_id": "f-bravo", "name": "Old Bravo"},
+                        },
+                        "results": {
+                            "winner": "faction2",
+                            "score": {"faction1": 0, "faction2": 1},
+                        },
+                    }
+                ]
+            },
+            new_competition,
+            self.season,
+            "faceit",
+        )
+
+        self.assertEqual(Team.objects.count(), teams_before)
+        match = Match.objects.get()
+        self.assertEqual(match.winner_id, self.bravo.id)
+        self.assertTrue(match.elo_applied)
 
     def test_bye_matches_are_skipped(self):
         bye = Team.objects.create(name="BYE", elo=1000)

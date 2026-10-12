@@ -538,6 +538,33 @@ def import_match_data(
     }
 
 
+def find_team_by_platform_id(faceit_id=None, playfly_id=None, regentsleague_id=None):
+    """
+    Find the team linked to a platform team ID through any competition's
+    participant record, preferring the most recent season.
+
+    Returns:
+        Team | None
+    """
+    query = models.Q()
+    if faceit_id:
+        query |= models.Q(faceit_id=faceit_id)
+    if playfly_id:
+        query |= models.Q(playfly_id=playfly_id)
+    if regentsleague_id:
+        query |= models.Q(regentsleague_id=regentsleague_id)
+    if not query:
+        return None
+
+    participant = (
+        Participant.objects.filter(query, team__isnull=False)
+        .select_related("team")
+        .order_by(models.F("season__start_date").desc(nulls_last=True))
+        .first()
+    )
+    return participant.team if participant else None
+
+
 def get_or_create_team(team_data, competition, season, platform):
     """
     Helper function to get or create a team from API data
@@ -612,12 +639,24 @@ def get_or_create_team(team_data, competition, season, platform):
         team = existing_participant.team
         return team, False
 
-    # If no existing participant found, try to find an existing team by name
-    try:
-        team = Team.objects.get(name=team_name)
-    except Team.DoesNotExist:
-        # Create new team
-        team = Team.objects.create(name=team_name, picture=team_avatar)
+    # Every import creates a new competition, so on a reimport the lookups above
+    # find nothing. Match the team by its platform ID from earlier competitions
+    # before falling back to its name, which may have changed (e.g. a merged
+    # team keeps the primary team's name). Playfly participant IDs are
+    # per-competition, so they aren't used here.
+    team = find_team_by_platform_id(
+        faceit_id=team_faceit_id,
+        playfly_id=team_playfly_id,
+        regentsleague_id=team_regentsleague_id,
+    )
+
+    # Otherwise try to find an existing team by name
+    if team is None:
+        try:
+            team = Team.objects.get(name=team_name)
+        except Team.DoesNotExist:
+            # Create new team
+            team = Team.objects.create(name=team_name, picture=team_avatar)
 
     # Create participant record to link team to competition and season
     participant_defaults = {}
