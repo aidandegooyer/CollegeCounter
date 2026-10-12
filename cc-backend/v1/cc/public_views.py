@@ -17,6 +17,7 @@ from .models import (
     Participant,
     Ranking,
     RankingItem,
+    Competition,
 )
 from .views.elo import match_elo_data
 
@@ -646,11 +647,12 @@ def public_matches(request):
 
     if date_to:
         try:
-            # Try parsing as full datetime first (ISO format)
-            to_date = parse_datetime(date_to)
-            # If that fails, try parsing as date and add end of day time
-            if not to_date:
+            # A bare date (YYYY-MM-DD) includes the whole day; parse_datetime
+            # would otherwise accept it as midnight and drop that day's matches
+            if len(date_to) == 10:
                 to_date = parse_datetime(f"{date_to}T23:59:59Z")
+            else:
+                to_date = parse_datetime(date_to)
             if to_date:
                 query &= Q(date__lte=to_date)
         except Exception:
@@ -682,8 +684,9 @@ def public_matches(request):
             )
 
     if competition_name:
-        # Filter by competition name using the relationship
-        query &= Q(competition__name__icontains=competition_name)
+        # Exact (case-insensitive) name match, so duplicate competitions that
+        # share a name are filtered together
+        query &= Q(competition__name__iexact=competition_name.strip())
 
     if event_id:
         try:
@@ -876,6 +879,42 @@ def public_seasons(request):
         )
 
     return Response(result)
+
+
+@api_view(["GET"])
+def public_competitions(request):
+    """
+    Public API endpoint to fetch competition names.
+
+    Competitions can be duplicated (e.g. when a swiss event is re-imported), so
+    results are deduplicated by name (case-insensitive). Filter matches by
+    competition with public_matches' competition_name parameter.
+
+    Query Parameters:
+    - season_id: Only competitions with matches in this season
+
+    Returns {"results": [{"name": ...}]} sorted by name.
+    """
+    season_id = request.query_params.get("season_id", "")
+
+    competitions = Competition.objects.all()
+    if season_id:
+        try:
+            uuid.UUID(season_id)
+        except ValueError:
+            return Response(
+                {"error": "Invalid season_id format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        competitions = competitions.filter(matches__season_id=season_id)
+
+    names = {}
+    for name in competitions.values_list("name", flat=True).distinct():
+        names.setdefault(name.strip().lower(), name.strip())
+
+    return Response(
+        {"results": [{"name": name} for name in sorted(names.values(), key=str.lower)]}
+    )
 
 
 @api_view(["GET"])

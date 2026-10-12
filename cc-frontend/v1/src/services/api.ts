@@ -868,6 +868,14 @@ export interface MatchQueryParams {
   event_id?: string;
 }
 
+export interface CompetitionQueryParams {
+  season_id?: string;
+}
+
+export interface PublicCompetition {
+  name: string;
+}
+
 export interface SeasonQueryParams {
   id?: string | string[];
   current?: boolean;
@@ -965,6 +973,17 @@ export const fetchPublicSeasons = async (
   const queryString = convertToQueryString(params);
   const response = await api.get(
     `/public/seasons${queryString ? `?${queryString}` : ""}`,
+  );
+  return response.data;
+};
+
+// Competition names, deduplicated by name (re-imported competitions share one)
+export const fetchPublicCompetitions = async (
+  params: CompetitionQueryParams = {},
+): Promise<{ results: PublicCompetition[] }> => {
+  const queryString = convertToQueryString(params);
+  const response = await api.get(
+    `/public/competitions${queryString ? `?${queryString}` : ""}`,
   );
   return response.data;
 };
