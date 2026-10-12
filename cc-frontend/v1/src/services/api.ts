@@ -141,6 +141,12 @@ export interface ImportMatchesResponse {
   new_match_ids: string[];
   updated_match_ids: string[];
   skipped_match_ids: string[];
+  // Participant matcher picks the import couldn't apply
+  skipped_participant_matches?: Array<{
+    key: string;
+    name: string | null; // The platform team's name, when known
+    reason: string;
+  }>;
 }
 
 export interface Participant {
@@ -290,6 +296,41 @@ export const fetchAllPlayers = async (): Promise<Player[]> => {
 
 export const fetchAllMatches = async (): Promise<Match[]> => {
   const response = await api.get(`/matches/`);
+  return response.data;
+};
+
+export interface ResolvedTeamSummary {
+  id: string;
+  name: string;
+  school_name?: string | null;
+  picture?: string | null;
+  elo: number;
+}
+
+export interface ResolvedImportTeam {
+  key: string; // Platform team ID, or "name:<name>" when the platform gives none
+  name: string;
+  roster_size: number;
+  match: {
+    team: ResolvedTeamSummary;
+    method: "platform_id" | "name";
+  } | null;
+  ambiguous: boolean; // Several existing teams share this name
+  suggestions: Array<{
+    team: ResolvedTeamSummary;
+    roster_overlap: number;
+    name_score: number;
+  }>;
+}
+
+// Dry run of an import's team matching: which teams link to existing ones and
+// which would be created new
+export const resolveImportTeams = async (request: {
+  platform: ImportMatchesRequest["platform"];
+  season_id: string;
+  data: any;
+}): Promise<{ teams: ResolvedImportTeam[] }> => {
+  const response = await api.post(`/import-matches/resolve-teams/`, request);
   return response.data;
 };
 

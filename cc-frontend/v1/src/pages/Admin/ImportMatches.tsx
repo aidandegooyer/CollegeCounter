@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import {
@@ -18,7 +20,8 @@ import {
   createEvent,
   importMatches,
   fetchFaceitMatches,
-  fetchParticipants,
+  fetchAllTeams,
+  resolveImportTeams,
   fetchLeagueSpotSeason,
   fetchLeagueSpotStage,
   fetchLeagueSpotRoundMatches,
@@ -28,7 +31,13 @@ import {
   fetchRegentsLeagueMatches,
 } from "@/services/api";
 
-import type { Season, Team, PublicEvent } from "@/services/api";
+import type {
+  Season,
+  Team,
+  PublicEvent,
+  ImportMatchesRequest,
+  ResolvedImportTeam,
+} from "@/services/api";
 
 function SelectPlatform({
   platform,
@@ -830,190 +839,393 @@ function ImportPreview({
   );
 }
 
+// Roster overlap at which a suggestion is pre-selected instead of "create new"
+const AUTO_SELECT_MIN_OVERLAP = 2;
+
+// Existing team picked for each unmatched platform team, by team key. null is
+// an explicit "create new team"; a missing key hasn't been looked at yet.
+type MatcherChoices = Record<string, string | null>;
+
+// Several platform teams that would import as one team
+interface MergeGroup {
+  id: string; // Changes when the teams in the group change, so it's reconfirmed
+  label: string; // What they'd import as
+  teams: ResolvedImportTeam[];
+}
+
+function suggestionReason(
+  suggestion: ResolvedImportTeam["suggestions"][number],
+  rosterSize: number,
+) {
+  if (suggestion.roster_overlap > 0) {
+    return `${suggestion.roster_overlap}/${rosterSize} players already on this team`;
+  }
+  return `Name ${Math.round(suggestion.name_score * 100)}% similar`;
+}
+
+// Teams the platform gives no ID for can't be linked before import
+function isLinkable(team: ResolvedImportTeam) {
+  return !team.key.startsWith("name:");
+}
+
+// The import fails on an ambiguous team unless an existing team is picked
+function blocksImport(team: ResolvedImportTeam, choices: MatcherChoices) {
+  return team.ambiguous && (!isLinkable(team) || !choices[team.key]);
+}
+
+// The existing team id a platform team will import as, if any
+function targetTeamId(team: ResolvedImportTeam, choices: MatcherChoices) {
+  if (team.match) return team.match.team.id;
+  return isLinkable(team) ? choices[team.key] || undefined : undefined;
+}
+
+// Platform teams that would import as the same team: picked or matched to the
+// same existing team, or created new under the same name (the import matches
+// the second to the first by name)
+function findMergeGroups(
+  teams: ResolvedImportTeam[],
+  choices: MatcherChoices,
+  allTeams: Team[],
+): MergeGroup[] {
+  const groups = new Map<
+    string,
+    { label: string; teams: ResolvedImportTeam[] }
+  >();
+  teams.forEach((team) => {
+    if (blocksImport(team, choices)) return;
+    const teamId = targetTeamId(team, choices);
+    let target: string;
+    let label: string;
+    if (teamId) {
+      const existing =
+        team.match?.team ??
+        allTeams.find((t) => t.id === teamId) ??
+        team.suggestions.find((s) => s.team.id === teamId)?.team;
+      target = `team:${teamId}`;
+      label = existing
+        ? `${existing.name} (${existing.elo} Elo)`
+        : "the same team";
+    } else {
+      target = `new:${team.name}`;
+      label = `one new team named "${team.name}"`;
+    }
+    const group = groups.get(target) ?? { label, teams: [] };
+    group.teams.push(team);
+    groups.set(target, group);
+  });
+
+  return Array.from(groups.entries())
+    .filter(([, group]) => group.teams.length > 1)
+    .map(([target, group]) => ({
+      id: `${target}|${group.teams
+        .map((t) => t.key)
+        .sort()
+        .join(",")}`,
+      label: group.label,
+      teams: group.teams,
+    }));
+}
+
+// Turn matcher choices into the import's participant_matches
+function participantMatchesFromChoices(
+  choices: MatcherChoices,
+  platform: string,
+): Record<string, string> {
+  const matches: Record<string, string> = {};
+  Object.entries(choices).forEach(([key, teamId]) => {
+    if (teamId && !key.startsWith("name:")) {
+      matches[`platform:${platform}:id:${key}`] = teamId;
+    }
+  });
+  return matches;
+}
+
+function UnmatchedTeamCard({
+  team,
+  allTeams,
+  choice,
+  usedBy,
+  onChoose,
+}: {
+  team: ResolvedImportTeam;
+  allTeams: Team[];
+  choice: string | null | undefined;
+  // Existing team id -> names of the other platform teams importing as it
+  usedBy: Record<string, string[]>;
+  onChoose: (teamId: string | null) => void;
+}) {
+  const [search, setSearch] = useState("");
+
+  const query = search.trim().toLowerCase();
+  const searchResults = query
+    ? allTeams.filter((t) => t.name.toLowerCase().includes(query)).slice(0, 8)
+    : [];
+  const chosenFromSearch =
+    choice && !team.suggestions.some((s) => s.team.id === choice)
+      ? allTeams.find((t) => t.id === choice)
+      : undefined;
+
+  const option = (
+    teamId: string,
+    content: ReactNode,
+    elo: number,
+    onSelect?: () => void,
+  ) => {
+    const others = usedBy[teamId];
+    return (
+      <div
+        key={teamId}
+        className={`hover:bg-muted/50 flex cursor-pointer items-center justify-between border-b p-2 ${choice === teamId ? "bg-muted" : ""}`}
+        onClick={() => {
+          onChoose(teamId);
+          onSelect?.();
+        }}
+      >
+        <div>
+          {content}
+          {others && (
+            <p className="text-sm text-amber-700">
+              Also importing as this team: {others.join(", ")}. Picking it
+              merges them.
+            </p>
+          )}
+        </div>
+        <span className="text-sm text-gray-600">{elo} Elo</span>
+      </div>
+    );
+  };
+
+  return (
+    <div className="rounded-md border p-4">
+      <div className="mb-2 flex items-baseline justify-between">
+        <h3 className="text-lg font-semibold">{team.name}</h3>
+        <span className="text-sm text-gray-600">
+          {team.roster_size} player{team.roster_size === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      {!isLinkable(team) ? (
+        <p
+          className={`text-sm ${team.ambiguous ? "text-red-600" : "text-gray-600"}`}
+        >
+          {team.ambiguous
+            ? `The platform gives no ID for this team and several existing teams are named "${team.name}", so the import will fail. Merge the duplicate teams first.`
+            : "The platform gives no ID for this team, so it can't be linked before import. A new team will be created; merge it afterwards if needed."}
+        </p>
+      ) : (
+        <>
+          {team.ambiguous && (
+            <p className="mb-2 text-sm text-red-600">
+              Several existing teams are named "{team.name}". Pick one to
+              import.
+            </p>
+          )}
+
+          {team.suggestions.map((suggestion) =>
+            option(
+              suggestion.team.id,
+              <>
+                <p className="font-semibold">{suggestion.team.name}</p>
+                <p className="text-sm text-gray-600">
+                  {suggestionReason(suggestion, team.roster_size)}
+                </p>
+              </>,
+              suggestion.team.elo,
+            ),
+          )}
+
+          {chosenFromSearch &&
+            option(
+              chosenFromSearch.id,
+              <p className="font-semibold">{chosenFromSearch.name}</p>,
+              chosenFromSearch.elo,
+            )}
+
+          {!team.ambiguous && (
+            <div
+              className={`hover:bg-muted/50 cursor-pointer border-b p-2 ${!choice ? "bg-muted" : ""}`}
+              onClick={() => onChoose(null)}
+            >
+              <p className="font-semibold">Create new team</p>
+            </div>
+          )}
+
+          <Input
+            placeholder="Search all teams..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="mt-3"
+          />
+          {searchResults.map((result) =>
+            option(
+              result.id,
+              <>
+                <p className="font-semibold">{result.name}</p>
+                <p className="text-sm text-gray-600">
+                  {result.school_name || "School not specified"}
+                </p>
+              </>,
+              result.elo,
+              () => setSearch(""),
+            ),
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function ParticipantMatcher({
   previewData,
   platform,
+  selectedSeason,
   isLoading,
   setIsLoading,
-  setParticipantMatches,
+  choices,
+  setChoices,
+  confirmedMerges,
+  setConfirmedMerges,
+  setReady,
 }: {
   previewData: any;
   platform: string;
   selectedSeason: string;
-  competitionName: string;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
-  setParticipantMatches: (matches: Record<string, string>) => void;
+  // Owned by the parent, so picks and confirmations survive moving between steps
+  choices: MatcherChoices;
+  setChoices: Dispatch<SetStateAction<MatcherChoices>>;
+  confirmedMerges: string[]; // MergeGroup ids
+  setConfirmedMerges: Dispatch<SetStateAction<string[]>>;
+  // Whether the import can safely run with the current choices
+  setReady: (ready: boolean) => void;
 }) {
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [resolvedTeams, setResolvedTeams] = useState<ResolvedImportTeam[]>([]);
+  const [allTeams, setAllTeams] = useState<Team[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string>("");
-  const [participantSelections, setParticipantSelections] = useState<
-    Record<string, string>
-  >({});
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [participantSearchQuery, setParticipantSearchQuery] =
-    useState<string>("");
-  const [unidentifiedTeams, setUnidentifiedTeams] = useState<
-    Array<{ name: string; id?: string; selected?: boolean }>
-  >([]);
-  const [selectedPlatformTeam, setSelectedPlatformTeam] = useState<
-    string | null
-  >(null);
-  const [selectedExistingTeam, setSelectedExistingTeam] = useState<
-    string | null
-  >(null);
-  const [matchedTeams, setMatchedTeams] = useState<
-    Array<{
-      platformTeam: string;
-      existingTeam: string;
-      existingTeamId: string;
-    }>
-  >([]);
+  const [attempt, setAttempt] = useState(0);
+  const [showMatched, setShowMatched] = useState(false);
 
   useEffect(() => {
-    const fetchParticipantData = async () => {
+    if (!previewData) return;
+    // Ignore a response that arrives after the inputs changed
+    let cancelled = false;
+
+    const resolveTeams = async () => {
       setIsLoading(true);
+      setLoaded(false);
+      setError("");
       try {
-        // Get existing teams and participants
-        const data = await fetchParticipants();
-        setTeams(data.teams);
+        // Dry run of the import's own team lookup, so only the teams it would
+        // not link to an existing team need attention
+        const [resolved, teams] = await Promise.all([
+          resolveImportTeams({
+            platform: platform as ImportMatchesRequest["platform"],
+            season_id: selectedSeason,
+            data: previewData,
+          }),
+          fetchAllTeams(),
+        ]);
+        if (cancelled) return;
+        setResolvedTeams(resolved.teams);
+        setAllTeams(teams);
 
-        // Extract unique team names from the preview data that don't have matches
-        if (previewData && platform === "faceit") {
-          const matches = previewData.items || [];
-          const teamNames = new Set<string>();
-
-          matches.forEach((match: any) => {
-            const teams = match.teams || {};
-            Object.values(teams).forEach((team: any) => {
-              if (team && team.name) {
-                teamNames.add(team.name);
-              }
-            });
-          });
-
-          setUnidentifiedTeams(
-            Array.from(teamNames).map((name) => ({ name, selected: false })),
+        // Pre-select suggestions backed by the roster, keeping earlier picks.
+        // Never pre-select a team another platform team already imports as:
+        // merges are only made by an explicit pick and confirmation.
+        setChoices((prev) => {
+          const next = { ...prev };
+          const used = new Set(
+            resolved.teams
+              .map((team) => targetTeamId(team, next))
+              .filter(Boolean),
           );
-        } else if (previewData && platform === "leaguespot") {
-          // Extract unique team names from the converted LeagueSpot/Playfly data
-          const matches = previewData.items || [];
-          const teamNames = new Set<string>();
-
-          matches.forEach((match: any) => {
-            const teams = match.teams || {};
-            Object.values(teams).forEach((team: any) => {
-              if (team && team.name) {
-                teamNames.add(team.name);
-              }
-            });
+          resolved.teams.forEach((team) => {
+            const top = team.suggestions[0];
+            if (
+              !team.match &&
+              isLinkable(team) &&
+              !(team.key in next) &&
+              top?.roster_overlap >= AUTO_SELECT_MIN_OVERLAP &&
+              !used.has(top.team.id)
+            ) {
+              next[team.key] = top.team.id;
+              used.add(top.team.id);
+            }
           });
-
-          setUnidentifiedTeams(
-            Array.from(teamNames).map((name) => ({ name, selected: false })),
-          );
-        }
+          return next;
+        });
+        setLoaded(true);
       } catch (err: any) {
-        setError(
-          err.response?.data?.error || "Failed to fetch participant data",
-        );
+        if (cancelled) return;
+        setError(err.response?.data?.error || "Failed to check teams");
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
-    fetchParticipantData();
-  }, [previewData, platform, setIsLoading]);
+    resolveTeams();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    previewData,
+    platform,
+    selectedSeason,
+    setIsLoading,
+    setChoices,
+    attempt,
+  ]);
 
-  const handlePlatformTeamSelect = (teamName: string) => {
-    setSelectedPlatformTeam(teamName);
-    setSelectedExistingTeam(null); // Reset existing team selection when platform team changes
+  const unmatched = resolvedTeams.filter((team) => !team.match);
+  const matched = resolvedTeams.filter((team) => team.match);
+  const blocking = unmatched.filter((team) => blocksImport(team, choices));
+  const mergeGroups = findMergeGroups(resolvedTeams, choices, allTeams);
+  const unconfirmedMerges = mergeGroups.filter(
+    (group) => !confirmedMerges.includes(group.id),
+  );
+  // Distinct new teams: same-name new teams import as one
+  const newTeamCount = new Set(
+    unmatched
+      .filter((team) => !team.ambiguous && !targetTeamId(team, choices))
+      .map((team) => team.name),
+  ).size;
+
+  // Importing without a successful check would create every unmatched team
+  // as a duplicate, an ambiguous team without a pick fails the import, and
+  // merges must be confirmed
+  const ready =
+    loaded && !error && blocking.length === 0 && unconfirmedMerges.length === 0;
+  useEffect(() => {
+    setReady(ready);
+  }, [ready, setReady]);
+
+  const choose = (key: string, teamId: string | null) => {
+    setChoices((prev) => ({ ...prev, [key]: teamId }));
   };
 
-  const handleExistingTeamSelect = (teamId: string) => {
-    setSelectedExistingTeam(teamId);
+  const toggleMerge = (id: string, confirmed: boolean) => {
+    setConfirmedMerges((prev) =>
+      confirmed ? [...prev, id] : prev.filter((m) => m !== id),
+    );
   };
 
-  const handleAddMatch = () => {
-    if (selectedPlatformTeam && selectedExistingTeam) {
-      // Get the name of the selected existing team
-      const existingTeam = teams.find((t) => t.id === selectedExistingTeam);
-      if (!existingTeam) return;
-
-      // Add to matched teams
-      setMatchedTeams((prev) => [
-        ...prev,
-        {
-          platformTeam: selectedPlatformTeam,
-          existingTeam: existingTeam.name,
-          existingTeamId: existingTeam.id,
-        },
-      ]);
-
-      // Remove the platform team from unidentified teams
-      setUnidentifiedTeams((prev) =>
-        prev.filter((team) => team.name !== selectedPlatformTeam),
-      );
-
-      // Reset selections
-      setSelectedPlatformTeam(null);
-      setSelectedExistingTeam(null);
-
-      // Update participant selections (this will be used for the actual import)
-      setParticipantSelections((prev) => {
-        // For now, we're just building a placeholder participant ID since we don't have actual
-        // participant IDs before the import. We'll use a special format that the backend can parse.
-        const placeholderId = `platform:${platform}:team:${selectedPlatformTeam}`;
-        return {
-          ...prev,
-          [placeholderId]: selectedExistingTeam,
-        };
-      });
-    }
-  };
-
-  const handleRemoveMatch = (index: number) => {
-    const removedMatch = matchedTeams[index];
-
-    // Add the platform team back to unidentified teams
-    setUnidentifiedTeams((prev) => [
-      ...prev,
-      { name: removedMatch.platformTeam, selected: false },
-    ]);
-
-    // Remove from matched teams
-    setMatchedTeams((prev) => prev.filter((_, i) => i !== index));
-
-    // Remove from participant selections
-    setParticipantSelections((prev) => {
-      const newSelections = { ...prev };
-      const placeholderId = `platform:${platform}:team:${removedMatch.platformTeam}`;
-      delete newSelections[placeholderId];
-      return newSelections;
+  // Existing team id -> the other platform teams importing as it
+  const usedByOthers = (key: string) => {
+    const used: Record<string, string[]> = {};
+    resolvedTeams.forEach((team) => {
+      const teamId = targetTeamId(team, choices);
+      if (team.key !== key && teamId) {
+        (used[teamId] ??= []).push(team.name);
+      }
     });
+    return used;
   };
-
-  const confirmMatches = () => {
-    setParticipantMatches(participantSelections);
-  };
-
-  // Filter teams by search query
-  const filteredTeams = teams.filter((team) =>
-    team.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
-  // Filter unidentified teams
-  const filteredUnidentifiedTeams = unidentifiedTeams.filter((team) =>
-    team.name.toLowerCase().includes(participantSearchQuery.toLowerCase()),
-  );
 
   return (
     <div className="mb-8 flex flex-col items-center justify-center space-y-4">
       <h1 className="text-3xl">Participant Matcher</h1>
-      <p className="mb-4 text-center text-gray-600">
-        Match the teams from the {platform} platform with existing teams in your
-        database to prevent duplicates.
-      </p>
 
       {isLoading ? (
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
@@ -1021,135 +1233,124 @@ function ParticipantMatcher({
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>
+            {error}. Importing is disabled until teams are checked.
+            <Button
+              variant="outline"
+              className="mt-2"
+              onClick={() => setAttempt((prev) => prev + 1)}
+            >
+              Retry
+            </Button>
+          </AlertDescription>
         </Alert>
       ) : (
-        <>
-          <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2">
-            {/* Left side: New teams from the platform */}
-            <div className="rounded-md border p-4">
-              <h2 className="mb-2 text-xl font-semibold">
-                Teams from {platform}
-              </h2>
-              <Input
-                placeholder="Search teams..."
-                value={participantSearchQuery}
-                onChange={(e) => setParticipantSearchQuery(e.target.value)}
-                className="mb-4"
-              />
-              <div className="max-h-80 overflow-y-auto">
-                {filteredUnidentifiedTeams.length > 0 ? (
-                  filteredUnidentifiedTeams.map((team, index) => (
-                    <div
-                      key={index}
-                      className={`hover:bg-muted/50 cursor-pointer border-b p-2 ${selectedPlatformTeam === team.name ? "bg-muted" : ""}`}
-                      onClick={() => handlePlatformTeamSelect(team.name)}
-                    >
-                      <p className="font-semibold">{team.name}</p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="py-4 text-center text-gray-500">
-                    No teams found from {platform}
-                  </p>
-                )}
-              </div>
+        <div className="w-full space-y-4">
+          {mergeGroups.length > 0 && (
+            <div className="rounded-md border border-amber-500 p-4">
+              <h2 className="mb-1 text-lg font-semibold">Confirm merges</h2>
+              <p className="mb-3 text-sm text-gray-600">
+                These platform teams would import as one team, combining their
+                matches and Elo. Confirm each merge, or change the picks below.
+                A merged team may be asked about again in later rounds.
+              </p>
+              {mergeGroups.map((group) => (
+                <label
+                  key={group.id}
+                  className="flex cursor-pointer items-start gap-2 border-t py-2"
+                >
+                  <Checkbox
+                    className="mt-1"
+                    checked={confirmedMerges.includes(group.id)}
+                    onCheckedChange={(checked) =>
+                      toggleMerge(group.id, checked === true)
+                    }
+                  />
+                  <span>
+                    Merge{" "}
+                    <strong>
+                      {group.teams.map((team) => team.name).join(" and ")}
+                    </strong>{" "}
+                    into {group.label}
+                  </span>
+                </label>
+              ))}
             </div>
+          )}
 
-            {/* Right side: Existing teams in database */}
+          {unmatched.length === 0 ? (
+            <Alert variant="default">
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertTitle>All teams matched</AlertTitle>
+              <AlertDescription>
+                All {resolvedTeams.length} teams link to existing teams.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              <p className="text-center text-gray-600">
+                {matched.length} of {resolvedTeams.length} teams link to
+                existing teams. Review the {unmatched.length} below; the import
+                will create {newTeamCount} new team
+                {newTeamCount === 1 ? "" : "s"}.
+              </p>
+              {blocking.length > 0 && (
+                <p className="text-center text-red-600">
+                  {blocking.length} team{blocking.length === 1 ? "" : "s"} must
+                  be resolved before importing.
+                </p>
+              )}
+              {unmatched.map((team) => (
+                <UnmatchedTeamCard
+                  key={team.key}
+                  team={team}
+                  allTeams={allTeams}
+                  choice={choices[team.key]}
+                  usedBy={usedByOthers(team.key)}
+                  onChoose={(teamId) => choose(team.key, teamId)}
+                />
+              ))}
+            </>
+          )}
+
+          {matched.length > 0 && (
             <div className="rounded-md border p-4">
-              <h2 className="mb-2 text-xl font-semibold">Existing Teams</h2>
-              <Input
-                placeholder="Search existing teams..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="mb-4"
-              />
-              <div className="max-h-80 overflow-y-auto">
-                {filteredTeams.length > 0 ? (
-                  filteredTeams.map((team) => (
-                    <div
-                      key={team.id}
-                      className={`hover:bg-muted/50 cursor-pointer border-b p-2 ${selectedExistingTeam === team.id ? "bg-muted" : ""}`}
-                      onClick={() => handleExistingTeamSelect(team.id)}
-                    >
-                      <div className="flex items-center">
-                        {team.picture && (
-                          <img
-                            src={team.picture}
-                            alt={team.name}
-                            className="mr-2 h-8 w-8 rounded-full"
-                          />
-                        )}
-                        <p className="font-semibold">{team.name}</p>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        {team.school_name || "School not specified"}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="py-4 text-center text-gray-500">
-                    No existing teams found
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Match button */}
-          <div className="flex w-full justify-center">
-            <Button
-              onClick={handleAddMatch}
-              disabled={!selectedPlatformTeam || !selectedExistingTeam}
-              className="mt-2"
-            >
-              Match Teams
-            </Button>
-          </div>
-
-          {/* Matched teams display */}
-          {matchedTeams.length > 0 && (
-            <div className="mt-4 w-full rounded-md border p-4">
-              <h2 className="mb-2 text-xl font-semibold">Matched Teams</h2>
-              <div className="max-h-60 overflow-y-auto">
-                <table className="w-full">
+              <button
+                className="w-full cursor-pointer text-left font-semibold"
+                onClick={() => setShowMatched((prev) => !prev)}
+              >
+                {showMatched ? "Hide" : "Show"} {matched.length} matched team
+                {matched.length === 1 ? "" : "s"}
+              </button>
+              {showMatched && (
+                <table className="mt-2 w-full">
                   <thead>
                     <tr className="border-b">
                       <th className="p-2 text-left">Platform Team</th>
                       <th className="p-2 text-left">Existing Team</th>
-                      <th className="p-2 text-right">Actions</th>
+                      <th className="p-2 text-right">Matched By</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {matchedTeams.map((match, index) => (
-                      <tr key={index} className="border-b hover:bg-gray-50">
-                        <td className="p-2">{match.platformTeam}</td>
-                        <td className="p-2">{match.existingTeam}</td>
-                        <td className="p-2 text-right">
-                          <button
-                            onClick={() => handleRemoveMatch(index)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            Remove
-                          </button>
+                    {matched.map((team) => (
+                      <tr key={team.key} className="border-b">
+                        <td className="p-2">{team.name}</td>
+                        <td className="p-2">
+                          {team.match!.team.name} ({team.match!.team.elo})
+                        </td>
+                        <td className="p-2 text-right text-sm text-gray-600">
+                          {team.match!.method === "platform_id"
+                            ? "Platform ID"
+                            : "Name"}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
+              )}
             </div>
           )}
-
-          <Button
-            onClick={confirmMatches}
-            disabled={isLoading}
-            className="mt-4"
-          >
-            Continue with Import
-          </Button>
-        </>
+        </div>
       )}
     </div>
   );
@@ -1180,10 +1381,12 @@ function ImportMatches() {
       updated: number;
       skipped: number;
     };
+    // Participant matcher picks the import couldn't apply
+    warnings?: string[];
   }>({});
-  const [participantMatches, setParticipantMatches] = useState<
-    Record<string, string>
-  >({});
+  const [matcherChoices, setMatcherChoices] = useState<MatcherChoices>({});
+  const [confirmedMerges, setConfirmedMerges] = useState<string[]>([]);
+  const [matcherReady, setMatcherReady] = useState(false);
 
   // Fetch seasons on component mount
   useEffect(() => {
@@ -1324,6 +1527,9 @@ function ImportMatches() {
           // LeagueSpot filtering is already done in convertLeagueSpotDataToSchema
         }
         setPreviewData(data);
+        // Picks belong to the previous preview's teams
+        setMatcherChoices({});
+        setConfirmedMerges([]);
       } catch (error) {
         console.error("Failed to fetch preview data:", error);
         alert(
@@ -1346,7 +1552,10 @@ function ImportMatches() {
           competition_name: competitionName,
           season_id: selectedSeason,
           data: previewData,
-          participant_matches: participantMatches,
+          participant_matches: participantMatchesFromChoices(
+            matcherChoices,
+            platform,
+          ),
           event_id: eventType === "event" ? eventId : undefined,
           import_type: eventType as "league" | "event",
         });
@@ -1376,6 +1585,9 @@ function ImportMatches() {
             updated: result.matches_updated,
             skipped: result.matches_skipped,
           },
+          warnings: (result.skipped_participant_matches || []).map(
+            (pick) => `${pick.name || pick.key}: ${pick.reason}`,
+          ),
         });
       } catch (error: any) {
         console.error("Import failed:", error);
@@ -1515,10 +1727,13 @@ function ImportMatches() {
               previewData={previewData}
               platform={platform}
               selectedSeason={selectedSeason}
-              competitionName={competitionName}
               isLoading={isLoading}
               setIsLoading={setIsLoading}
-              setParticipantMatches={setParticipantMatches}
+              choices={matcherChoices}
+              setChoices={setMatcherChoices}
+              confirmedMerges={confirmedMerges}
+              setConfirmedMerges={setConfirmedMerges}
+              setReady={setMatcherReady}
             />
           );
         }
@@ -1530,10 +1745,13 @@ function ImportMatches() {
               previewData={previewData}
               platform={platform}
               selectedSeason={selectedSeason}
-              competitionName={competitionName}
               isLoading={isLoading}
               setIsLoading={setIsLoading}
-              setParticipantMatches={setParticipantMatches}
+              choices={matcherChoices}
+              setChoices={setMatcherChoices}
+              confirmedMerges={confirmedMerges}
+              setConfirmedMerges={setConfirmedMerges}
+              setReady={setMatcherReady}
             />
           );
         } else {
@@ -1613,7 +1831,8 @@ function ImportMatches() {
                         // Reset to championship ID step but keep event and season
                         setStep(4);
                         setPreviewData(null);
-                        setParticipantMatches({});
+                        setMatcherChoices({});
+                        setConfirmedMerges([]);
                         setImportStatus({});
                       }}
                       className="flex-1"
@@ -1741,6 +1960,25 @@ function ImportMatches() {
           </Alert>
         )}
 
+        {importStatus.warnings && importStatus.warnings.length > 0 && (
+          <Alert variant="default" className="mb-4 border-amber-500">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>
+              {importStatus.warnings.length} team pick
+              {importStatus.warnings.length === 1 ? "" : "s"} couldn't be
+              applied
+            </AlertTitle>
+            <AlertDescription>
+              These teams were imported as if unpicked, so check for duplicates:
+              <ul className="mt-1 list-inside list-disc">
+                {importStatus.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {renderStep()}
 
         <div className="mt-8 flex justify-between">
@@ -1755,9 +1993,12 @@ function ImportMatches() {
           )}
           <div className="flex-1"></div>
           <button
-            className="bg-primary cursor-pointer rounded-md p-2 px-4 text-white transition-all duration-300 hover:bg-[#b5670b]"
+            className="bg-primary cursor-pointer rounded-md p-2 px-4 text-white transition-all duration-300 hover:bg-[#b5670b] disabled:cursor-not-allowed disabled:opacity-50"
             onClick={nextStep}
-            disabled={isLoading}
+            disabled={
+              isLoading ||
+              (step === (eventType === "event" ? 6 : 5) && !matcherReady)
+            }
           >
             {isLoading
               ? "Loading..."

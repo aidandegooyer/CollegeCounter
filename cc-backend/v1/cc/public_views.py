@@ -326,9 +326,6 @@ def public_teams(request):
                 current_season = season
                 break
 
-        print(f"Today: {today}")
-        print(f"Current season: {current_season}")
-
         if current_season:
             # Get all the team's current participations in this season
             current_participants = (

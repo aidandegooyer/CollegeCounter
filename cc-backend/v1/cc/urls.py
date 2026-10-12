@@ -7,6 +7,11 @@ from . import webhooks
 urlpatterns = [
     path("", views.index, name="index"),
     path("import-matches/", views.import_matches, name="import_matches"),
+    path(
+        "import-matches/resolve-teams/",
+        views.resolve_import_teams,
+        name="resolve_import_teams",
+    ),
     path("seasons/", views.list_seasons, name="list_seasons"),
     path("seasons/create/", views.create_season, name="create_season"),
     path("events/create/", admin_views.create_event, name="create_event"),

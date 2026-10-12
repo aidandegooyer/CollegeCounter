@@ -25,6 +25,8 @@ from .imports import (  # noqa: F401
     import_matches,
     import_regentsleague_match_data,
     import_match_data,
+    resolve_import_teams,
+    resolve_team,
     get_or_create_team,
     process_player,
     match_participants,
