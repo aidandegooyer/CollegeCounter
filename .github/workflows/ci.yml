@@ -47,7 +47,7 @@ jobs:
       # blocks real HTTP so a missed mock fails instead of calling out.
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
         with:
@@ -84,7 +84,7 @@ jobs:
         working-directory: cc-frontend/v1
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -118,7 +118,7 @@ jobs:
           - name: frontend
             context: cc-frontend/v1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: docker/setup-buildx-action@v3
 
