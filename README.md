@@ -20,7 +20,7 @@ College Counter is a platform to view scores, rankings, and news for collegiate 
 ### Prerequisites
 
 - Node.js 18+ and npm (newest version preferred)
-- Python 3.9+ (newest version preferred)
+- Python 3.14 (matches the production Docker image; `uv` can install it for you)
 - PostgreSQL 15+ (newest version preferred)
 - Homebrew (macOS)
 
@@ -37,7 +37,7 @@ brew install postgresql@18
 # Install Node.js (if not already installed)
 brew install node
 
-# Install Python 3.9+ (if not already installed)
+# Install Python 3.14 (if not already installed; or let uv do it below)
 brew install python@3.14
 
 # Install uv (Python package manager)
@@ -113,14 +113,15 @@ uv run python manage.py migrate
 # Navigate to backend directory
 cd cc-backend/v1
 
-# Create virtual environment and install dependencies
+# Create virtual environment (Python 3.14, from .python-version) and install
+# dependencies. uv downloads Python 3.14 if it isn't installed.
 uv sync
 
 # Create .env file from example
 cp .env.example .env
 
 # Generate a Django secret key and update .env
-python -c 'from django.core.management.utils import get_random_secret_key; print(f"SECRET_KEY={get_random_secret_key()}")' >> .env
+uv run python -c 'from django.core.management.utils import get_random_secret_key; print(f"SECRET_KEY={get_random_secret_key()}")' >> .env
 
 # Run migrations
 uv run python manage.py migrate

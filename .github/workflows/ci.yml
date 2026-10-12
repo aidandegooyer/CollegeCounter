@@ -52,7 +52,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           # Matches the backend Dockerfile
-          python-version: "3.13"
+          python-version: "3.14"
           cache: pip
           cache-dependency-path: cc-backend/v1/requirements.txt
 
