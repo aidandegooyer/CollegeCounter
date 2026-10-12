@@ -4,7 +4,7 @@ CacheControl==0.14.4
 certifi==2025.1.31
 cffi==2.1.1
 charset-normalizer==3.5.2
-cryptography==45.0.6
+cryptography==50.0.2
 dj-database-url==3.1.2
 Django==5.2.1
 django-cors-headers==4.9.0
