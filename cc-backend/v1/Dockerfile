@@ -1,5 +1,5 @@
 # Use the official Python runtime image
-FROM python:3.13.7-alpine
+FROM python:3.14.8-alpine
 
 # Create the app directory
 RUN mkdir /app
