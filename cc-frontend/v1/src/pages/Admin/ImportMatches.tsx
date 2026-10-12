@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -840,6 +841,10 @@ function ImportPreview({
 // Roster overlap at which a suggestion is pre-selected instead of "create new"
 const AUTO_SELECT_MIN_OVERLAP = 2;
 
+// Existing team picked for each unmatched platform team, by team key. null is
+// an explicit "create new team"; a missing key hasn't been looked at yet.
+type MatcherChoices = Record<string, string | null>;
+
 function suggestionReason(
   suggestion: ResolvedImportTeam["suggestions"][number],
   rosterSize: number,
@@ -850,34 +855,86 @@ function suggestionReason(
   return `Name ${Math.round(suggestion.name_score * 100)}% similar`;
 }
 
+// Teams the platform gives no ID for can't be linked before import
+function isLinkable(team: ResolvedImportTeam) {
+  return !team.key.startsWith("name:");
+}
+
+// The import fails on an ambiguous team unless an existing team is picked
+function blocksImport(team: ResolvedImportTeam, choices: MatcherChoices) {
+  return team.ambiguous && (!isLinkable(team) || !choices[team.key]);
+}
+
+// Turn matcher choices into the import's participant_matches
+function participantMatchesFromChoices(
+  choices: MatcherChoices,
+  platform: string,
+): Record<string, string> {
+  const matches: Record<string, string> = {};
+  Object.entries(choices).forEach(([key, teamId]) => {
+    if (teamId) {
+      matches[`platform:${platform}:id:${key}`] = teamId;
+    }
+  });
+  return matches;
+}
+
 function UnmatchedTeamCard({
   team,
   allTeams,
   choice,
+  takenBy,
   onChoose,
 }: {
   team: ResolvedImportTeam;
   allTeams: Team[];
-  choice: string | undefined;
-  onChoose: (teamId: string | undefined) => void;
+  choice: string | null | undefined;
+  // Existing team id -> name of the other platform team it's picked for
+  takenBy: Record<string, string>;
+  onChoose: (teamId: string | null) => void;
 }) {
   const [search, setSearch] = useState("");
-  // Teams the platform gives no ID for can't be linked before import
-  const linkable = !team.key.startsWith("name:");
 
   const query = search.trim().toLowerCase();
   const searchResults = query
-    ? allTeams
-        .filter((t) => t.name.toLowerCase().includes(query))
-        .slice(0, 8)
+    ? allTeams.filter((t) => t.name.toLowerCase().includes(query)).slice(0, 8)
     : [];
   const chosenFromSearch =
     choice && !team.suggestions.some((s) => s.team.id === choice)
       ? allTeams.find((t) => t.id === choice)
       : undefined;
 
-  const optionClass = (selected: boolean) =>
-    `hover:bg-muted/50 flex cursor-pointer items-center justify-between border-b p-2 ${selected ? "bg-muted" : ""}`;
+  const option = (
+    teamId: string,
+    content: ReactNode,
+    elo: number,
+    onSelect?: () => void,
+  ) => {
+    const taken = takenBy[teamId];
+    return (
+      <div
+        key={teamId}
+        className={`flex items-center justify-between border-b p-2 ${
+          taken
+            ? "cursor-not-allowed opacity-50"
+            : "hover:bg-muted/50 cursor-pointer"
+        } ${choice === teamId ? "bg-muted" : ""}`}
+        onClick={() => {
+          if (taken) return;
+          onChoose(teamId);
+          onSelect?.();
+        }}
+      >
+        <div>
+          {content}
+          {taken && (
+            <p className="text-sm text-gray-600">Already picked for {taken}</p>
+          )}
+        </div>
+        <span className="text-sm text-gray-600">{elo} Elo</span>
+      </div>
+    );
+  };
 
   return (
     <div className="rounded-md border p-4">
@@ -888,51 +945,47 @@ function UnmatchedTeamCard({
         </span>
       </div>
 
-      {team.ambiguous && (
-        <p className="mb-2 text-sm text-red-600">
-          Several existing teams are named "{team.name}". Pick one, or the
-          import will fail.
-        </p>
-      )}
-
-      {!linkable ? (
-        <p className="text-sm text-gray-600">
-          The platform gives no ID for this team, so it can't be linked before
-          import. A new team will be created; merge it afterwards if needed.
+      {!isLinkable(team) ? (
+        <p
+          className={`text-sm ${team.ambiguous ? "text-red-600" : "text-gray-600"}`}
+        >
+          {team.ambiguous
+            ? `The platform gives no ID for this team and several existing teams are named "${team.name}", so the import will fail. Merge the duplicate teams first.`
+            : "The platform gives no ID for this team, so it can't be linked before import. A new team will be created; merge it afterwards if needed."}
         </p>
       ) : (
         <>
-          {team.suggestions.map((suggestion) => (
-            <div
-              key={suggestion.team.id}
-              className={optionClass(choice === suggestion.team.id)}
-              onClick={() => onChoose(suggestion.team.id)}
-            >
-              <div>
+          {team.ambiguous && (
+            <p className="mb-2 text-sm text-red-600">
+              Several existing teams are named "{team.name}". Pick one to
+              import.
+            </p>
+          )}
+
+          {team.suggestions.map((suggestion) =>
+            option(
+              suggestion.team.id,
+              <>
                 <p className="font-semibold">{suggestion.team.name}</p>
                 <p className="text-sm text-gray-600">
                   {suggestionReason(suggestion, team.roster_size)}
                 </p>
-              </div>
-              <span className="text-sm text-gray-600">
-                {suggestion.team.elo} Elo
-              </span>
-            </div>
-          ))}
-
-          {chosenFromSearch && (
-            <div className={optionClass(true)}>
-              <p className="font-semibold">{chosenFromSearch.name}</p>
-              <span className="text-sm text-gray-600">
-                {chosenFromSearch.elo} Elo
-              </span>
-            </div>
+              </>,
+              suggestion.team.elo,
+            ),
           )}
+
+          {chosenFromSearch &&
+            option(
+              chosenFromSearch.id,
+              <p className="font-semibold">{chosenFromSearch.name}</p>,
+              chosenFromSearch.elo,
+            )}
 
           {!team.ambiguous && (
             <div
-              className={optionClass(!choice)}
-              onClick={() => onChoose(undefined)}
+              className={`hover:bg-muted/50 cursor-pointer border-b p-2 ${!choice ? "bg-muted" : ""}`}
+              onClick={() => onChoose(null)}
             >
               <p className="font-semibold">Create new team</p>
             </div>
@@ -944,24 +997,19 @@ function UnmatchedTeamCard({
             onChange={(e) => setSearch(e.target.value)}
             className="mt-3"
           />
-          {searchResults.map((result) => (
-            <div
-              key={result.id}
-              className={optionClass(choice === result.id)}
-              onClick={() => {
-                onChoose(result.id);
-                setSearch("");
-              }}
-            >
-              <div>
+          {searchResults.map((result) =>
+            option(
+              result.id,
+              <>
                 <p className="font-semibold">{result.name}</p>
                 <p className="text-sm text-gray-600">
                   {result.school_name || "School not specified"}
                 </p>
-              </div>
-              <span className="text-sm text-gray-600">{result.elo} Elo</span>
-            </div>
-          ))}
+              </>,
+              result.elo,
+              () => setSearch(""),
+            ),
+          )}
         </>
       )}
     </div>
@@ -974,33 +1022,40 @@ function ParticipantMatcher({
   selectedSeason,
   isLoading,
   setIsLoading,
-  setParticipantMatches,
+  choices,
+  setChoices,
+  setReady,
 }: {
   previewData: any;
   platform: string;
   selectedSeason: string;
-  competitionName: string;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
-  setParticipantMatches: (matches: Record<string, string>) => void;
+  // Owned by the parent, so picks survive moving between steps
+  choices: MatcherChoices;
+  setChoices: Dispatch<SetStateAction<MatcherChoices>>;
+  // Whether the import can safely run with the current choices
+  setReady: (ready: boolean) => void;
 }) {
   const [resolvedTeams, setResolvedTeams] = useState<ResolvedImportTeam[]>([]);
   const [allTeams, setAllTeams] = useState<Team[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string>("");
-  // Existing team chosen for each unmatched platform team, by team key;
-  // no entry means the import creates a new team
-  const [choices, setChoices] = useState<Record<string, string>>({});
+  const [attempt, setAttempt] = useState(0);
   const [showMatched, setShowMatched] = useState(false);
 
   useEffect(() => {
     if (!previewData) return;
+    // Ignore a response that arrives after the inputs changed
+    let cancelled = false;
 
     const resolveTeams = async () => {
       setIsLoading(true);
+      setLoaded(false);
       setError("");
       try {
         // Dry run of the import's own team lookup, so only the teams it would
-        // create are shown
+        // not link to an existing team need attention
         const [resolved, teams] = await Promise.all([
           resolveImportTeams({
             platform: platform as ImportMatchesRequest["platform"],
@@ -1009,51 +1064,75 @@ function ParticipantMatcher({
           }),
           fetchAllTeams(),
         ]);
+        if (cancelled) return;
         setResolvedTeams(resolved.teams);
         setAllTeams(teams);
 
-        // Pre-select suggestions backed by the roster
-        const initialChoices: Record<string, string> = {};
-        resolved.teams.forEach((team) => {
-          const top = team.suggestions[0];
-          if (!team.match && top?.roster_overlap >= AUTO_SELECT_MIN_OVERLAP) {
-            initialChoices[team.key] = top.team.id;
-          }
+        // Pre-select suggestions backed by the roster, keeping earlier picks
+        setChoices((prev) => {
+          const next = { ...prev };
+          resolved.teams.forEach((team) => {
+            const top = team.suggestions[0];
+            if (
+              !team.match &&
+              !(team.key in next) &&
+              top?.roster_overlap >= AUTO_SELECT_MIN_OVERLAP
+            ) {
+              next[team.key] = top.team.id;
+            }
+          });
+          return next;
         });
-        setChoices(initialChoices);
+        setLoaded(true);
       } catch (err: any) {
+        if (cancelled) return;
         setError(err.response?.data?.error || "Failed to check teams");
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     resolveTeams();
-  }, [previewData, platform, selectedSeason, setIsLoading]);
-
-  // Keep the import's participant matches in sync with the choices
-  useEffect(() => {
-    const matches: Record<string, string> = {};
-    Object.entries(choices).forEach(([key, teamId]) => {
-      matches[`platform:${platform}:id:${key}`] = teamId;
-    });
-    setParticipantMatches(matches);
-  }, [choices, platform, setParticipantMatches]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    previewData,
+    platform,
+    selectedSeason,
+    setIsLoading,
+    setChoices,
+    attempt,
+  ]);
 
   const unmatched = resolvedTeams.filter((team) => !team.match);
   const matched = resolvedTeams.filter((team) => team.match);
-  const newTeamCount = unmatched.filter((team) => !choices[team.key]).length;
+  const blocking = unmatched.filter((team) => blocksImport(team, choices));
+  const newTeamCount = unmatched.filter(
+    (team) => !team.ambiguous && !choices[team.key],
+  ).length;
 
-  const choose = (key: string, teamId: string | undefined) => {
-    setChoices((prev) => {
-      const next = { ...prev };
-      if (teamId) {
-        next[key] = teamId;
-      } else {
-        delete next[key];
+  // Importing without a successful check would create every unmatched team
+  // as a duplicate, and an ambiguous team without a pick fails the import
+  const ready = loaded && !error && blocking.length === 0;
+  useEffect(() => {
+    setReady(ready);
+  }, [ready, setReady]);
+
+  const choose = (key: string, teamId: string | null) => {
+    setChoices((prev) => ({ ...prev, [key]: teamId }));
+  };
+
+  // Existing teams already picked, so the same one isn't picked twice
+  const takenByKey = (key: string) => {
+    const taken: Record<string, string> = {};
+    unmatched.forEach((team) => {
+      const teamId = choices[team.key];
+      if (team.key !== key && teamId) {
+        taken[teamId] = team.name;
       }
-      return next;
     });
+    return taken;
   };
 
   return (
@@ -1066,7 +1145,16 @@ function ParticipantMatcher({
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>
+            {error}. Importing is disabled until teams are checked.
+            <Button
+              variant="outline"
+              className="mt-2"
+              onClick={() => setAttempt((prev) => prev + 1)}
+            >
+              Retry
+            </Button>
+          </AlertDescription>
         </Alert>
       ) : (
         <div className="w-full space-y-4">
@@ -1086,12 +1174,19 @@ function ParticipantMatcher({
                 will create {newTeamCount} new team
                 {newTeamCount === 1 ? "" : "s"}.
               </p>
+              {blocking.length > 0 && (
+                <p className="text-center text-red-600">
+                  {blocking.length} team{blocking.length === 1 ? "" : "s"} must
+                  be resolved before importing.
+                </p>
+              )}
               {unmatched.map((team) => (
                 <UnmatchedTeamCard
                   key={team.key}
                   team={team}
                   allTeams={allTeams}
                   choice={choices[team.key]}
+                  takenBy={takenByKey(team.key)}
                   onChoose={(teamId) => choose(team.key, teamId)}
                 />
               ))}
@@ -1167,9 +1262,8 @@ function ImportMatches() {
       skipped: number;
     };
   }>({});
-  const [participantMatches, setParticipantMatches] = useState<
-    Record<string, string>
-  >({});
+  const [matcherChoices, setMatcherChoices] = useState<MatcherChoices>({});
+  const [matcherReady, setMatcherReady] = useState(false);
 
   // Fetch seasons on component mount
   useEffect(() => {
@@ -1310,6 +1404,8 @@ function ImportMatches() {
           // LeagueSpot filtering is already done in convertLeagueSpotDataToSchema
         }
         setPreviewData(data);
+        // Picks belong to the previous preview's teams
+        setMatcherChoices({});
       } catch (error) {
         console.error("Failed to fetch preview data:", error);
         alert(
@@ -1332,7 +1428,10 @@ function ImportMatches() {
           competition_name: competitionName,
           season_id: selectedSeason,
           data: previewData,
-          participant_matches: participantMatches,
+          participant_matches: participantMatchesFromChoices(
+            matcherChoices,
+            platform,
+          ),
           event_id: eventType === "event" ? eventId : undefined,
           import_type: eventType as "league" | "event",
         });
@@ -1349,10 +1448,16 @@ function ImportMatches() {
           messageParts.push(`${result.matches_skipped} unchanged`);
         }
 
-        const detailedMessage =
+        let detailedMessage =
           messageParts.length > 0
             ? `Import complete: ${messageParts.join(", ")} match(es)`
             : "No new matches to import";
+        const skippedPicks = result.skipped_participant_matches || [];
+        if (skippedPicks.length > 0) {
+          detailedMessage += `. ${skippedPicks.length} team pick(s) couldn't be applied: ${skippedPicks
+            .map((pick) => pick.reason)
+            .join("; ")}`;
+        }
 
         setImportStatus({
           success: true,
@@ -1501,10 +1606,11 @@ function ImportMatches() {
               previewData={previewData}
               platform={platform}
               selectedSeason={selectedSeason}
-              competitionName={competitionName}
               isLoading={isLoading}
               setIsLoading={setIsLoading}
-              setParticipantMatches={setParticipantMatches}
+              choices={matcherChoices}
+              setChoices={setMatcherChoices}
+              setReady={setMatcherReady}
             />
           );
         }
@@ -1516,10 +1622,11 @@ function ImportMatches() {
               previewData={previewData}
               platform={platform}
               selectedSeason={selectedSeason}
-              competitionName={competitionName}
               isLoading={isLoading}
               setIsLoading={setIsLoading}
-              setParticipantMatches={setParticipantMatches}
+              choices={matcherChoices}
+              setChoices={setMatcherChoices}
+              setReady={setMatcherReady}
             />
           );
         } else {
@@ -1599,7 +1706,7 @@ function ImportMatches() {
                         // Reset to championship ID step but keep event and season
                         setStep(4);
                         setPreviewData(null);
-                        setParticipantMatches({});
+                        setMatcherChoices({});
                         setImportStatus({});
                       }}
                       className="flex-1"
@@ -1741,9 +1848,12 @@ function ImportMatches() {
           )}
           <div className="flex-1"></div>
           <button
-            className="bg-primary cursor-pointer rounded-md p-2 px-4 text-white transition-all duration-300 hover:bg-[#b5670b]"
+            className="bg-primary cursor-pointer rounded-md p-2 px-4 text-white transition-all duration-300 hover:bg-[#b5670b] disabled:cursor-not-allowed disabled:opacity-50"
             onClick={nextStep}
-            disabled={isLoading}
+            disabled={
+              isLoading ||
+              (step === (eventType === "event" ? 6 : 5) && !matcherReady)
+            }
           >
             {isLoading
               ? "Loading..."

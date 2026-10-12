@@ -5,6 +5,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from cc.models import Competition, Match, Participant, Player, Season, Team
+from cc.views import get_or_create_team
 
 
 def faceit_team(faction_id, name, player_ids=()):
@@ -51,6 +52,27 @@ class TeamMatchingTests(TestCase):
             Player.objects.create(name=pid, faceit_id=pid, team=self.roster_team)
         # Only a similar name to an incoming team
         self.similar = Team.objects.create(name="Kentucky Wildcats", elo=1100)
+
+    def import_(self, items, participant_matches=None, platform="faceit", name="Longhorn round 2"):
+        return self.client.post(
+            reverse("import_matches"),
+            {
+                "platform": platform,
+                "competition_name": name,
+                "season_id": str(self.season.id),
+                "data": {"items": items},
+                "participant_matches": participant_matches or {},
+            },
+            format="json",
+        )
+
+    def counts(self):
+        return (
+            Team.objects.count(),
+            Participant.objects.count(),
+            Competition.objects.count(),
+            Match.objects.count(),
+        )
 
     def resolve(self, items, platform="faceit"):
         response = self.client.post(
@@ -168,3 +190,139 @@ class TeamMatchingTests(TestCase):
         )
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(Match.objects.get().team1_id, self.ashland.id)
+
+    def test_resolve_rejects_bad_season_and_data(self):
+        url = reverse("resolve_import_teams")
+        bad_season = self.client.post(
+            url, {"platform": "faceit", "season_id": "not-a-uuid", "data": {}}, format="json"
+        )
+        self.assertEqual(bad_season.status_code, 400)
+        bad_data = self.client.post(
+            url,
+            {"platform": "regentsleague", "season_id": str(self.season.id), "data": {}},
+            format="json",
+        )
+        self.assertEqual(bad_data.status_code, 400)
+
+    def test_hand_matched_team_gets_its_roster(self):
+        mover = Player.objects.create(name="mover", faceit_id="p-mover", team=self.similar)
+        response = self.import_(
+            [
+                faceit_match(
+                    faceit_team("f-uk", "UK Wildcats", ["p-mover", "p-new"]),
+                    faceit_team("f-ashland", "Ashland Prem"),
+                )
+            ],
+            {"platform:faceit:id:f-uk": str(self.roster_team.id)},
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+
+        mover.refresh_from_db()
+        self.assertEqual(mover.team_id, self.roster_team.id)
+        self.assertEqual(Player.objects.get(faceit_id="p-new").team_id, self.roster_team.id)
+
+    def test_next_round_links_hand_matched_team_without_a_pick(self):
+        self.import_(
+            [faceit_match(faceit_team("f-uk", "UK Wildcats"), faceit_team("f-ashland", "A"))],
+            {"platform:faceit:id:f-uk": str(self.roster_team.id)},
+        )
+        teams_before = Team.objects.count()
+
+        response = self.import_(
+            [faceit_match(faceit_team("f-uk", "UK Wildcats"), faceit_team("f-bravo", "Bravo"))],
+            name="Longhorn round 3",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(Team.objects.count(), teams_before)
+        round3 = Match.objects.get(competition__name="Longhorn round 3")
+        self.assertEqual(round3.team1_id, self.roster_team.id)
+
+    def test_ambiguous_name_fails_without_writing_anything(self):
+        Team.objects.create(name="Bravo")
+        counts = self.counts()
+        response = self.import_(
+            [
+                faceit_match(faceit_team("f-ashland", "Ashland Prem"), faceit_team("f-new", "New")),
+                faceit_match(faceit_team("f-ashland", "Ashland Prem"), faceit_team("f-bravo", "Bravo")),
+            ]
+        )
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn("Several teams are named 'Bravo'", response.json()["error"])
+        self.assertEqual(self.counts(), counts)
+
+    def test_ambiguous_name_imports_once_picked(self):
+        Team.objects.create(name="Bravo")
+        response = self.import_(
+            [faceit_match(faceit_team("f-ashland", "A"), faceit_team("f-bravo", "Bravo"))],
+            {"platform:faceit:id:f-bravo": str(self.bravo.id)},
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(Match.objects.get().team2_id, self.bravo.id)
+
+    def test_unusable_picks_are_reported_not_applied(self):
+        response = self.import_(
+            [
+                faceit_match(faceit_team("f-uk", "UK Wildcats"), faceit_team("f-two", "Two")),
+            ],
+            {
+                "platform:faceit:id:f-uk": str(self.roster_team.id),
+                # Same existing team picked for a second platform team
+                "platform:faceit:id:f-two": str(self.roster_team.id),
+                "platform:leaguespot:id:f-x": str(self.bravo.id),
+                "platform:faceit:team:Old Format": str(self.bravo.id),
+                "platform:faceit:id:f-y": "not-a-uuid",
+                "platform:faceit:id:f-z": str(uuid.uuid4()),
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+
+        reasons = {
+            s["key"]: s["reason"] for s in response.json()["skipped_participant_matches"]
+        }
+        self.assertIn("already linked", reasons.pop("platform:faceit:id:f-two"))
+        self.assertEqual(
+            reasons,
+            {
+                "platform:leaguespot:id:f-x": "Invalid key",
+                "platform:faceit:team:Old Format": "Invalid key",
+                "platform:faceit:id:f-y": "Team not found",
+                "platform:faceit:id:f-z": "Team not found",
+            },
+        )
+        match = Match.objects.get()
+        self.assertEqual(match.team1_id, self.roster_team.id)
+        # The second platform team wasn't merged into the picked team
+        self.assertNotEqual(match.team2_id, self.roster_team.id)
+
+    def test_leaguespot_pick_stores_playfly_id(self):
+        response = self.import_(
+            [faceit_match(faceit_team("ls-uk", "UK Wildcats"), faceit_team("ls-b", "Bravo"))],
+            {"platform:leaguespot:id:ls-uk": str(self.roster_team.id)},
+            platform="leaguespot",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(Match.objects.get().team1_id, self.roster_team.id)
+        self.assertTrue(
+            Participant.objects.filter(
+                team=self.roster_team, faceit_id="ls-uk", playfly_id="ls-uk"
+            ).exists()
+        )
+
+    def test_competition_participant_takes_precedence(self):
+        competition = Competition.objects.create(name="Round 2")
+        # Linked to Bravo in this competition, though the platform ID points at Ashland
+        Participant.objects.create(
+            team=self.bravo, competition=competition, season=self.season, faceit_id="f-ashland"
+        )
+        team, _ = get_or_create_team(
+            faceit_team("f-ashland", "Ashland Eagles"), competition, self.season, "faceit"
+        )
+        self.assertEqual(team, self.bravo)
+
+    def test_lookup_ignores_participants_without_a_faceit_id(self):
+        competition = Competition.objects.create(name="Round 2")
+        Participant.objects.create(team=self.bravo, competition=competition, season=self.season)
+        team, _ = get_or_create_team(
+            faceit_team("f-ashland", "Ashland Prem"), competition, self.season, "faceit"
+        )
+        self.assertEqual(team, self.ashland)

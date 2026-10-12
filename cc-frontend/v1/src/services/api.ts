@@ -141,6 +141,8 @@ export interface ImportMatchesResponse {
   new_match_ids: string[];
   updated_match_ids: string[];
   skipped_match_ids: string[];
+  // Participant matcher picks the import couldn't apply
+  skipped_participant_matches?: Array<{ key: string; reason: string }>;
 }
 
 export interface Participant {
