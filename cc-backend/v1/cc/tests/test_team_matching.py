@@ -262,37 +262,64 @@ class TeamMatchingTests(TestCase):
     def test_unusable_picks_are_reported_not_applied(self):
         response = self.import_(
             [
-                faceit_match(faceit_team("f-uk", "UK Wildcats"), faceit_team("f-two", "Two")),
+                faceit_match(faceit_team("f-uk", "UK Wildcats"), faceit_team("f-y", "Yankton")),
+                faceit_match(faceit_team("f-z", "Zion"), faceit_team("f-bravo", "Bravo")),
             ],
             {
                 "platform:faceit:id:f-uk": str(self.roster_team.id),
-                # Same existing team picked for a second platform team
-                "platform:faceit:id:f-two": str(self.roster_team.id),
-                "platform:leaguespot:id:f-x": str(self.bravo.id),
+                "platform:leaguespot:id:f-uk": str(self.bravo.id),
                 "platform:faceit:team:Old Format": str(self.bravo.id),
+                "platform:faceit:id:name:Zion": str(self.bravo.id),
+                "platform:faceit:id:f-elsewhere": str(self.bravo.id),
                 "platform:faceit:id:f-y": "not-a-uuid",
                 "platform:faceit:id:f-z": str(uuid.uuid4()),
             },
         )
         self.assertEqual(response.status_code, 200, response.content)
 
-        reasons = {
-            s["key"]: s["reason"] for s in response.json()["skipped_participant_matches"]
+        skipped = {
+            s["key"]: (s["name"], s["reason"])
+            for s in response.json()["skipped_participant_matches"]
         }
-        self.assertIn("already linked", reasons.pop("platform:faceit:id:f-two"))
         self.assertEqual(
-            reasons,
+            skipped,
             {
-                "platform:leaguespot:id:f-x": "Invalid key",
-                "platform:faceit:team:Old Format": "Invalid key",
-                "platform:faceit:id:f-y": "Team not found",
-                "platform:faceit:id:f-z": "Team not found",
+                "platform:leaguespot:id:f-uk": (None, "Invalid key"),
+                "platform:faceit:team:Old Format": (None, "Invalid key"),
+                "platform:faceit:id:name:Zion": (None, "Invalid key"),
+                "platform:faceit:id:f-elsewhere": (None, "Team not in this import"),
+                "platform:faceit:id:f-y": ("Yankton", "Picked team not found"),
+                "platform:faceit:id:f-z": ("Zion", "Picked team not found"),
             },
         )
-        match = Match.objects.get()
-        self.assertEqual(match.team1_id, self.roster_team.id)
-        # The second platform team wasn't merged into the picked team
-        self.assertNotEqual(match.team2_id, self.roster_team.id)
+        # The valid pick still applied; the others imported as if unpicked
+        self.assertEqual(
+            Match.objects.get(team2=self.bravo).team1.name, "Zion"
+        )
+        self.assertTrue(Match.objects.filter(team1=self.roster_team).exists())
+        self.assertFalse(Participant.objects.filter(faceit_id__startswith="name:").exists())
+
+    def test_confirmed_merge_imports_both_teams_as_one(self):
+        response = self.import_(
+            [
+                faceit_match(faceit_team("f-uk", "UK Wildcats"), faceit_team("f-bravo", "Bravo")),
+                faceit_match(faceit_team("f-uk-b", "UK Wildcats B"), faceit_team("f-ashland", "A")),
+            ],
+            {
+                "platform:faceit:id:f-uk": str(self.roster_team.id),
+                "platform:faceit:id:f-uk-b": str(self.roster_team.id),
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["skipped_participant_matches"], [])
+        self.assertEqual(Match.objects.filter(team1=self.roster_team).count(), 2)
+        # One participant per team per competition, as platform sync expects
+        self.assertEqual(
+            Participant.objects.filter(
+                team=self.roster_team, competition__name="Longhorn round 2"
+            ).count(),
+            1,
+        )
 
     def test_leaguespot_pick_stores_playfly_id(self):
         response = self.import_(

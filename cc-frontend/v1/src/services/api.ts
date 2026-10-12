@@ -142,7 +142,11 @@ export interface ImportMatchesResponse {
   updated_match_ids: string[];
   skipped_match_ids: string[];
   // Participant matcher picks the import couldn't apply
-  skipped_participant_matches?: Array<{ key: string; reason: string }>;
+  skipped_participant_matches?: Array<{
+    key: string;
+    name: string | null; // The platform team's name, when known
+    reason: string;
+  }>;
 }
 
 export interface Participant {

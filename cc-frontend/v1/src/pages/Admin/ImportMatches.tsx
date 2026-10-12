@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import {
@@ -845,6 +846,13 @@ const AUTO_SELECT_MIN_OVERLAP = 2;
 // an explicit "create new team"; a missing key hasn't been looked at yet.
 type MatcherChoices = Record<string, string | null>;
 
+// Several platform teams that would import as one team
+interface MergeGroup {
+  id: string; // Changes when the teams in the group change, so it's reconfirmed
+  label: string; // What they'd import as
+  teams: ResolvedImportTeam[];
+}
+
 function suggestionReason(
   suggestion: ResolvedImportTeam["suggestions"][number],
   rosterSize: number,
@@ -865,6 +873,59 @@ function blocksImport(team: ResolvedImportTeam, choices: MatcherChoices) {
   return team.ambiguous && (!isLinkable(team) || !choices[team.key]);
 }
 
+// The existing team id a platform team will import as, if any
+function targetTeamId(team: ResolvedImportTeam, choices: MatcherChoices) {
+  if (team.match) return team.match.team.id;
+  return isLinkable(team) ? choices[team.key] || undefined : undefined;
+}
+
+// Platform teams that would import as the same team: picked or matched to the
+// same existing team, or created new under the same name (the import matches
+// the second to the first by name)
+function findMergeGroups(
+  teams: ResolvedImportTeam[],
+  choices: MatcherChoices,
+  allTeams: Team[],
+): MergeGroup[] {
+  const groups = new Map<
+    string,
+    { label: string; teams: ResolvedImportTeam[] }
+  >();
+  teams.forEach((team) => {
+    if (blocksImport(team, choices)) return;
+    const teamId = targetTeamId(team, choices);
+    let target: string;
+    let label: string;
+    if (teamId) {
+      const existing =
+        team.match?.team ??
+        allTeams.find((t) => t.id === teamId) ??
+        team.suggestions.find((s) => s.team.id === teamId)?.team;
+      target = `team:${teamId}`;
+      label = existing
+        ? `${existing.name} (${existing.elo} Elo)`
+        : "the same team";
+    } else {
+      target = `new:${team.name}`;
+      label = `one new team named "${team.name}"`;
+    }
+    const group = groups.get(target) ?? { label, teams: [] };
+    group.teams.push(team);
+    groups.set(target, group);
+  });
+
+  return Array.from(groups.entries())
+    .filter(([, group]) => group.teams.length > 1)
+    .map(([target, group]) => ({
+      id: `${target}|${group.teams
+        .map((t) => t.key)
+        .sort()
+        .join(",")}`,
+      label: group.label,
+      teams: group.teams,
+    }));
+}
+
 // Turn matcher choices into the import's participant_matches
 function participantMatchesFromChoices(
   choices: MatcherChoices,
@@ -872,7 +933,7 @@ function participantMatchesFromChoices(
 ): Record<string, string> {
   const matches: Record<string, string> = {};
   Object.entries(choices).forEach(([key, teamId]) => {
-    if (teamId) {
+    if (teamId && !key.startsWith("name:")) {
       matches[`platform:${platform}:id:${key}`] = teamId;
     }
   });
@@ -883,14 +944,14 @@ function UnmatchedTeamCard({
   team,
   allTeams,
   choice,
-  takenBy,
+  usedBy,
   onChoose,
 }: {
   team: ResolvedImportTeam;
   allTeams: Team[];
   choice: string | null | undefined;
-  // Existing team id -> name of the other platform team it's picked for
-  takenBy: Record<string, string>;
+  // Existing team id -> names of the other platform teams importing as it
+  usedBy: Record<string, string[]>;
   onChoose: (teamId: string | null) => void;
 }) {
   const [search, setSearch] = useState("");
@@ -910,25 +971,23 @@ function UnmatchedTeamCard({
     elo: number,
     onSelect?: () => void,
   ) => {
-    const taken = takenBy[teamId];
+    const others = usedBy[teamId];
     return (
       <div
         key={teamId}
-        className={`flex items-center justify-between border-b p-2 ${
-          taken
-            ? "cursor-not-allowed opacity-50"
-            : "hover:bg-muted/50 cursor-pointer"
-        } ${choice === teamId ? "bg-muted" : ""}`}
+        className={`hover:bg-muted/50 flex cursor-pointer items-center justify-between border-b p-2 ${choice === teamId ? "bg-muted" : ""}`}
         onClick={() => {
-          if (taken) return;
           onChoose(teamId);
           onSelect?.();
         }}
       >
         <div>
           {content}
-          {taken && (
-            <p className="text-sm text-gray-600">Already picked for {taken}</p>
+          {others && (
+            <p className="text-sm text-amber-700">
+              Also importing as this team: {others.join(", ")}. Picking it
+              merges them.
+            </p>
           )}
         </div>
         <span className="text-sm text-gray-600">{elo} Elo</span>
@@ -1024,6 +1083,8 @@ function ParticipantMatcher({
   setIsLoading,
   choices,
   setChoices,
+  confirmedMerges,
+  setConfirmedMerges,
   setReady,
 }: {
   previewData: any;
@@ -1031,9 +1092,11 @@ function ParticipantMatcher({
   selectedSeason: string;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
-  // Owned by the parent, so picks survive moving between steps
+  // Owned by the parent, so picks and confirmations survive moving between steps
   choices: MatcherChoices;
   setChoices: Dispatch<SetStateAction<MatcherChoices>>;
+  confirmedMerges: string[]; // MergeGroup ids
+  setConfirmedMerges: Dispatch<SetStateAction<string[]>>;
   // Whether the import can safely run with the current choices
   setReady: (ready: boolean) => void;
 }) {
@@ -1068,17 +1131,27 @@ function ParticipantMatcher({
         setResolvedTeams(resolved.teams);
         setAllTeams(teams);
 
-        // Pre-select suggestions backed by the roster, keeping earlier picks
+        // Pre-select suggestions backed by the roster, keeping earlier picks.
+        // Never pre-select a team another platform team already imports as:
+        // merges are only made by an explicit pick and confirmation.
         setChoices((prev) => {
           const next = { ...prev };
+          const used = new Set(
+            resolved.teams
+              .map((team) => targetTeamId(team, next))
+              .filter(Boolean),
+          );
           resolved.teams.forEach((team) => {
             const top = team.suggestions[0];
             if (
               !team.match &&
+              isLinkable(team) &&
               !(team.key in next) &&
-              top?.roster_overlap >= AUTO_SELECT_MIN_OVERLAP
+              top?.roster_overlap >= AUTO_SELECT_MIN_OVERLAP &&
+              !used.has(top.team.id)
             ) {
               next[team.key] = top.team.id;
+              used.add(top.team.id);
             }
           });
           return next;
@@ -1108,13 +1181,22 @@ function ParticipantMatcher({
   const unmatched = resolvedTeams.filter((team) => !team.match);
   const matched = resolvedTeams.filter((team) => team.match);
   const blocking = unmatched.filter((team) => blocksImport(team, choices));
-  const newTeamCount = unmatched.filter(
-    (team) => !team.ambiguous && !choices[team.key],
-  ).length;
+  const mergeGroups = findMergeGroups(resolvedTeams, choices, allTeams);
+  const unconfirmedMerges = mergeGroups.filter(
+    (group) => !confirmedMerges.includes(group.id),
+  );
+  // Distinct new teams: same-name new teams import as one
+  const newTeamCount = new Set(
+    unmatched
+      .filter((team) => !team.ambiguous && !targetTeamId(team, choices))
+      .map((team) => team.name),
+  ).size;
 
   // Importing without a successful check would create every unmatched team
-  // as a duplicate, and an ambiguous team without a pick fails the import
-  const ready = loaded && !error && blocking.length === 0;
+  // as a duplicate, an ambiguous team without a pick fails the import, and
+  // merges must be confirmed
+  const ready =
+    loaded && !error && blocking.length === 0 && unconfirmedMerges.length === 0;
   useEffect(() => {
     setReady(ready);
   }, [ready, setReady]);
@@ -1123,16 +1205,22 @@ function ParticipantMatcher({
     setChoices((prev) => ({ ...prev, [key]: teamId }));
   };
 
-  // Existing teams already picked, so the same one isn't picked twice
-  const takenByKey = (key: string) => {
-    const taken: Record<string, string> = {};
-    unmatched.forEach((team) => {
-      const teamId = choices[team.key];
+  const toggleMerge = (id: string, confirmed: boolean) => {
+    setConfirmedMerges((prev) =>
+      confirmed ? [...prev, id] : prev.filter((m) => m !== id),
+    );
+  };
+
+  // Existing team id -> the other platform teams importing as it
+  const usedByOthers = (key: string) => {
+    const used: Record<string, string[]> = {};
+    resolvedTeams.forEach((team) => {
+      const teamId = targetTeamId(team, choices);
       if (team.key !== key && teamId) {
-        taken[teamId] = team.name;
+        (used[teamId] ??= []).push(team.name);
       }
     });
-    return taken;
+    return used;
   };
 
   return (
@@ -1158,6 +1246,38 @@ function ParticipantMatcher({
         </Alert>
       ) : (
         <div className="w-full space-y-4">
+          {mergeGroups.length > 0 && (
+            <div className="rounded-md border border-amber-500 p-4">
+              <h2 className="mb-1 text-lg font-semibold">Confirm merges</h2>
+              <p className="mb-3 text-sm text-gray-600">
+                These platform teams would import as one team, combining their
+                matches and Elo. Confirm each merge, or change the picks below.
+                A merged team may be asked about again in later rounds.
+              </p>
+              {mergeGroups.map((group) => (
+                <label
+                  key={group.id}
+                  className="flex cursor-pointer items-start gap-2 border-t py-2"
+                >
+                  <Checkbox
+                    className="mt-1"
+                    checked={confirmedMerges.includes(group.id)}
+                    onCheckedChange={(checked) =>
+                      toggleMerge(group.id, checked === true)
+                    }
+                  />
+                  <span>
+                    Merge{" "}
+                    <strong>
+                      {group.teams.map((team) => team.name).join(" and ")}
+                    </strong>{" "}
+                    into {group.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+
           {unmatched.length === 0 ? (
             <Alert variant="default">
               <CheckCircle2 className="h-4 w-4" />
@@ -1186,7 +1306,7 @@ function ParticipantMatcher({
                   team={team}
                   allTeams={allTeams}
                   choice={choices[team.key]}
-                  takenBy={takenByKey(team.key)}
+                  usedBy={usedByOthers(team.key)}
                   onChoose={(teamId) => choose(team.key, teamId)}
                 />
               ))}
@@ -1261,8 +1381,11 @@ function ImportMatches() {
       updated: number;
       skipped: number;
     };
+    // Participant matcher picks the import couldn't apply
+    warnings?: string[];
   }>({});
   const [matcherChoices, setMatcherChoices] = useState<MatcherChoices>({});
+  const [confirmedMerges, setConfirmedMerges] = useState<string[]>([]);
   const [matcherReady, setMatcherReady] = useState(false);
 
   // Fetch seasons on component mount
@@ -1406,6 +1529,7 @@ function ImportMatches() {
         setPreviewData(data);
         // Picks belong to the previous preview's teams
         setMatcherChoices({});
+        setConfirmedMerges([]);
       } catch (error) {
         console.error("Failed to fetch preview data:", error);
         alert(
@@ -1448,16 +1572,10 @@ function ImportMatches() {
           messageParts.push(`${result.matches_skipped} unchanged`);
         }
 
-        let detailedMessage =
+        const detailedMessage =
           messageParts.length > 0
             ? `Import complete: ${messageParts.join(", ")} match(es)`
             : "No new matches to import";
-        const skippedPicks = result.skipped_participant_matches || [];
-        if (skippedPicks.length > 0) {
-          detailedMessage += `. ${skippedPicks.length} team pick(s) couldn't be applied: ${skippedPicks
-            .map((pick) => pick.reason)
-            .join("; ")}`;
-        }
 
         setImportStatus({
           success: true,
@@ -1467,6 +1585,9 @@ function ImportMatches() {
             updated: result.matches_updated,
             skipped: result.matches_skipped,
           },
+          warnings: (result.skipped_participant_matches || []).map(
+            (pick) => `${pick.name || pick.key}: ${pick.reason}`,
+          ),
         });
       } catch (error: any) {
         console.error("Import failed:", error);
@@ -1610,6 +1731,8 @@ function ImportMatches() {
               setIsLoading={setIsLoading}
               choices={matcherChoices}
               setChoices={setMatcherChoices}
+              confirmedMerges={confirmedMerges}
+              setConfirmedMerges={setConfirmedMerges}
               setReady={setMatcherReady}
             />
           );
@@ -1626,6 +1749,8 @@ function ImportMatches() {
               setIsLoading={setIsLoading}
               choices={matcherChoices}
               setChoices={setMatcherChoices}
+              confirmedMerges={confirmedMerges}
+              setConfirmedMerges={setConfirmedMerges}
               setReady={setMatcherReady}
             />
           );
@@ -1707,6 +1832,7 @@ function ImportMatches() {
                         setStep(4);
                         setPreviewData(null);
                         setMatcherChoices({});
+                        setConfirmedMerges([]);
                         setImportStatus({});
                       }}
                       className="flex-1"
@@ -1831,6 +1957,25 @@ function ImportMatches() {
               {importStatus.success ? "Success" : "Error"}
             </AlertTitle>
             <AlertDescription>{importStatus.message}</AlertDescription>
+          </Alert>
+        )}
+
+        {importStatus.warnings && importStatus.warnings.length > 0 && (
+          <Alert variant="default" className="mb-4 border-amber-500">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>
+              {importStatus.warnings.length} team pick
+              {importStatus.warnings.length === 1 ? "" : "s"} couldn't be
+              applied
+            </AlertTitle>
+            <AlertDescription>
+              These teams were imported as if unpicked, so check for duplicates:
+              <ul className="mt-1 list-inside list-disc">
+                {importStatus.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </AlertDescription>
           </Alert>
         )}
 

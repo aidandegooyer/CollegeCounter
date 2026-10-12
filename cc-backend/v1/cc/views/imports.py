@@ -90,13 +90,15 @@ def import_matches(request):
             # Create a new competition (do not merge with existing ones with the same name)
             competition = Competition.objects.create(name=competition_name)
 
-            skipped_participant_matches = apply_participant_matches(
-                participant_matches, platform, api_data, competition, season
+            picks, skipped_participant_matches = apply_participant_matches(
+                participant_matches, platform, api_data
             )
 
             # Process matches based on platform and import type
             if platform == "regentsleague":
-                result = import_regentsleague_match_data(api_data, competition, season)
+                result = import_regentsleague_match_data(
+                    api_data, competition, season, picks=picks
+                )
             else:
                 result = import_match_data(
                     api_data,
@@ -105,6 +107,7 @@ def import_matches(request):
                     platform,
                     event=event,
                     import_type=import_type,
+                    picks=picks,
                 )
 
         # Build response message
@@ -149,90 +152,85 @@ class AmbiguousTeamError(ValueError):
     """An imported team can't be matched by ID and several teams share its name."""
 
 
-def apply_participant_matches(participant_matches, platform, api_data, competition, season):
+def apply_participant_matches(participant_matches, platform, api_data):
     """
-    Apply the links chosen in the participant matcher before importing: each
-    platform team gets a participant in this competition for the chosen
-    existing team, carrying its platform ID, so the import's competition lookup
-    (and later rounds' platform ID lookup) finds it. The team's roster is
-    imported here too, since the import skips rosters for teams it finds in the
-    competition.
+    Turn the links chosen in the participant matcher into picks for the import:
+    platform team key -> the existing team to import it as. The import then
+    treats the team as found (see resolve_team) and links it to the
+    competition with its platform ID, so later rounds find it by that ID.
+
+    Several platform teams may be picked for one existing team: the matcher
+    makes the admin confirm such merges. One participant is kept per team per
+    competition (platform sync looks them up that way), so only the first
+    merged team's platform ID is stored on it.
 
     Args:
         participant_matches: {"platform:{platform}:id:{team key}" | participant id: team id}
 
     Returns:
-        list[dict]: picks that couldn't be applied, as {"key", "reason"}.
+        tuple[dict, list[dict]]: the picks, and the picks that couldn't be
+        applied as {"key", "name", "reason"}.
     """
+    picks = {}
     skipped = []
-    import_teams = None
-    # Existing team id -> the platform key already linked to it in this import
-    linked_teams = {}
+    if not participant_matches:
+        return picks, skipped
+    import_teams = extract_import_teams(platform, api_data)
 
     for participant_id, team_id in (participant_matches or {}).items():
-        try:
-            team = Team.objects.get(id=team_id)
-        except (Team.DoesNotExist, ValidationError):
-            skipped.append({"key": participant_id, "reason": "Team not found"})
-            continue
-
         if not participant_id.startswith("platform:"):
-            # Regular participant ID
+            # Regular participant ID: retarget an existing participant
             try:
                 participant = Participant.objects.get(id=participant_id)
-            except (Participant.DoesNotExist, ValidationError):
-                skipped.append({"key": participant_id, "reason": "Participant not found"})
+                participant.team = Team.objects.get(id=team_id)
+            except (Participant.DoesNotExist, Team.DoesNotExist, ValidationError):
+                skipped.append(
+                    {
+                        "key": participant_id,
+                        "name": None,
+                        "reason": "Participant or team not found",
+                    }
+                )
                 continue
-            participant.team = team
             participant.save()
             continue
 
-        # Format is "platform:{platform}:id:{platform team key}"
+        # Format is "platform:{platform}:id:{platform team key}". Teams keyed
+        # "name:<name>" have no platform ID to link by.
         parts = participant_id.split(":", 3)
-        if len(parts) != 4 or parts[1] != platform or parts[2] != "id" or not parts[3]:
-            skipped.append({"key": participant_id, "reason": "Invalid key"})
-            continue
-        key = parts[3]
-        if platform == "regentsleague" and not key.isdigit():
-            skipped.append({"key": participant_id, "reason": "Invalid key"})
+        key = parts[3] if len(parts) == 4 else ""
+        if parts[1:3] != [platform, "id"] or not key or key.startswith("name:"):
+            skipped.append({"key": participant_id, "name": None, "reason": "Invalid key"})
             continue
 
-        if team.id in linked_teams:
+        team_data = import_teams.get(key)
+        if team_data is None:
             skipped.append(
-                {
-                    "key": participant_id,
-                    "reason": f"{team.name} is already linked to another team in this import",
-                }
+                {"key": participant_id, "name": None, "reason": "Team not in this import"}
             )
             continue
-        linked_teams[team.id] = key
+        name = team_data.get("name")
 
-        ids = {
-            field: value
-            for field, value in platform_team_ids(
-                team_data_for_key(platform, key), platform
-            ).items()
-            if value
-        }
-        Participant.objects.create(team=team, competition=competition, season=season, **ids)
-
-        if import_teams is None:
-            import_teams = extract_import_teams(platform, api_data)
-        for player_data in (import_teams.get(key) or {}).get("roster") or []:
-            process_player(player_data, team, season)
+        try:
+            picks[key] = Team.objects.get(id=team_id)
+        except (Team.DoesNotExist, ValidationError):
+            skipped.append(
+                {"key": participant_id, "name": name, "reason": "Picked team not found"}
+            )
 
     for entry in skipped:
         logger.warning(f"Skipped participant match {entry['key']}: {entry['reason']}")
-    return skipped
+    return picks, skipped
 
 
-def import_regentsleague_match_data(matches: list[dict], competition, season):
+def import_regentsleague_match_data(matches: list[dict], competition, season, picks=None):
     """
     Process Regents League API data and import matches
 
     Args:
         matches: The API response data containing match information
         season: Season object
+        picks: Optional {platform team key: Team} from the participant matcher
 
     Returns:
         dict: Contains lists of imported_matches, updated_matches, and skipped_matches
@@ -251,8 +249,12 @@ def import_regentsleague_match_data(matches: list[dict], competition, season):
         team2_data: dict = match_data.get("team2")
         team1_key = team1_data.get("id")
         team2_key = team2_data.get("id")
-        team1, _ = get_or_create_team(team1_data, competition, season, "regentsleague")
-        team2, _ = get_or_create_team(team2_data, competition, season, "regentsleague")
+        team1, _ = get_or_create_team(
+            team1_data, competition, season, "regentsleague", picks=picks
+        )
+        team2, _ = get_or_create_team(
+            team2_data, competition, season, "regentsleague", picks=picks
+        )
 
         if not team1 or not team2:
             continue  # Skip if teams could not be created
@@ -323,7 +325,7 @@ def import_regentsleague_match_data(matches: list[dict], competition, season):
 
 
 def import_match_data(
-    api_data, competition, season, platform, event=None, import_type="league"
+    api_data, competition, season, platform, event=None, import_type="league", picks=None
 ):
     """
     Process Faceit/LeagueSpot API data and import matches
@@ -335,6 +337,7 @@ def import_match_data(
         platform: Platform name (faceit or leaguespot)
         event: Optional Event object - if provided, creates EventMatch entries
         import_type: Type of import ("league" or "event")
+        picks: Optional {platform team key: Team} from the participant matcher
 
     Returns:
         dict: Contains lists of imported_matches, updated_matches, and skipped_matches
@@ -396,8 +399,8 @@ def import_match_data(
         team2_data = teams_data.get(team2_key, {})
 
         # Get or create teams
-        team1, _ = get_or_create_team(team1_data, competition, season, platform)
-        team2, _ = get_or_create_team(team2_data, competition, season, platform)
+        team1, _ = get_or_create_team(team1_data, competition, season, platform, picks=picks)
+        team2, _ = get_or_create_team(team2_data, competition, season, platform, picks=picks)
 
         if not team1 or not team2:
             continue  # Skip if teams could not be created
@@ -642,29 +645,19 @@ def platform_team_key(team_data, platform):
     return str(key) if key is not None else None
 
 
-def team_data_for_key(platform, key):
-    """
-    Minimal team data carrying just a platform team key (see platform_team_key),
-    enough for platform_team_ids. Regents League keys must be numeric.
-    """
-    if platform == "regentsleague":
-        return {"id": int(key)}
-    return {"faction_id": key}
-
-
 def find_competition_participant(ids, competition, season):
     """
     The participant in this competition/season matching the given IDs, tried
-    in order: Faceit ID, Playfly team ID, Playfly participant ID, Regents
-    League ID.
+    in order: Faceit ID (when there is one), Playfly team ID, Playfly
+    participant ID, Regents League ID.
     """
     participants = Participant.objects.filter(competition=competition, season=season)
 
-    # Try Faceit ID first. Playfly IDs are also stored as faceit_id. Only
-    # compare non-empty IDs: faceit_id=None would match every participant
-    # without one.
-    faceit_candidates = [i for i in (ids["faceit_id"], ids["playfly_id"]) if i]
+    # Try Faceit ID first, also matching the Playfly team ID since Playfly
+    # imports store it as faceit_id too. Only non-empty IDs are compared:
+    # faceit_id=None would match every participant without one.
     if ids["faceit_id"]:
+        faceit_candidates = [i for i in (ids["faceit_id"], ids["playfly_id"]) if i]
         participant = participants.filter(faceit_id__in=faceit_candidates).first()
         if participant:
             return participant
@@ -678,21 +671,22 @@ def find_competition_participant(ids, competition, season):
     return None
 
 
-def resolve_team(team_data, competition, season, platform):
+def resolve_team(team_data, competition, season, platform, picks=None):
     """
     Find the existing team an imported team maps to, without writing anything.
     Shared by the import and the participant matcher's dry run, so the matcher
     shows exactly the teams the import would create.
 
     Lookup order: a participant in this competition (competition may be None
-    for a dry run), then the team's platform ID from earlier competitions,
-    then an exact name match. Picks from the participant matcher are applied
-    as participants in the competition before the import runs, so the dry
-    run (which has no competition) doesn't see them.
+    for a dry run), then the participant matcher's pick for the team, then the
+    team's platform ID from earlier competitions, then an exact name match.
+
+    Args:
+        picks: Optional {platform team key: Team} from the participant matcher
 
     Returns:
         tuple[Team | None, str]: the team and how it was found: "competition",
-        "platform_id" or "name"; or None with "new" (no match) or
+        "picked", "platform_id" or "name"; or None with "new" (no match) or
         "ambiguous_name" (several teams have that name).
     """
     ids = platform_team_ids(team_data, platform)
@@ -702,11 +696,15 @@ def resolve_team(team_data, competition, season, platform):
         if participant and participant.team:
             return participant.team, "competition"
 
-    # Every import creates a new competition, so on a reimport the lookup above
-    # finds nothing. Match the team by its platform ID from earlier competitions
-    # before falling back to its name, which may have changed (e.g. a merged
-    # team keeps the primary team's name). Playfly participant IDs are
-    # per-competition, so they aren't used here.
+    key = platform_team_key(team_data, platform)
+    if picks and key in picks:
+        return picks[key], "picked"
+
+    # A new competition has no participants yet, so teams not seen earlier in
+    # this import aren't found above. Match the team by its platform ID from
+    # earlier competitions before falling back to its name, which may have
+    # changed (e.g. a merged team keeps the primary team's name). Playfly
+    # participant IDs are per-competition, so they aren't used here.
     team = find_team_by_platform_id(
         faceit_id=ids["faceit_id"],
         playfly_id=ids["playfly_id"],
@@ -721,9 +719,13 @@ def resolve_team(team_data, competition, season, platform):
     return None, ("ambiguous_name" if named else "new")
 
 
-def get_or_create_team(team_data, competition, season, platform):
+def get_or_create_team(team_data, competition, season, platform, picks=None):
     """
     Helper function to get or create a team from API data
+
+    Args:
+        picks: Optional {platform team key: Team} chosen in the participant
+            matcher, used ahead of the platform ID and name lookups
 
     Raises:
         AmbiguousTeamError: the team matches no participant or platform ID and
@@ -734,7 +736,7 @@ def get_or_create_team(team_data, competition, season, platform):
     if platform == "regentsleague":
         team_avatar = team_data.get("picture")
 
-    team, method = resolve_team(team_data, competition, season, platform)
+    team, method = resolve_team(team_data, competition, season, platform, picks)
 
     # Already linked to this competition
     if method == "competition":
@@ -801,7 +803,9 @@ def process_player(player_data, team, season):
             if api_key:
                 headers = {"Authorization": f"Bearer {api_key}"}
                 params = {"game": "cs2", "game_player_id": game_player_id}
-                response = requests.get(faceit_api_url, headers=headers, params=params)
+                response = requests.get(
+                    faceit_api_url, headers=headers, params=params, timeout=10
+                )
                 if response.status_code == 200:
                     faceit_data = response.json()
                     player_id = faceit_data.get("player_id", player_id)
@@ -881,14 +885,17 @@ def process_player(player_data, team, season):
 
     # If no existing player found, create a new one
     try:
-        player = Player.objects.create(
-            name=nickname,
-            picture=avatar,
-            faceit_id=player_id,
-            team=team,
-            elo=elo,
-            steam_id=game_player_id,
-        )
+        # Savepoint, so a failed insert inside the import's transaction doesn't
+        # stop the retry below from querying
+        with transaction.atomic():
+            player = Player.objects.create(
+                name=nickname,
+                picture=avatar,
+                faceit_id=player_id,
+                team=team,
+                elo=elo,
+                steam_id=game_player_id,
+            )
         player.seasons.set([season])
         print(f"Created new player: {nickname} for team {team.name}")
         return player
@@ -1034,7 +1041,7 @@ def match_participants(request):
 
 
 # Team names on the import that mean "no team yet"; never worth matching.
-# Keep in sync with the bye checks in import_match_data.
+# Covers the names the bye checks in import_match_data look for.
 PLACEHOLDER_TEAM_NAMES = {"bye", "tbd", "unknown team 1", "unknown team 2"}
 
 
