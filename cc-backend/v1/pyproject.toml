@@ -64,3 +64,19 @@ dependencies = [
     "urllib3>=2.6.3",
     "werkzeug>=3.1.5",
 ]
+
+[tool.coverage.run]
+source = ["cc", "v1"]
+branch = true
+omit = [
+    "cc/migrations/*",
+    "cc/tests/*",
+    "v1/asgi.py",
+    "v1/wsgi.py",
+    # Not routed anywhere, and initializes Firebase with real credentials on import
+    "cc/image_views.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
