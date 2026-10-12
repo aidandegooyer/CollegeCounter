@@ -113,22 +113,45 @@ class ImportMatchesEndpointTests(Fixtures, TestCase):
         self.assertEqual(event_match.extra_info["round_name"], 2)
         self.assertEqual(event_match.extra_info["faceit_match_id"], MATCH_UUID)
 
-    def test_participant_matches_placeholder_creates_participant(self):
-        response = self.post(
-            participant_matches={
-                "platform:faceit:team:f:alpha": str(self.alpha.id),
-                "platform:leaguespot:team:pf-bravo": str(self.bravo.id),
-                "platform:bad": str(self.bravo.id),
+    def test_participant_matches_link_picked_teams_by_platform_id(self):
+        # Platform names that wouldn't match Alpha/Bravo by name
+        item = faceit_item(
+            teams={
+                "faction1": {"faction_id": "f:alpha", "name": "Platform Alpha"},
+                "faction2": {"faction_id": "f-bravo", "name": "Platform Bravo"},
             }
         )
-        self.assertEqual(response.status_code, 200)
+        response = self.post(
+            data={"items": [item]},
+            participant_matches={
+                "platform:faceit:id:f:alpha": str(self.alpha.id),
+                "platform:faceit:id:f-bravo": str(self.bravo.id),
+                # Old name-keyed format, another platform, and malformed
+                "platform:faceit:team:Platform Alpha": str(self.bravo.id),
+                "platform:leaguespot:id:f-bravo": str(self.alpha.id),
+                "platform:bad": str(self.bravo.id),
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(
+            sorted(s["key"] for s in response.json()["skipped_participant_matches"]),
+            [
+                "platform:bad",
+                "platform:faceit:team:Platform Alpha",
+                "platform:leaguespot:id:f-bravo",
+            ],
+        )
+
+        match = Match.objects.get()
+        self.assertEqual((match.team1, match.team2), (self.alpha, self.bravo))
         competition = Competition.objects.get(name="Imported")
         alpha_participant = Participant.objects.get(team=self.alpha, competition=competition)
         bravo_participant = Participant.objects.get(team=self.bravo, competition=competition)
-        # Team names containing colons are kept whole
+        # Platform team IDs containing colons are kept whole
         self.assertEqual(alpha_participant.faceit_id, "f:alpha")
         self.assertIsNone(alpha_participant.playfly_id)
-        self.assertEqual(bravo_participant.playfly_id, "pf-bravo")
+        self.assertEqual(bravo_participant.faceit_id, "f-bravo")
+        self.assertFalse(Team.objects.filter(name__startswith="Platform").exists())
 
     def test_participant_matches_existing_participant_and_missing_ids(self):
         participant = Participant.objects.create(competition=self.competition)
