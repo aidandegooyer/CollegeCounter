@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const LAST_UPDATED = "October 7, 2026";
 const CONTACT_EMAIL = "collegiatecounter@gmail.com";
@@ -34,7 +35,7 @@ function ExternalLink({
 }
 
 export default function PrivacyPolicy() {
-  document.title = "Privacy Policy - College Counter";
+  useDocumentTitle("Privacy Policy");
 
   return (
     <main className="app-container mx-auto w-full max-w-[900px] px-4 py-8">

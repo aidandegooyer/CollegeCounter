@@ -14,12 +14,14 @@ import { CompetitionLabel } from "@/components/CompetitionLabel";
 import RankBadge from "@/components/RankBadge";
 import { Link } from "react-router";
 import { Trophy } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export function Team() {
   const { id } = useParams<{ id: string }>();
 
   const { data, isLoading, error } = usePublicTeams({ id });
   const team = data?.results[0];
+  useDocumentTitle(team?.name ?? "Team");
 
   const {
     data: rankingData,

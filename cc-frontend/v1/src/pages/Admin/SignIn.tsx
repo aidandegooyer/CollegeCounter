@@ -2,8 +2,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 function SignIn() {
+  useDocumentTitle("Sign In");
   const auth = getAuth();
 
   async function handleSignIn(email: string, password: string) {

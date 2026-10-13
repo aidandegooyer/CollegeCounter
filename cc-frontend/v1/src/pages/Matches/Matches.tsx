@@ -38,6 +38,7 @@ import Logo from "@/components/Logo";
 import { calculateEloChanges, calculateMatchStars } from "@/services/elo";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { CompetitionLabel } from "@/components/CompetitionLabel";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 function Matches() {
   // The selected tab lives in the hash, so back/forward switch tabs
@@ -52,7 +53,7 @@ function Matches() {
     // Each tab has its own filters, so don't carry them over
     if (tab !== matchType) navigate({ hash: tab });
   };
-  document.title = "Matches - College Counter";
+  useDocumentTitle("Matches");
 
   return (
     <div className="app-container mx-4 flex justify-center">

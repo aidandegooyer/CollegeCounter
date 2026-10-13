@@ -33,8 +33,10 @@ import InfiniteScroll from "react-infinite-scroll-component";
 import { useInfinitePublicEvents } from "@/services/hooks";
 import type { PublicEvent } from "@/services/api";
 import { NavLink } from "react-router";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export function Events() {
+  useDocumentTitle("Events");
   // Newest first, so each later page only adds older (completed) events and
   // the client-side sort below doesn't reshuffle cards already on screen
   const {

@@ -4,9 +4,10 @@ import PlayerRankingsWidget from "./PlayerRankingsWidget";
 import ResultsWidget from "./ResultsWidget";
 import TeamRankingsWidget from "./TeamRankingsWidget";
 import UpcomingMatchesWidget from "./UpcomingMatchesWidget";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 function Home() {
-  document.title = "College Counter";
+  useDocumentTitle();
   return (
     <div className="app-container mx-4 mt-2 flex justify-center">
       <div className="home w-full max-w-[1200px]">
