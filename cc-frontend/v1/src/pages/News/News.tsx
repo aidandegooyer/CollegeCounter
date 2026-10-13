@@ -1,23 +1,16 @@
 import logo from "@/assets/0.5x/C Logo@0.5x.png";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import client from "@/services/sanity-client";
-import { formatDistanceToNow } from "date-fns";
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
-
-interface PortableTextBlock {
-  _type: "block";
-  _key: string;
-  style?: string;
-  markDefs?: { _key: string; _type: string; href?: string }[];
-  children: { _type: "span"; text: string; _key: string; marks?: string[] }[];
-}
+import { format, formatDistanceToNow } from "date-fns";
+import { useState, useEffect, type ReactNode } from "react";
+import { Link } from "react-router";
+import AuthorName from "./AuthorName";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 interface SanityPost {
   _id: string;
   title: string;
   slug: { _type: "slug"; current: string };
-  body?: PortableTextBlock[];
   excerpt?: string;
   imageUrl?: string;
   author?: string;
@@ -25,18 +18,21 @@ interface SanityPost {
   publishedAt: string;
 }
 
+// How many posts fill each section of the front page; the rest go in the archive
+const SIDEBAR_COUNT = 4;
+const GRID_COUNT = 6;
+
 function News() {
   const [posts, setPosts] = useState<SanityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  document.title = "News - College Counter";
+  useDocumentTitle("News");
 
   useEffect(() => {
     const fetchPosts = async (start: number, amount: number) => {
       try {
         setLoading(true);
-        // Query for posts, ordered by publishedAt date, limited to 3
         const query = `*[_type == "post"] | order(publishedAt desc)[${start}...${start + amount}]{
           _id,
           title,
@@ -61,7 +57,6 @@ function News() {
     fetchPosts(0, 50);
   }, []);
 
-  // If there are no posts but we're not loading, render a placeholder
   const renderContent = () => {
     if (loading) {
       return (
@@ -72,98 +67,192 @@ function News() {
     }
 
     if (error) {
-      return <div className="mt-4 text-center text-red-500">{error}</div>;
+      return <div className="mt-8 text-center text-red-500">{error}</div>;
     }
 
     if (posts.length === 0) {
       return (
-        <div className="text-muted-foreground mt-4 text-center">
+        <div className="text-muted-foreground mt-8 text-center">
           No news posts available
         </div>
       );
     }
 
+    const [lead, ...rest] = posts;
+    const sidebar = rest.slice(0, SIDEBAR_COUNT);
+    const grid = rest.slice(SIDEBAR_COUNT, SIDEBAR_COUNT + GRID_COUNT);
+    const archive = rest.slice(SIDEBAR_COUNT + GRID_COUNT);
+
     return (
-      <ul className="mt-2 space-y-4">
-        {posts.length > 0 && <FeaturedNews post={posts[0]} />}
-        {posts.slice(1).map((post) => (
-          <NewsItem key={post._id} post={post} />
-        ))}
-      </ul>
+      <>
+        <section className="grid gap-6 py-6 lg:grid-cols-3">
+          <LeadStory post={lead} />
+          {sidebar.length > 0 && (
+            <aside>
+              <SectionLabel>Latest</SectionLabel>
+              <ul className="space-y-4">
+                {sidebar.map((post) => (
+                  <li key={post._id}>
+                    <SidebarStory post={post} />
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          )}
+        </section>
+
+        {grid.length > 0 && (
+          <section className="py-6">
+            <SectionLabel>More Stories</SectionLabel>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {grid.map((post) => (
+                <GridStory key={post._id} post={post} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {archive.length > 0 && (
+          <section className="py-6">
+            <SectionLabel>From the Archive</SectionLabel>
+            <ul className="gap-x-6 sm:columns-2 lg:columns-3">
+              {archive.map((post) => (
+                <li key={post._id} className="mb-3 break-inside-avoid">
+                  <Link
+                    to={`/news/${post.slug.current}`}
+                    className="block rounded-xl border-2 p-4 py-2 transition-colors hover:border-blue-400"
+                  >
+                    <h3 className="font-semibold">{post.title}</h3>
+                    <div className="text-muted-foreground mt-1 text-sm">
+                      {format(new Date(post.publishedAt), "MMM d, yyyy")}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </>
     );
   };
 
   return (
     <div className="flex justify-center">
-      <div className="news-widget mx-4 w-full max-w-[700px]">
-        <h1>News</h1>
-
-        <hr className="max-w-[1000px]" />
-        {renderContent()}
-      </div>
+      <div className="mx-4 w-full max-w-[1200px]">{renderContent()}</div>
     </div>
   );
 }
 
 export default News;
 
-function FeaturedNews({ post }: { post: SanityPost }) {
-  const navigate = useNavigate();
-  const handleClick = () => {
-    navigate(`/news/${post.slug.current}`);
-  };
-
+function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div
-      className="featured-news cursor-pointer rounded-xl border-2 transition-colors hover:border-blue-400"
-      onClick={handleClick}
-    >
-      <img
-        src={post.imageUrl || logo}
-        className="max-h-64 w-full rounded-xl object-cover"
-        alt={post.title}
+    <>
+      <h2>{children}</h2>
+      <hr className="mb-4" />
+    </>
+  );
+}
+
+// Post images are 1000x450; shown whole, never cropped
+function StoryImage({ post }: { post: SanityPost }) {
+  return (
+    <img
+      src={post.imageUrl || logo}
+      className="aspect-[1000/450] w-full rounded-xl object-contain"
+      alt={post.title}
+    />
+  );
+}
+
+function Byline({ post }: { post: SanityPost }) {
+  return (
+    <div className="mt-auto flex justify-between gap-4 pt-2">
+      {/* Above the card's stretched link so it gets its own clicks */}
+      <AuthorName
+        author={post.author}
+        authorLink={post.authorLink}
+        className="text-foreground relative z-10 text-sm"
       />
-      <div className="p-4 pt-2">
-        <h2 className="text-lg font-semibold">{post.title}</h2>
-        <div className="mt-2 flex justify-between">
-          <span className="text-foreground text-sm">
-            {post.author || "College Counter Staff"}
-          </span>
-          <span className="text-muted-foreground text-sm">
-            {formatDistanceToNow(new Date(post.publishedAt), {
-              addSuffix: true,
-            })}
-          </span>
-        </div>
-      </div>
+      <span className="text-muted-foreground shrink-0 text-sm">
+        {formatDistanceToNow(new Date(post.publishedAt), { addSuffix: true })}
+      </span>
     </div>
   );
 }
 
-function NewsItem({ post }: { post: SanityPost }) {
-  const navigate = useNavigate();
-  const handleClick = () => {
-    navigate(`/news/${post.slug.current}`);
-  };
+// The whole card is clickable through its title link's ::after, which covers
+// the card; a link can't be nested in another for the author's link
+const CARD =
+  "relative flex flex-col rounded-xl border-2 transition-colors hover:border-blue-400";
 
+function TitleLink({
+  post,
+  children,
+}: {
+  post: SanityPost;
+  children: ReactNode;
+}) {
   return (
-    <li
-      className="cursor-pointer rounded-xl border-2 p-4 py-2 transition-colors hover:border-blue-400"
-      onClick={handleClick}
+    <Link
+      to={`/news/${post.slug.current}`}
+      className="after:absolute after:inset-0 after:rounded-xl after:content-['']"
     >
-      <div className="w-full">
-        <h3 className="font-semibold">{post.title}</h3>
-        <div className="mt-2 flex justify-between">
-          <span className="text-foreground text-sm">
-            {post.author || "College Counter Staff"}
-          </span>
-          <span className="text-muted-foreground text-sm">
-            {formatDistanceToNow(new Date(post.publishedAt), {
-              addSuffix: true,
-            })}
-          </span>
-        </div>
+      {children}
+    </Link>
+  );
+}
+
+function LeadStory({ post }: { post: SanityPost }) {
+  return (
+    <article className={`${CARD} lg:col-span-2`}>
+      <StoryImage post={post} />
+      <div className="flex flex-1 flex-col p-4 pt-2">
+        <h2 className="text-2xl font-semibold">
+          <TitleLink post={post}>{post.title}</TitleLink>
+        </h2>
+        {post.excerpt && (
+          <p className="text-muted-foreground mt-2 line-clamp-3">
+            {post.excerpt}
+          </p>
+        )}
+        <Byline post={post} />
       </div>
-    </li>
+    </article>
+  );
+}
+
+function SidebarStory({ post }: { post: SanityPost }) {
+  return (
+    <article className={`${CARD} p-4 py-2`}>
+      <h3 className="font-semibold">
+        <TitleLink post={post}>{post.title}</TitleLink>
+      </h3>
+      {post.excerpt && (
+        <p className="text-muted-foreground mt-1 line-clamp-2 text-sm">
+          {post.excerpt}
+        </p>
+      )}
+      <Byline post={post} />
+    </article>
+  );
+}
+
+function GridStory({ post }: { post: SanityPost }) {
+  return (
+    <article className={CARD}>
+      <StoryImage post={post} />
+      <div className="flex flex-1 flex-col p-4 pt-2">
+        <h3 className="font-semibold">
+          <TitleLink post={post}>{post.title}</TitleLink>
+        </h3>
+        {post.excerpt && (
+          <p className="text-muted-foreground mt-1 line-clamp-2 text-sm">
+            {post.excerpt}
+          </p>
+        )}
+        <Byline post={post} />
+      </div>
+    </article>
   );
 }
