@@ -8,12 +8,15 @@ from datetime import timedelta
 from django.utils import timezone
 from django.db import models
 from ..models import (
+    Competition,
     Match,
     Participant,
 )
 from ..middleware import firebase_auth_required
 
 import logging
+import uuid
+
 import requests
 
 from .elo import save_match_and_sync_elo
@@ -33,6 +36,7 @@ def update_matches(request):
     Expected request format:
     {
         "match_ids": ["uuid1", "uuid2", ...], // Optional - specific matches to update
+        "competition_id": "uuid", // Optional - only this competition's matches
         "platform": "faceit" | "leaguespot", // Optional - filter by platform
         "status_filter": "scheduled" | "in_progress" | "completed", // Optional - filter by status
         "auto_detect": true // Optional - automatically detect what needs updating
@@ -50,6 +54,23 @@ def update_matches(request):
 
         if match_ids:
             query = query.filter(id__in=match_ids)
+
+        competition_id = data.get("competition_id")
+        if competition_id:
+            try:
+                uuid.UUID(str(competition_id))
+            except ValueError:
+                return Response(
+                    {"error": "Invalid competition_id"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            # Otherwise a missing competition looks like one with nothing to update
+            if not Competition.objects.filter(id=competition_id).exists():
+                return Response(
+                    {"error": f"Competition {competition_id} not found"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            query = query.filter(competition_id=competition_id)
 
         if platform_filter:
             query = query.filter(platform=platform_filter)

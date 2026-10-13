@@ -276,6 +276,20 @@ def list_competitions(request):
                     "matches_count": matches_count,
                     "teams_count": teams_count,
                     "seasons": seasons,
+                    # Where to re-import from to update it; null if never recorded
+                    "source": {
+                        "platform": competition.source_platform,
+                        "id": competition.source_id,
+                        "id_type": competition.source_id_type,
+                        "import_type": competition.import_type,
+                        "event_id": (
+                            str(competition.source_event_id)
+                            if competition.source_event_id
+                            else None
+                        ),
+                    }
+                    if competition.source_id
+                    else None,
                 }
             )
 

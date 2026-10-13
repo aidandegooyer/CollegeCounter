@@ -9,11 +9,13 @@ from django.urls import reverse
 
 from cc.models import Competition, Event, EventMatch, Match, Participant, Player, Team
 from cc.views import get_or_create_team, import_match_data, process_player
+from cc.views.imports import import_match_ids
 
 from .helpers import Fixtures, admin_settings, dev_client, fake_response, past_season
 
 MATCH_UUID = "6f1c2a8e-4b1d-4c7e-9a52-0d3e8b7f1a90"
 MATCH_UUID_2 = "7a2d3b9f-5c2e-4d8f-8b63-1e4f9c8a2b01"
+MATCH_UUID_3 = "8b3e4c0a-6d3f-4e9a-9c74-2f5a0d9b3c12"
 
 
 def faceit_item(match_id=MATCH_UUID, status="FINISHED", winner="faction1", **extra):
@@ -66,6 +68,239 @@ class ImportMatchesEndpointTests(Fixtures, TestCase):
         self.assertEqual(body["matches_skipped"], 1)
         self.assertEqual(body["message"], "Import successful: 1 unchanged")
 
+    def test_reimport_with_new_rounds_reuses_competition(self):
+        # Swiss/bracket events are re-imported as later rounds are generated
+        self.post(data={"items": [faceit_item()]})
+        response = self.post(
+            competition_name="Renamed Since",
+            data={"items": [faceit_item(), faceit_item(match_id=MATCH_UUID_2)]},
+        )
+        self.assertEqual(response.json()["matches_imported"], 1)
+        competition = Competition.objects.get(name="Imported")
+        self.assertEqual(Competition.objects.exclude(pk=self.competition.pk).count(), 1)
+        self.assertEqual(Match.objects.filter(competition=competition).count(), 2)
+        self.assertEqual(Participant.objects.filter(competition=competition).count(), 2)
+
+    def test_same_name_in_same_season_reuses_competition(self):
+        self.post(data={"items": [faceit_item()]})
+        self.post(
+            competition_name="  imported ",
+            data={"items": [faceit_item(match_id=MATCH_UUID_2)]},
+        )
+        competition = Competition.objects.get(name="Imported")
+        self.assertEqual(Match.objects.filter(competition=competition).count(), 2)
+
+    def test_same_name_in_another_season_is_a_new_competition(self):
+        self.post(data={"items": [faceit_item()]})
+        self.post(
+            season_id=str(past_season().id),
+            data={"items": [faceit_item(match_id=MATCH_UUID_2)]},
+        )
+        self.assertEqual(Competition.objects.filter(name="Imported").count(), 2)
+
+    def test_import_records_its_source(self):
+        event = Event.objects.create(
+            name="Cup", start_date="2025-10-01T00:00:00Z", end_date="2025-10-02T00:00:00Z"
+        )
+        response = self.post(
+            platform="leaguespot",
+            source_id=" stage-1 ",
+            source_id_type="stage",
+            import_type="event",
+            event_id=str(event.id),
+            data={"items": [faceit_item(status="READY", winner=None)]},
+        )
+        competition = Competition.objects.get(name="Imported")
+        self.assertEqual(response.json()["competition_id"], str(competition.id))
+        self.assertEqual(
+            (competition.source_platform, competition.source_id, competition.source_id_type),
+            ("leaguespot", "stage-1", "stage"),
+        )
+        self.assertEqual((competition.import_type, competition.source_event), ("event", event))
+
+    def test_update_imports_into_the_given_competition(self):
+        response = self.post(
+            competition_id=str(self.competition.id),
+            competition_name="Ignored",
+            source_id="champ-1",
+            source_id_type="stage",  # only kept for LeagueSpot
+            data={"items": [faceit_item()]},
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(Match.objects.get().competition, self.competition)
+        self.assertFalse(Competition.objects.filter(name="Ignored").exists())
+        self.competition.refresh_from_db()
+        self.assertEqual(
+            (self.competition.source_platform, self.competition.source_id),
+            ("faceit", "champ-1"),
+        )
+        self.assertIsNone(self.competition.source_id_type)
+
+    def test_same_name_from_another_source_is_a_new_competition(self):
+        first = self.post(source_id="champ-a", data={"items": [faceit_item()]}).json()
+        second = self.post(
+            source_id="champ-b", data={"items": [faceit_item(match_id=MATCH_UUID_2)]}
+        ).json()
+        self.assertFalse(second["competition_reused"])
+        self.assertNotEqual(first["competition_id"], second["competition_id"])
+        first_competition = Competition.objects.get(id=first["competition_id"])
+        self.assertEqual(first_competition.source_id, "champ-a")
+        self.assertEqual(Match.objects.filter(competition=first_competition).count(), 1)
+
+    def test_same_name_from_another_platform_is_a_new_competition(self):
+        self.post(source_id="champ-a", data={"items": [faceit_item()]})
+        self.post(
+            platform="leaguespot",
+            data={"items": [faceit_item(match_id=MATCH_UUID_2, status="READY", winner=None)]},
+        )
+        self.assertEqual(Competition.objects.filter(name="Imported").count(), 2)
+
+    def test_same_name_event_and_league_are_separate(self):
+        event = Event.objects.create(
+            name="Cup", start_date="2025-10-01T00:00:00Z", end_date="2025-10-02T00:00:00Z"
+        )
+        self.post(source_id="champ-a", data={"items": [faceit_item()]})
+        self.post(
+            import_type="event",
+            event_id=str(event.id),
+            data={"items": [faceit_item(match_id=MATCH_UUID_2)]},
+        )
+        self.assertEqual(Competition.objects.filter(name="Imported").count(), 2)
+
+    def test_same_name_without_recorded_source_is_reused(self):
+        # Competitions imported before sources were recorded
+        self.post(data={"items": [faceit_item()]})
+        body = self.post(
+            source_id="champ-a", data={"items": [faceit_item(match_id=MATCH_UUID_2)]}
+        ).json()
+        self.assertTrue(body["competition_reused"])
+        self.assertEqual(Competition.objects.filter(name="Imported").count(), 1)
+        self.assertEqual(Competition.objects.get(name="Imported").source_id, "champ-a")
+
+    def test_reimport_by_source_after_rename(self):
+        first = self.post(source_id="champ-a", data={"items": [faceit_item()]}).json()
+        Competition.objects.filter(id=first["competition_id"]).update(name="Renamed")
+        # No matches in common, and the platform name no longer matches
+        body = self.post(
+            source_id="champ-a", data={"items": [faceit_item(match_id=MATCH_UUID_2)]}
+        ).json()
+        self.assertTrue(body["competition_reused"])
+        self.assertEqual(body["competition_id"], first["competition_id"])
+        self.assertEqual(body["competition_name"], "Renamed")
+
+    def test_same_source_in_another_season_is_a_new_competition(self):
+        self.post(source_id="div-1", data={"items": [faceit_item()]})
+        self.post(
+            source_id="div-1",
+            season_id=str(past_season().id),
+            data={"items": [faceit_item(match_id=MATCH_UUID_2)]},
+        )
+        self.assertEqual(Competition.objects.filter(name="Imported").count(), 2)
+
+    def test_reimport_spanning_duplicates_picks_the_one_with_most_of_its_matches(self):
+        self.post(
+            data={"items": [faceit_item(), faceit_item(match_id=MATCH_UUID_2), faceit_item(match_id=MATCH_UUID_3)]}
+        )
+        duplicate = Competition.objects.create(name="Imported (old copy)")
+        Match.objects.filter(id=MATCH_UUID_3).update(competition=duplicate)
+        body = self.post(
+            competition_name="Whatever",
+            data={"items": [faceit_item(), faceit_item(match_id=MATCH_UUID_2), faceit_item(match_id=MATCH_UUID_3)]},
+        ).json()
+        self.assertEqual(body["competition_name"], "Imported")
+
+    def test_reimport_tied_across_duplicates_picks_the_bigger_one(self):
+        first = self.post(data={"items": [faceit_item(), faceit_item(match_id=MATCH_UUID_2)]})
+        big = Competition.objects.get(id=first.json()["competition_id"])
+        small = Competition.objects.create(name="Imported (old copy)")
+        Match.objects.filter(id=MATCH_UUID_2).update(competition=small)
+        self.post(competition_id=str(big.id), data={"items": [faceit_item(match_id=MATCH_UUID_3)]})
+        # One of these matches in each; big has more matches overall
+        body = self.post(
+            competition_name="Whatever",
+            data={"items": [faceit_item(), faceit_item(match_id=MATCH_UUID_2)]},
+        ).json()
+        self.assertEqual(body["competition_id"], str(big.id))
+
+    def test_same_name_duplicates_pick_the_one_with_most_matches(self):
+        first = self.post(data={"items": [faceit_item(), faceit_item(match_id=MATCH_UUID_2)]})
+        small = Competition.objects.create(name="imported")
+        Participant.objects.create(team=self.alpha, competition=small, season=self.season)
+        body = self.post(data={"items": [faceit_item(match_id=MATCH_UUID_3)]}).json()
+        self.assertEqual(body["competition_id"], first.json()["competition_id"])
+
+    def test_same_name_with_only_participants_this_season_is_reused(self):
+        Participant.objects.create(team=self.alpha, competition=self.competition, season=self.season)
+        body = self.post(competition_name="league", data={"items": [faceit_item()]}).json()
+        self.assertEqual(body["competition_id"], str(self.competition.id))
+        self.assertTrue(body["competition_reused"])
+
+    def test_same_name_with_nothing_this_season_is_a_new_competition(self):
+        body = self.post(competition_name="League", data={"items": [faceit_item()]}).json()
+        self.assertNotEqual(body["competition_id"], str(self.competition.id))
+        self.assertFalse(body["competition_reused"])
+
+    def test_reimport_without_source_keeps_the_saved_one(self):
+        self.post(source_id="champ-a", data={"items": [faceit_item()]})
+        self.post(data={"items": [faceit_item(match_id=MATCH_UUID_2)]})
+        competition = Competition.objects.get(name="Imported")
+        self.assertEqual((competition.source_platform, competition.source_id), ("faceit", "champ-a"))
+
+    def test_update_replaces_the_saved_source(self):
+        event = Event.objects.create(
+            name="Cup", start_date="2025-10-01T00:00:00Z", end_date="2025-10-02T00:00:00Z"
+        )
+        self.post(
+            competition_id=str(self.competition.id), platform="leaguespot",
+            source_id="s1", source_id_type="stage", import_type="event",
+            event_id=str(event.id),
+        )
+        self.post(competition_id=str(self.competition.id), source_id="champ-b")
+        self.competition.refresh_from_db()
+        self.assertEqual(
+            (self.competition.source_platform, self.competition.source_id,
+             self.competition.source_id_type, self.competition.import_type,
+             self.competition.source_event),
+            ("faceit", "champ-b", None, "league", None),
+        )
+
+    def test_deleting_the_source_event_keeps_the_competition(self):
+        event = Event.objects.create(
+            name="Cup", start_date="2025-10-01T00:00:00Z", end_date="2025-10-02T00:00:00Z"
+        )
+        self.post(
+            competition_id=str(self.competition.id), source_id="champ-a",
+            import_type="event", event_id=str(event.id),
+        )
+        event.delete()
+        self.competition.refresh_from_db()
+        self.assertIsNone(self.competition.source_event)
+
+    def test_regentsleague_reimport_reuses_competition(self):
+        item = {
+            "id": 5, "status": "Scheduled", "date": "2025-10-01T18:00:00Z",
+            "team1": {"id": 1, "name": "Alpha"}, "team2": {"id": 2, "name": "Bravo"},
+        }
+        first = self.post(platform="regentsleague", data=[item]).json()
+        second = self.post(
+            platform="regentsleague", competition_name="Renamed", data=[item, dict(item, id=6)]
+        ).json()
+        self.assertEqual(second["competition_id"], first["competition_id"])
+        self.assertEqual(second["matches_imported"], 1)
+
+    def test_unusable_match_ids_are_skipped_when_finding_the_competition(self):
+        ids = import_match_ids(
+            "faceit",
+            {"items": [faceit_item(), faceit_item(match_id="not-a-uuid"), {}, "junk"]},
+        )
+        self.assertEqual(ids, [uuid.UUID(MATCH_UUID)])
+
+    def test_update_with_unknown_competition(self):
+        for competition_id in (str(uuid.uuid4()), "nope"):
+            response = self.post(competition_id=competition_id)
+            self.assertEqual(response.status_code, 400)
+        self.assertEqual(Competition.objects.count(), 1)
+
     def test_leaguespot_import(self):
         item = faceit_item(status="READY", winner=None)
         response = self.post(platform="LeagueSpot", data={"items": [item]})
@@ -94,7 +329,12 @@ class ImportMatchesEndpointTests(Fixtures, TestCase):
         self.assertEqual(self.post(season_id=str(uuid.uuid4())).status_code, 400)
         self.assertEqual(self.post(event_id=str(uuid.uuid4())).status_code, 400)
         self.assertEqual(self.post(platform="battlefy").status_code, 400)
-        self.assertEqual(self.post(data="not a dict").status_code, 500)
+        self.assertEqual(self.post(data="not a dict").status_code, 400)
+        self.assertEqual(self.post(platform="regentsleague").status_code, 400)
+        self.assertEqual(
+            self.post(platform="leaguespot", source_id="s", source_id_type="x").status_code,
+            400,
+        )
 
     def test_event_import(self):
         event = Event.objects.create(

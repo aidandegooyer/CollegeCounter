@@ -149,6 +149,31 @@ class CompetitionEndpointTests(Fixtures, TestCase):
         )
         empty = next(c for c in body["competitions"] if c["name"] == "Empty")
         self.assertEqual(empty["seasons"], [])
+        self.assertIsNone(league["source"])
+
+    def test_list_competitions_import_source(self):
+        Competition.objects.filter(pk=self.competition.pk).update(
+            source_platform="leaguespot", source_id="s1", source_id_type="stage",
+            import_type="league",
+        )
+        body = self.client.get(reverse("list_competitions")).json()
+        self.assertEqual(
+            body["competitions"][0]["source"],
+            {
+                "platform": "leaguespot", "id": "s1", "id_type": "stage",
+                "import_type": "league", "event_id": None,
+            },
+        )
+
+    def test_list_competitions_import_source_event(self):
+        event = Event.objects.create(
+            name="Cup", start_date="2025-10-01T00:00:00Z", end_date="2025-10-02T00:00:00Z"
+        )
+        Competition.objects.filter(pk=self.competition.pk).update(
+            source_platform="faceit", source_id="c1", import_type="event", source_event=event,
+        )
+        body = self.client.get(reverse("list_competitions")).json()
+        self.assertEqual(body["competitions"][0]["source"]["event_id"], str(event.id))
 
     def test_delete_requires_key(self):
         response = self.delete(self.competition.id, key="wrong")
