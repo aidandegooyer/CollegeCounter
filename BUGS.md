@@ -137,7 +137,8 @@ names. Everything else falls through to duplicate-team creation or crashes.
 The mapping the admin builds in the Participant Matcher UI is broken at three
 independent points — any one of them alone would neutralize it:
 
-- [ ] **1. Every import creates a brand-new Competition** (`views.py:230`,
+- [x] *(fixed 2026-10-12: imports reuse the competition by saved platform ID, then existing matches, then name+season unless the source differs)*
+  **1. Every import creates a brand-new Competition** (`views.py:230`,
   deliberately: "do not merge with existing ones"). All participant lookups in
   `get_or_create_team` (`views.py:727–768`) are scoped to
   `competition=<the new competition>`, which by definition has no participants
@@ -195,7 +196,9 @@ name+season) so prior matches carry over.
   0005); same crash-the-import failure mode. Also does a live Faceit API call
   per roster player per import with no timeout, making imports slow and
   rate-limit-prone.
-- [ ] **Competition proliferation** — every import (including re-imports of the
+- [x] **Competition proliferation** *(fixed 2026-10-12)* — every import (including re-imports of the
   same league) leaves another `Competition` row named identically; anything
-  grouping or filtering by competition sees duplicates. Likely related to the
-  recent "competitions hotfix".
+  grouping or filtering by competition sees duplicates. Swiss/bracket events
+  re-imported per round were split across copies. Imports now reuse the
+  competition (`get_or_create_import_competition`). Duplicates created before
+  the fix are left as they are.

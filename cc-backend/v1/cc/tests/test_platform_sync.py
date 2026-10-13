@@ -1,6 +1,7 @@
 """Refreshing matches from Faceit / LeagueSpot / Regents League."""
 
 import unittest
+import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -8,7 +9,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from cc.models import Match, Participant
+from cc.models import Competition, Match, Participant
 from cc.views import (
     update_faceit_match,
     update_leaguespot_match,
@@ -97,6 +98,17 @@ class UpdateMatchesEndpointTests(SyncFixtures, TestCase):
         self.assertEqual(
             [result["match_id"] for result in response.json()["results"]], [str(completed.id)]
         )
+
+    def test_competition_filter(self):
+        mine = self.make_match(platform="faceit")
+        self.make_match(platform="faceit", competition=Competition.objects.create(name="Other"))
+        response, _ = self.post({"competition_id": str(self.competition.id)})
+        self.assertEqual(
+            [result["match_id"] for result in response.json()["results"]], [str(mine.id)]
+        )
+        for competition_id in ("nope", str(uuid.uuid4())):
+            response, _ = self.post({"competition_id": competition_id})
+            self.assertEqual(response.status_code, 400)
 
     def test_errors_are_counted_per_match(self):
         self.make_match(platform="faceit")

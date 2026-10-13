@@ -46,8 +46,15 @@ def import_matches(request):
         "data": {...}, // API response data
         "participant_matches": { "participant_id" | "platform:{platform}:id:{team key}": "team_id", ... }, // Optional
         "event_id": "uuid", // Optional - if provided, imports as event matches
-        "import_type": "league" | "event" // Optional - specifies import type
+        "import_type": "league" | "event", // Optional - specifies import type
+        "competition_id": "uuid", // Optional - add to this competition (an update)
+        "source_id": "string", // Optional - the platform ID the data came from
+        "source_id_type": "season" | "stage" // Optional - LeagueSpot ID type
     }
+
+    source_id and source_id_type are saved on the competition with the
+    platform, import type and event, so it can be updated later without
+    re-entering them.
     """
     try:
         data = request.data
@@ -58,11 +65,33 @@ def import_matches(request):
         participant_matches = data.get("participant_matches", {})
         event_id = data.get("event_id")
         import_type = data.get("import_type", "league")
+        competition_id = data.get("competition_id")
+        source_id = str(data.get("source_id") or "").strip()
+        source_id_type = data.get("source_id_type") or None
+        if platform != "leaguespot":
+            source_id_type = None
 
         # Validate everything before writing, so a bad request leaves nothing behind
         if platform not in ("faceit", "leaguespot", "regentsleague"):
             return Response(
                 {"error": "Unsupported platform"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if source_id_type not in (None, "season", "stage"):
+            return Response(
+                {"error": 'source_id_type must be "season" or "stage"'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if platform == "regentsleague":
+            well_formed = isinstance(api_data, list)
+        else:
+            well_formed = isinstance(api_data, dict) and isinstance(
+                api_data.get("items", []), list
+            )
+        if not well_formed:
+            return Response(
+                {"error": "Malformed import data"}, status=status.HTTP_400_BAD_REQUEST
             )
 
         # Get the season
@@ -83,12 +112,55 @@ def import_matches(request):
                     {"error": "Event not found"}, status=status.HTTP_400_BAD_REQUEST
                 )
 
+        # Updating an existing competition
+        competition = None
+        if competition_id:
+            try:
+                competition = Competition.objects.get(id=competition_id)
+            except (Competition.DoesNotExist, ValidationError):
+                return Response(
+                    {"error": f"Competition {competition_id} not found"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         # One transaction, so a failure partway (e.g. an ambiguous team name)
         # doesn't leave a half-imported competition whose completed matches are
         # skipped on retry and never get Elo applied
         with transaction.atomic():
-            # Create a new competition (do not merge with existing ones with the same name)
-            competition = Competition.objects.create(name=competition_name)
+            competition_reused = competition is not None
+            if competition is None:
+                competition, competition_reused = get_or_create_import_competition(
+                    competition_name,
+                    season,
+                    platform,
+                    api_data,
+                    import_type=import_type,
+                    source_id=source_id,
+                    source_id_type=source_id_type,
+                )
+
+            if source_id:
+                if competition.source_id and (
+                    competition.source_platform,
+                    competition.source_id,
+                    competition.source_id_type,
+                ) != (platform, source_id, source_id_type):
+                    logger.warning(
+                        "Competition %s source changed from %s %s (%s) to %s %s (%s)",
+                        competition.id,
+                        competition.source_platform,
+                        competition.source_id,
+                        competition.source_id_type,
+                        platform,
+                        source_id,
+                        source_id_type,
+                    )
+                competition.source_platform = platform
+                competition.source_id = source_id
+                competition.source_id_type = source_id_type
+                competition.import_type = import_type
+                competition.source_event = event
+                competition.save()
 
             picks, skipped_participant_matches = apply_participant_matches(
                 participant_matches, platform, api_data
@@ -131,6 +203,10 @@ def import_matches(request):
         return Response(
             {
                 "message": message,
+                "competition_id": str(competition.id),
+                "competition_name": competition.name,
+                # True if the matches went into a competition that already existed
+                "competition_reused": competition_reused,
                 "matches_imported": total_new,
                 "matches_updated": total_updated,
                 "matches_skipped": total_skipped,
@@ -146,6 +222,121 @@ def import_matches(request):
     except Exception as e:
         logger.exception("Match import failed")
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+def import_match_ids(platform, api_data):
+    """The Match IDs the matches in an import payload are stored under."""
+    if platform == "regentsleague":
+        return [
+            uuid.uuid5(uuid.NAMESPACE_DNS, f"regentsleague-{item.get('id')}")
+            for item in api_data
+            if isinstance(item, dict) and item.get("id") is not None
+        ]
+
+    ids = []
+    unparseable = 0
+    for item in api_data.get("items", []):
+        match_id = str(item.get("match_id") or "") if isinstance(item, dict) else ""
+        if match_id.startswith("1-"):
+            match_id = match_id[2:]
+        try:
+            ids.append(uuid.UUID(match_id))
+        except ValueError:
+            unparseable += 1
+    if unparseable:
+        # These can't be matched to existing matches, so they can't help find
+        # the competition being re-imported
+        logger.warning(
+            "%d %s match(es) in the import have no usable match_id",
+            unparseable,
+            platform,
+        )
+    return ids
+
+
+def get_or_create_import_competition(
+    name,
+    season,
+    platform,
+    api_data,
+    import_type="league",
+    source_id="",
+    source_id_type=None,
+):
+    """
+    The competition an import adds to, so re-importing a competition reuses it
+    instead of creating a duplicate. Swiss and bracket events have to be
+    re-imported as later rounds are generated, and each import used to create a
+    new competition holding only that import's new matches.
+
+    Returns (competition, reused). Tried in order:
+    1. The competition already imported from the same platform ID (source_id),
+       with matches or participants in this season.
+    2. The competition of matches in this import that already exist (it's a
+       re-import of the same competition, whatever it's called now).
+    3. A competition with the same name (ignoring case and surrounding spaces)
+       that already has matches or participants in this season, unless it was
+       imported from a different platform, platform ID or import type.
+       Competitions have no season of their own, and the same league in
+       different seasons (e.g. "PCL" each semester) stays separate.
+    4. A new competition.
+    """
+    name = name.strip()
+    in_season = models.Q(matches__season=season) | models.Q(
+        participants__season=season
+    )
+
+    def most_matches(competitions):
+        return (
+            competitions.annotate(match_count=models.Count("matches", distinct=True))
+            .order_by("-match_count", "id")
+            .first()
+        )
+
+    if source_id:
+        same_source = most_matches(
+            Competition.objects.filter(
+                in_season,
+                source_platform=platform,
+                source_id=source_id,
+                source_id_type=source_id_type,
+            )
+        )
+        if same_source:
+            return same_source, True
+
+    existing = Counter(
+        Match.objects.filter(
+            id__in=import_match_ids(platform, api_data),
+            competition__isnull=False,
+            season=season,
+        ).values_list("competition_id", flat=True)
+    )
+    if existing:
+        # Matches split across older duplicates: the one holding most of them
+        top = max(existing.values())
+        tied = [cid for cid, count in existing.items() if count == top]
+        return most_matches(Competition.objects.filter(id__in=tied)), True
+
+    # A same-named competition from somewhere else is a different competition
+    other_source = (
+        models.Q(source_platform__isnull=False) & ~models.Q(source_platform=platform)
+    ) | (models.Q(import_type__isnull=False) & ~models.Q(import_type=import_type))
+    if source_id:
+        same_id = models.Q(source_id=source_id) & (
+            models.Q(source_id_type=source_id_type)
+            if source_id_type
+            else models.Q(source_id_type__isnull=True)
+        )
+        other_source |= models.Q(source_id__isnull=False) & ~same_id
+
+    same_name = most_matches(
+        Competition.objects.filter(in_season, name__iexact=name).exclude(other_source)
+    )
+    if same_name:
+        return same_name, True
+
+    return Competition.objects.create(name=name), False
 
 
 class AmbiguousTeamError(ValueError):

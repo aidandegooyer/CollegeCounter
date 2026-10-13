@@ -131,10 +131,17 @@ export interface ImportMatchesRequest {
   participant_matches?: Record<string, string>; // Map of participant_id to team_id
   event_id?: string; // For importing matches as event matches
   import_type?: "league" | "event"; // Type of import
+  competition_id?: string; // Add to this existing competition (an update)
+  // Where the data came from, saved on the competition for later updates
+  source_id?: string;
+  source_id_type?: "season" | "stage";
 }
 
 export interface ImportMatchesResponse {
   message: string;
+  competition_id: string;
+  competition_name: string;
+  competition_reused: boolean; // Added to a competition that already existed
   matches_imported: number;
   matches_updated: number;
   matches_skipped: number;
@@ -368,6 +375,16 @@ export interface Competition {
   matches_count: number;
   teams_count: number;
   seasons: { id: string; name: string }[];
+  // Where it was last imported from; null if never recorded
+  source: CompetitionImportSource | null;
+}
+
+export interface CompetitionImportSource {
+  platform: "faceit" | "leaguespot" | "regentsleague";
+  id: string;
+  id_type: "season" | "stage" | null;
+  import_type: "league" | "event" | null;
+  event_id: string | null;
 }
 
 export interface CompetitionsResponse {
@@ -532,6 +549,7 @@ export const recalculateAllElos = async (
 export const updateMatches = async (
   options: {
     match_ids?: string[];
+    competition_id?: string;
     platform?: "faceit" | "leaguespot";
     status_filter?: "scheduled" | "in_progress" | "completed" | "";
     auto_detect?: boolean;
@@ -539,6 +557,7 @@ export const updateMatches = async (
 ): Promise<UpdateMatchesResponse> => {
   const response = await api.post(`/matches/update/`, {
     match_ids: options.match_ids || [],
+    competition_id: options.competition_id || undefined,
     platform: options.platform || "",
     status_filter: options.status_filter || "",
     auto_detect: options.auto_detect !== undefined ? options.auto_detect : true,

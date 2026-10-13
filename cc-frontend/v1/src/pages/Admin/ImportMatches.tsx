@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import {
   fetchSeasons,
@@ -29,6 +30,8 @@ import {
   fetchLeagueSpotParticipants,
   fetchAllEvents,
   fetchRegentsLeagueMatches,
+  listCompetitions,
+  updateMatches,
 } from "@/services/api";
 
 import type {
@@ -36,6 +39,9 @@ import type {
   Team,
   PublicEvent,
   ImportMatchesRequest,
+  ImportMatchesResponse,
+  UpdateMatchesResponse,
+  Competition,
   ResolvedImportTeam,
 } from "@/services/api";
 
@@ -1356,7 +1362,45 @@ function ParticipantMatcher({
   );
 }
 
-function ImportMatches() {
+// LeagueSpot events can be imported by season or stage; leagues always by season
+function leagueSpotSourceIdType(
+  importType: string,
+  idType: string,
+): "season" | "stage" {
+  return importType === "event" && idType === "stage" ? "stage" : "season";
+}
+
+// Fetch a competition's matches from its platform, in the import's format
+async function fetchImportData(
+  platform: string,
+  sourceId: string,
+  leagueSpotIdType: "season" | "stage",
+) {
+  if (platform === "regentsleague") {
+    return fetchRegentsLeagueMatches(sourceId);
+  }
+  if (platform === "leaguespot") {
+    // LeagueSpot filtering is already done in convertLeagueSpotDataToSchema
+    return fetchPlayflyMatchesViaLeagueSpot(sourceId, leagueSpotIdType);
+  }
+
+  const data = await fetchFaceitMatches(sourceId);
+  // Skip matches whose teams aren't decided yet
+  if (data && data.items) {
+    data.items = data.items.filter((match: any) => {
+      const teamNames = Object.values(match.teams || {}).map((team: any) =>
+        (team.name || "").toLowerCase(),
+      );
+      return !teamNames.some((name) =>
+        ["unknown team 1", "unknown team 2", "tbd", "bye"].includes(name),
+      );
+    });
+  }
+  return data;
+}
+
+// The step-by-step wizard for importing a new competition
+function NewImport() {
   // State for multi-step form
   const [step, setStep] = useState(0);
   const [platform, setPlatform] = useState("faceit");
@@ -1481,51 +1525,11 @@ function ImportMatches() {
     if (step === previewStep) {
       setIsLoading(true);
       try {
-        let data;
-        if (platform === "faceit") {
-          data = await fetchFaceitMatches(championshipId);
-          // Filter out matches with unknown teams for Faceit as well
-          if (data && data.items) {
-            const originalCount = data.items.length;
-            data.items = data.items.filter((match: any) => {
-              const teams = match.teams || {};
-              const teamNames = Object.values(teams).map((team: any) =>
-                (team.name || "").toLowerCase(),
-              );
-
-              const hasUnknownTeam = teamNames.some(
-                (name) =>
-                  name === "unknown team 1" ||
-                  name === "unknown team 2" ||
-                  name === "tbd" ||
-                  name === "bye",
-              );
-
-              if (hasUnknownTeam) {
-                console.log(
-                  `Skipping Faceit match ${match.match_id} with unknown/TBD teams`,
-                );
-                return false;
-              }
-              return true;
-            });
-            console.log(
-              `Filtered Faceit matches: ${originalCount} → ${data.items.length}`,
-            );
-          }
-        } else if (platform === "regentsleague") {
-          data = await fetchRegentsLeagueMatches(championshipId);
-        } else {
-          // Use LeagueSpot API for Playfly matches
-          // For events, use the selected ID type (season or stage)
-          // For leagues, always use season
-          const idType =
-            eventType === "event"
-              ? (leagueSpotIdType as "season" | "stage")
-              : "season";
-          data = await fetchPlayflyMatchesViaLeagueSpot(championshipId, idType);
-          // LeagueSpot filtering is already done in convertLeagueSpotDataToSchema
-        }
+        const data = await fetchImportData(
+          platform,
+          championshipId,
+          leagueSpotSourceIdType(eventType, leagueSpotIdType),
+        );
         setPreviewData(data);
         // Picks belong to the previous preview's teams
         setMatcherChoices({});
@@ -1558,6 +1562,8 @@ function ImportMatches() {
           ),
           event_id: eventType === "event" ? eventId : undefined,
           import_type: eventType as "league" | "event",
+          source_id: championshipId,
+          source_id_type: leagueSpotSourceIdType(eventType, leagueSpotIdType),
         });
 
         // Build detailed message
@@ -1572,10 +1578,15 @@ function ImportMatches() {
           messageParts.push(`${result.matches_skipped} unchanged`);
         }
 
-        const detailedMessage =
+        const summary =
           messageParts.length > 0
             ? `Import complete: ${messageParts.join(", ")} match(es)`
             : "No new matches to import";
+        // Say when matches went into an existing competition, so a wrong
+        // merge doesn't go unnoticed
+        const detailedMessage = result.competition_reused
+          ? `${summary}. Added to the existing competition "${result.competition_name}".`
+          : summary;
 
         setImportStatus({
           success: true,
@@ -1869,123 +1880,698 @@ function ImportMatches() {
   };
 
   return (
+    <>
+      {/* Progress indicator */}
+      <div className="mb-8">
+        <div className="flex justify-between">
+          {eventType === "event"
+            ? [
+                "Platform",
+                "Type",
+                "Season",
+                "Event",
+                "Details",
+                "Preview",
+                "Match",
+                "Complete",
+              ].map((label, index) => (
+                <div
+                  key={label}
+                  className={`flex flex-col items-center ${index <= step ? "text-primary" : "text-muted-foreground"}`}
+                >
+                  <div
+                    className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full ${
+                      index < step
+                        ? "bg-primary text-white"
+                        : index === step
+                          ? "border-primary border-2"
+                          : "border-muted border-2"
+                    }`}
+                  >
+                    {index < step ? "✓" : ""}
+                  </div>
+                  <span className="text-xs">{label}</span>
+                </div>
+              ))
+            : [
+                "Platform",
+                "Type",
+                "Season",
+                "Details",
+                "Preview",
+                "Match",
+                "Complete",
+              ].map((label, index) => (
+                <div
+                  key={label}
+                  className={`flex flex-col items-center ${index <= step ? "text-primary" : "text-muted-foreground"}`}
+                >
+                  <div
+                    className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full ${
+                      index < step
+                        ? "bg-primary text-white"
+                        : index === step
+                          ? "border-primary border-2"
+                          : "border-muted border-2"
+                    }`}
+                  >
+                    {index < step ? "✓" : ""}
+                  </div>
+                  <span className="text-xs">{label}</span>
+                </div>
+              ))}
+        </div>
+        <div className="bg-muted mt-2 h-1">
+          <div
+            className="bg-primary h-full transition-all"
+            style={{
+              width: `${(step / (eventType === "event" ? 7 : 6)) * 100}%`,
+            }}
+          ></div>
+        </div>
+      </div>
+
+      {importStatus.message && (
+        <Alert
+          variant={importStatus.success ? "default" : "destructive"}
+          className="mb-4"
+        >
+          {importStatus.success ? (
+            <CheckCircle2 className="h-4 w-4" />
+          ) : (
+            <AlertCircle className="h-4 w-4" />
+          )}
+          <AlertTitle>{importStatus.success ? "Success" : "Error"}</AlertTitle>
+          <AlertDescription>{importStatus.message}</AlertDescription>
+        </Alert>
+      )}
+
+      {importStatus.warnings && importStatus.warnings.length > 0 && (
+        <Alert variant="default" className="mb-4 border-amber-500">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>
+            {importStatus.warnings.length} team pick
+            {importStatus.warnings.length === 1 ? "" : "s"} couldn't be applied
+          </AlertTitle>
+          <AlertDescription>
+            These teams were imported as if unpicked, so check for duplicates:
+            <ul className="mt-1 list-inside list-disc">
+              {importStatus.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {renderStep()}
+
+      <div className="mt-8 flex justify-between">
+        {step > 0 && (
+          <button
+            className="cursor-pointer rounded-md bg-gray-300 p-2 px-4 text-gray-800 transition-all duration-300 hover:bg-gray-400"
+            onClick={prevStep}
+            disabled={isLoading}
+          >
+            Previous
+          </button>
+        )}
+        <div className="flex-1"></div>
+        <button
+          className="bg-primary cursor-pointer rounded-md p-2 px-4 text-white transition-all duration-300 hover:bg-[#b5670b] disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={nextStep}
+          disabled={
+            isLoading ||
+            (step === (eventType === "event" ? 6 : 5) && !matcherReady)
+          }
+        >
+          {isLoading
+            ? "Loading..."
+            : step === (eventType === "event" ? 6 : 5)
+              ? "Import"
+              : "Next"}
+        </button>
+      </div>
+    </>
+  );
+}
+
+// Import page: start a new import, or update a competition already imported
+function ImportMatches() {
+  const [mode, setMode] = useState<"new" | "update">("new");
+
+  return (
     <div className="flex justify-center">
       <div className="w-full max-w-[600px]">
-        <h1 className="mb-8 text-2xl font-bold">Import Matches</h1>
+        <h1 className="mb-4 text-2xl font-bold">Import Matches</h1>
+        <Tabs
+          value={mode}
+          onValueChange={(value) => setMode(value as "new" | "update")}
+          className="mb-8"
+        >
+          <TabsList className="w-full">
+            <TabsTrigger value="new" className="cursor-pointer">
+              New import
+            </TabsTrigger>
+            <TabsTrigger value="update" className="cursor-pointer">
+              Update existing competition
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        {mode === "new" ? <NewImport /> : <UpdateCompetition />}
+      </div>
+    </div>
+  );
+}
 
-        {/* Progress indicator */}
-        <div className="mb-8">
-          <div className="flex justify-between">
-            {eventType === "event"
-              ? [
-                  "Platform",
-                  "Type",
-                  "Season",
-                  "Event",
-                  "Details",
-                  "Preview",
-                  "Match",
-                  "Complete",
-                ].map((label, index) => (
-                  <div
-                    key={label}
-                    className={`flex flex-col items-center ${index <= step ? "text-primary" : "text-muted-foreground"}`}
-                  >
-                    <div
-                      className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full ${
-                        index < step
-                          ? "bg-primary text-white"
-                          : index === step
-                            ? "border-primary border-2"
-                            : "border-muted border-2"
-                      }`}
-                    >
-                      {index < step ? "✓" : ""}
-                    </div>
-                    <span className="text-xs">{label}</span>
-                  </div>
-                ))
-              : [
-                  "Platform",
-                  "Type",
-                  "Season",
-                  "Details",
-                  "Preview",
-                  "Match",
-                  "Complete",
-                ].map((label, index) => (
-                  <div
-                    key={label}
-                    className={`flex flex-col items-center ${index <= step ? "text-primary" : "text-muted-foreground"}`}
-                  >
-                    <div
-                      className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full ${
-                        index < step
-                          ? "bg-primary text-white"
-                          : index === step
-                            ? "border-primary border-2"
-                            : "border-muted border-2"
-                      }`}
-                    >
-                      {index < step ? "✓" : ""}
-                    </div>
-                    <span className="text-xs">{label}</span>
-                  </div>
-                ))}
-          </div>
-          <div className="bg-muted mt-2 h-1">
-            <div
-              className="bg-primary h-full transition-all"
-              style={{
-                width: `${(step / (eventType === "event" ? 7 : 6)) * 100}%`,
-              }}
-            ></div>
-          </div>
-        </div>
+const UPDATE_STEPS = ["Competition", "Source", "Preview", "Match", "Complete"];
 
-        {importStatus.message && (
-          <Alert
-            variant={importStatus.success ? "default" : "destructive"}
-            className="mb-4"
-          >
-            {importStatus.success ? (
+// The backend's error message from a failed API call, if it sent one,
+// otherwise the fallback with the underlying error's message
+function apiErrorMessage(err: unknown, fallback: string) {
+  const response = (err as { response?: { data?: { error?: string } } })
+    .response;
+  if (response?.data?.error) return response.data.error;
+  return err instanceof Error && err.message
+    ? `${fallback} (${err.message})`
+    : fallback;
+}
+
+interface UpdateResult {
+  imported: ImportMatchesResponse;
+  updated: UpdateMatchesResponse | null;
+  updateError?: string;
+}
+
+// Re-import an existing competition from its platform: adds matches the
+// platform has added since (e.g. later swiss/bracket rounds), then refreshes
+// results and times of the competition's unfinished matches
+function UpdateCompetition() {
+  const [step, setStep] = useState(0);
+  const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [events, setEvents] = useState<PublicEvent[]>([]);
+  const [loadError, setLoadError] = useState("");
+
+  const [competitionId, setCompetitionId] = useState("");
+  const [seasonId, setSeasonId] = useState("");
+  const [platform, setPlatform] = useState("faceit");
+  const [sourceId, setSourceId] = useState("");
+  const [leagueSpotIdType, setLeagueSpotIdType] = useState("season");
+  const [importType, setImportType] = useState("league");
+  const [eventId, setEventId] = useState("");
+
+  const [previewData, setPreviewData] =
+    useState<ImportMatchesRequest["data"]>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<UpdateResult | null>(null);
+  const [matcherChoices, setMatcherChoices] = useState<MatcherChoices>({});
+  const [confirmedMerges, setConfirmedMerges] = useState<string[]>([]);
+  const [matcherReady, setMatcherReady] = useState(false);
+
+  const load = () => {
+    setLoadError("");
+    Promise.all([listCompetitions(), fetchSeasons(), fetchAllEvents()])
+      .then(([competitionsData, seasonsData, eventsData]) => {
+        setCompetitions(
+          [...competitionsData.competitions].sort((a, b) =>
+            a.name.localeCompare(b.name),
+          ),
+        );
+        setSeasons(seasonsData);
+        setEvents(eventsData);
+      })
+      .catch((err) => {
+        console.error("Failed to load competitions:", err);
+        setLoadError(
+          apiErrorMessage(err, "Failed to load competitions, seasons or events."),
+        );
+      });
+  };
+  useEffect(load, []);
+
+  const competition = competitions.find((c) => c.id === competitionId);
+  // The competition's own seasons, or every season if it has none yet
+  const seasonOptions = competition?.seasons.length
+    ? competition.seasons
+    : seasons.map(({ id, name }) => ({ id, name }));
+  const idType = leagueSpotSourceIdType(importType, leagueSpotIdType);
+
+  const selectCompetition = (id: string) => {
+    const selected = competitions.find((c) => c.id === id);
+    setCompetitionId(id);
+    setSeasonId(selected?.seasons.length === 1 ? selected.seasons[0].id : "");
+    const source = selected?.source;
+    // No saved source: make the admin pick the platform rather than guess
+    setPlatform(source?.platform ?? "");
+    setSourceId(source?.id ?? "");
+    setLeagueSpotIdType(source?.id_type ?? "season");
+    setImportType(source?.import_type ?? "league");
+    setEventId(source?.event_id ?? "");
+    setPreviewData(null);
+    setMatcherChoices({});
+    setConfirmedMerges([]);
+  };
+
+  const nextStep = async () => {
+    setError("");
+
+    if (step === 0 && (!competitionId || !seasonId)) {
+      setError("Pick a competition and season.");
+      return;
+    }
+
+    if (step === 1) {
+      if (!platform) {
+        setError("Pick the platform to import from.");
+        return;
+      }
+      if (!sourceId.trim()) {
+        setError("Enter the platform ID to import from.");
+        return;
+      }
+      if (importType === "event" && !eventId) {
+        setError("Pick the event these matches belong to.");
+        return;
+      }
+      setIsLoading(true);
+      try {
+        setPreviewData(
+          await fetchImportData(platform, sourceId.trim(), idType),
+        );
+        // Picks belong to the previous preview's teams
+        setMatcherChoices({});
+        setConfirmedMerges([]);
+      } catch (err) {
+        console.error("Failed to fetch preview data:", err);
+        setError(
+          apiErrorMessage(err, "Failed to fetch matches. Check the platform and ID."),
+        );
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(false);
+    }
+
+    if (step === 3) {
+      setIsLoading(true);
+      try {
+        const imported = await importMatches({
+          platform: platform as ImportMatchesRequest["platform"],
+          competition_id: competitionId,
+          competition_name: competition?.name ?? "",
+          season_id: seasonId,
+          data: previewData,
+          participant_matches: participantMatchesFromChoices(
+            matcherChoices,
+            platform,
+          ),
+          event_id: importType === "event" ? eventId : undefined,
+          import_type: importType as "league" | "event",
+          source_id: sourceId.trim(),
+          source_id_type: idType,
+        });
+
+        // The import skips matches it already has, so refresh those separately
+        let updated: UpdateMatchesResponse | null = null;
+        let updateError: string | undefined;
+        try {
+          updated = await updateMatches({ competition_id: competitionId });
+        } catch (err) {
+          console.error("Failed to refresh existing matches:", err);
+          updateError = apiErrorMessage(
+            err,
+            "The new matches were imported, but refreshing existing matches failed.",
+          );
+        }
+        setResult({ imported, updated, updateError });
+      } catch (err) {
+        setError(apiErrorMessage(err, "Import failed. Please try again."));
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(false);
+    }
+
+    setStep((prev) => Math.min(prev + 1, UPDATE_STEPS.length - 1));
+  };
+
+  const renderStep = () => {
+    switch (step) {
+      case 0:
+        return (
+          <div className="mb-8 flex flex-col items-center space-y-4">
+            <h1 className="text-3xl">Select Competition</h1>
+            <div className="w-full max-w-md space-y-4">
+              <div className="space-y-1">
+                <Label htmlFor="update-competition">Competition</Label>
+                <Select value={competitionId} onValueChange={selectCompetition}>
+                  <SelectTrigger id="update-competition" className="w-full">
+                    <SelectValue placeholder="Select a competition" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {competitions.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                        <span className="text-muted-foreground ml-2">
+                          {[
+                            c.seasons.map((s) => s.name).join(", "),
+                            `${c.matches_count} matches`,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {competition && (
+                <div className="space-y-1">
+                  <Label htmlFor="update-season">Season</Label>
+                  <Select value={seasonId} onValueChange={setSeasonId}>
+                    <SelectTrigger id="update-season" className="w-full">
+                      <SelectValue placeholder="Select a season" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {seasonOptions.map((season) => (
+                        <SelectItem key={season.id} value={season.id}>
+                          {season.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {competition && !competition.source && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>No saved source</AlertTitle>
+                  <AlertDescription>
+                    This competition was imported before sources were saved.
+                    Enter its platform ID on the next step; it'll be remembered
+                    for next time.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </div>
+        );
+
+      case 1:
+        return (
+          <div className="mb-8 flex flex-col items-center space-y-4">
+            <h1 className="text-3xl">Import Source</h1>
+            <div className="w-full max-w-md space-y-5">
+              <div className="space-y-2">
+                <Label>Platform</Label>
+                <RadioGroup
+                  value={platform}
+                  onValueChange={(value) => {
+                    setPlatform(value);
+                    setSourceId("");
+                  }}
+                  className="flex flex-wrap gap-4"
+                >
+                  {[
+                    ["faceit", "Faceit"],
+                    ["leaguespot", "Leaguespot"],
+                    ["regentsleague", "Regents League"],
+                  ].map(([value, label]) => (
+                    <div key={value} className="flex items-center gap-2">
+                      <RadioGroupItem value={value} id={`update-${value}`} />
+                      <Label htmlFor={`update-${value}`}>{label}</Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <RadioGroup
+                  value={importType}
+                  onValueChange={setImportType}
+                  className="flex gap-4"
+                >
+                  {[
+                    ["league", "League"],
+                    ["event", "Event"],
+                  ].map(([value, label]) => (
+                    <div key={value} className="flex items-center gap-2">
+                      <RadioGroupItem value={value} id={`update-${value}`} />
+                      <Label htmlFor={`update-${value}`}>{label}</Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              {importType === "event" && (
+                <div className="space-y-1">
+                  <Label htmlFor="update-event">Event</Label>
+                  <Select value={eventId} onValueChange={setEventId}>
+                    <SelectTrigger id="update-event" className="w-full">
+                      <SelectValue placeholder="Select an event" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {events.map((event) => (
+                        <SelectItem key={event.id} value={event.id}>
+                          {event.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {platform === "leaguespot" && importType === "event" && (
+                <div className="space-y-2">
+                  <Label>ID type</Label>
+                  <RadioGroup
+                    value={leagueSpotIdType}
+                    onValueChange={setLeagueSpotIdType}
+                  >
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="season" id="update-id-season" />
+                      <Label htmlFor="update-id-season">
+                        Season ID (uses current stage)
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="stage" id="update-id-stage" />
+                      <Label htmlFor="update-id-stage">
+                        Stage ID (for a specific bracket/playoff phase)
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              )}
+
+              {platform === "regentsleague" ? (
+                <div className="space-y-2">
+                  <Label>Division</Label>
+                  <RadioGroup
+                    value={sourceId}
+                    onValueChange={setSourceId}
+                    className="flex gap-4"
+                  >
+                    {["Elites", "Challengers"].map((division) => (
+                      <div key={division} className="flex items-center gap-2">
+                        <RadioGroupItem
+                          value={division}
+                          id={`update-${division}`}
+                        />
+                        <Label htmlFor={`update-${division}`}>{division}</Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <Label htmlFor="update-source-id">
+                    {platform === "faceit"
+                      ? "Faceit Championship ID"
+                      : idType === "stage"
+                        ? "LeagueSpot Stage ID"
+                        : "LeagueSpot Season ID"}
+                  </Label>
+                  <Input
+                    id="update-source-id"
+                    value={sourceId}
+                    onChange={(e) => setSourceId(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 2:
+        return (
+          <>
+            <ImportPreview previewData={previewData} isLoading={isLoading} />
+            <p className="text-muted-foreground -mt-4 mb-4 text-center text-sm">
+              Matches already in {competition?.name} are skipped; their results
+              and times are refreshed after the import.
+            </p>
+          </>
+        );
+
+      case 3:
+        return (
+          <ParticipantMatcher
+            previewData={previewData}
+            platform={platform}
+            selectedSeason={seasonId}
+            isLoading={isLoading}
+            setIsLoading={setIsLoading}
+            choices={matcherChoices}
+            setChoices={setMatcherChoices}
+            confirmedMerges={confirmedMerges}
+            setConfirmedMerges={setConfirmedMerges}
+            setReady={setMatcherReady}
+          />
+        );
+
+      case 4:
+        return result ? (
+          <div className="mb-8 flex flex-col items-center space-y-4">
+            <h1 className="text-3xl">Update Complete</h1>
+            <Alert className="w-full max-w-md">
               <CheckCircle2 className="h-4 w-4" />
-            ) : (
-              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>{competition?.name}</AlertTitle>
+              <AlertDescription>
+                <ul className="list-inside list-disc">
+                  <li>
+                    {result.imported.matches_imported} new match(es) added
+                  </li>
+                  <li>{result.imported.matches_skipped} already imported</li>
+                  {result.updated && (
+                    <li>
+                      {result.updated.updated_count} of{" "}
+                      {result.updated.total_processed} unfinished match(es)
+                      updated
+                      {result.updated.error_count > 0 &&
+                        ` (${result.updated.error_count} failed)`}
+                    </li>
+                  )}
+                </ul>
+              </AlertDescription>
+            </Alert>
+            {result.updateError && (
+              <Alert variant="destructive" className="w-full max-w-md">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Existing matches weren't refreshed</AlertTitle>
+                <AlertDescription>{result.updateError}</AlertDescription>
+              </Alert>
             )}
-            <AlertTitle>
-              {importStatus.success ? "Success" : "Error"}
-            </AlertTitle>
-            <AlertDescription>{importStatus.message}</AlertDescription>
-          </Alert>
-        )}
+            {(result.imported.skipped_participant_matches?.length ?? 0) > 0 && (
+              <Alert className="w-full max-w-md border-amber-500">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Some team picks couldn't be applied</AlertTitle>
+                <AlertDescription>
+                  <ul className="list-inside list-disc">
+                    {result.imported.skipped_participant_matches!.map(
+                      (pick) => (
+                        <li key={pick.key}>
+                          {pick.name || pick.key}: {pick.reason}
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+            <Button
+              variant="outline"
+              className="cursor-pointer"
+              onClick={() => {
+                setStep(0);
+                setResult(null);
+                setPreviewData(null);
+              }}
+            >
+              Update another competition
+            </Button>
+          </div>
+        ) : null;
 
-        {importStatus.warnings && importStatus.warnings.length > 0 && (
-          <Alert variant="default" className="mb-4 border-amber-500">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>
-              {importStatus.warnings.length} team pick
-              {importStatus.warnings.length === 1 ? "" : "s"} couldn't be
-              applied
-            </AlertTitle>
-            <AlertDescription>
-              These teams were imported as if unpicked, so check for duplicates:
-              <ul className="mt-1 list-inside list-disc">
-                {importStatus.warnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            </AlertDescription>
-          </Alert>
-        )}
+      default:
+        return null;
+    }
+  };
 
-        {renderStep()}
+  if (loadError) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription className="flex flex-col items-start gap-2">
+          {loadError}
+          <Button variant="outline" size="sm" onClick={load}>
+            Retry
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
+  const isMatchStep = step === 3;
+  const isDone = step === UPDATE_STEPS.length - 1;
+
+  return (
+    <>
+      <div className="mb-8">
+        <div className="flex justify-between">
+          {UPDATE_STEPS.map((label, index) => (
+            <div
+              key={label}
+              className={`flex flex-col items-center ${index <= step ? "text-primary" : "text-muted-foreground"}`}
+            >
+              <div
+                className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full ${
+                  index < step
+                    ? "bg-primary text-white"
+                    : index === step
+                      ? "border-primary border-2"
+                      : "border-muted border-2"
+                }`}
+              >
+                {index < step ? "✓" : ""}
+              </div>
+              <span className="text-xs">{label}</span>
+            </div>
+          ))}
+        </div>
+        <div className="bg-muted mt-2 h-1">
+          <div
+            className="bg-primary h-full transition-all"
+            style={{ width: `${(step / (UPDATE_STEPS.length - 1)) * 100}%` }}
+          ></div>
+        </div>
+      </div>
+
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {renderStep()}
+
+      {!isDone && (
         <div className="mt-8 flex justify-between">
           {step > 0 && (
             <button
               className="cursor-pointer rounded-md bg-gray-300 p-2 px-4 text-gray-800 transition-all duration-300 hover:bg-gray-400"
-              onClick={prevStep}
+              onClick={() => {
+                setError("");
+                setStep((prev) => prev - 1);
+              }}
               disabled={isLoading}
             >
               Previous
@@ -1995,20 +2581,13 @@ function ImportMatches() {
           <button
             className="bg-primary cursor-pointer rounded-md p-2 px-4 text-white transition-all duration-300 hover:bg-[#b5670b] disabled:cursor-not-allowed disabled:opacity-50"
             onClick={nextStep}
-            disabled={
-              isLoading ||
-              (step === (eventType === "event" ? 6 : 5) && !matcherReady)
-            }
+            disabled={isLoading || (isMatchStep && !matcherReady)}
           >
-            {isLoading
-              ? "Loading..."
-              : step === (eventType === "event" ? 6 : 5)
-                ? "Import"
-                : "Next"}
+            {isLoading ? "Loading..." : isMatchStep ? "Update" : "Next"}
           </button>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 }
 

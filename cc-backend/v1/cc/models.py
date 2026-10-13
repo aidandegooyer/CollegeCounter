@@ -301,6 +301,34 @@ class Competition(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100)
 
+    # Where the competition was last imported from, so it can be re-imported to
+    # pick up new matches (e.g. later swiss/bracket rounds). Null for
+    # competitions created by hand or imported before this was recorded.
+    source_platform = models.CharField(max_length=20, blank=True, null=True)
+    source_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Faceit championship, LeagueSpot season/stage or Regents League division",
+    )
+    source_id_type = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        help_text='LeagueSpot only: whether source_id is a "season" or "stage"',
+    )
+    import_type = models.CharField(
+        max_length=10, blank=True, null=True, help_text='"league" or "event"'
+    )
+    source_event = models.ForeignKey(
+        "Event",
+        on_delete=models.SET_NULL,
+        related_name="+",
+        blank=True,
+        null=True,
+        help_text="The event an event import adds its matches to",
+    )
+
     def __str__(self):
         return self.name
 
