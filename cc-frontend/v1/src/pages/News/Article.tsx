@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router";
 import client from "@/services/sanity-client";
-import { formatDistance } from "date-fns";
+import { formatDistanceStrict } from "date-fns";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { ChevronLeft, ExternalLink } from "lucide-react";
 import { PortableText } from "@portabletext/react";
+import AuthorName from "./AuthorName";
 import type { PortableTextComponents } from "@portabletext/react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 interface SanityImage {
   _type: "image";
@@ -41,6 +43,7 @@ function Article() {
   const [post, setPost] = useState<SanityPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  useDocumentTitle(post?.title ?? "News");
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -76,8 +79,6 @@ function Article() {
           setError("Article not found");
         } else {
           setPost(result);
-          // Set the document title to the article title
-          document.title = `${result.title} - College Counter News`;
         }
       } catch (err) {
         console.error("Error fetching post:", err);
@@ -155,11 +156,13 @@ function Article() {
           </h1>
 
           <div className="text-muted-foreground mb-8 flex flex-wrap items-center justify-between text-sm">
-            <span className="font-medium">
-              {post.author || "College Counter Staff"}
-            </span>
+            <AuthorName
+              author={post.author}
+              authorLink={post.authorLink}
+              className="font-medium"
+            />
             <span>
-              {formatDistance(new Date(post.publishedAt), new Date(), {
+              {formatDistanceStrict(new Date(post.publishedAt), new Date(), {
                 addSuffix: true,
               })}
             </span>

@@ -6,6 +6,7 @@ import { usePublicSearch } from "@/services/hooks";
 import client from "@/services/sanity-client";
 import { useEffect, useState } from "react";
 import { NavLink, useSearchParams } from "react-router";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 interface SearchArticle {
   _id: string;
@@ -65,9 +66,7 @@ export function Search() {
     fetchArticles();
   }, [query]);
 
-  document.title = query
-    ? `Search: ${query} - College Counter`
-    : "Search - College Counter";
+  useDocumentTitle(query ? `Search: ${query}` : "Search");
 
   const totalResults =
     (data?.teams.length || 0) +

@@ -13,6 +13,7 @@ import { Star } from "lucide-react";
 import { NavLink, useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export function Match() {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +21,9 @@ export function Match() {
   const { data, isLoading, error } = usePublicMatches({ id });
 
   const match = data?.results[0];
+  useDocumentTitle(
+    match ? `${match.team1.name} vs ${match.team2.name}` : "Match",
+  );
 
   const {
     data: team1,

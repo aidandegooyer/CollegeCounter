@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 function Rankings() {
   const [seasonFilter, setSeasonFilter] = useState<string | undefined>(
@@ -35,7 +36,7 @@ function Rankings() {
     return "team";
   };
 
-  document.title = "Rankings - College Counter";
+  useDocumentTitle("Rankings");
 
   const [rankingType, setRankingType] = useState(
     getInitialRankingType() || "team",

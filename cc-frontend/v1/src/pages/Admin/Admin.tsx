@@ -10,8 +10,10 @@ import Graphic from "./Graphic";
 import MergeTeams from "./MergeTeams";
 import EditMatch from "./EditMatch";
 import EditEvent from "./EditEvent";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 function Admin() {
+  useDocumentTitle("Admin");
   const auth = getAuth();
   const handleSignOut = async () => {
     try {

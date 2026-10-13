@@ -28,12 +28,14 @@ import { TabsContent } from "@radix-ui/react-tabs";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import Logo from "@/components/Logo";
 import { calculateEloChanges } from "@/services/elo";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export function Event() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const { data: event, isLoading, error } = usePublicEvent(id!);
+  useDocumentTitle(event?.name ?? "Event");
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
