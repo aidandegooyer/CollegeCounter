@@ -287,6 +287,23 @@ export function usePublicEvents(params: EventQueryParams = {}, options = {}) {
   });
 }
 
+// Pages through events for infinite scroll
+export function useInfinitePublicEvents(
+  params: Omit<EventQueryParams, "page"> = {},
+) {
+  return useInfiniteQuery({
+    queryKey: ["public", "events", "infinite", params],
+    queryFn: ({ pageParam }) =>
+      fetchPublicEvents({ ...params, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.current_page < lastPage.total_pages
+        ? lastPage.current_page + 1
+        : undefined,
+    staleTime: DEFAULT_STALE_TIME,
+  });
+}
+
 export function usePublicEvent(id: string, options = {}) {
   return useQuery({
     queryKey: ["public", "events", id],

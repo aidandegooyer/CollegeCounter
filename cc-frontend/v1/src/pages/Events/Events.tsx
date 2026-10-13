@@ -29,22 +29,28 @@ function Badge({
     </span>
   );
 }
-import { usePublicEvents } from "@/services/hooks";
+import InfiniteScroll from "react-infinite-scroll-component";
+import { useInfinitePublicEvents } from "@/services/hooks";
 import type { PublicEvent } from "@/services/api";
 import { NavLink } from "react-router";
 
 export function Events() {
+  // Newest first, so each later page only adds older (completed) events and
+  // the client-side sort below doesn't reshuffle cards already on screen
   const {
-    data: eventsResponse,
+    data,
     isLoading: eventsLoading,
+    isFetching,
+    hasNextPage,
+    fetchNextPage,
     error,
-  } = usePublicEvents({
+  } = useInfinitePublicEvents({
     sort: "start_date",
-    order: "asc",
+    order: "desc",
     page_size: 20,
   });
 
-  const events = eventsResponse?.results || [];
+  const events = data?.pages.flatMap((page) => page.results) ?? [];
 
   // Sort events by featured status (for live/upcoming), then status (Live → Upcoming → Completed), then by start date
   const sortedEvents = [...events].sort((a, b) => {
@@ -120,13 +126,32 @@ export function Events() {
             </p>
           </div>
         ) : (
-          <div className="flex justify-center">
-            <div className="grid w-full max-w-[488px] grid-cols-1 gap-6 lg:max-w-[1000px] lg:grid-cols-2">
-              {sortedEvents.map((event) => (
-                <Event key={event.id} event={event} />
-              ))}
+          <InfiniteScroll
+            dataLength={sortedEvents.length}
+            hasMore={!!hasNextPage}
+            next={() => {
+              if (!isFetching) fetchNextPage();
+            }}
+            loader={
+              <div className="mt-6 flex h-10 justify-center">
+                <Spinner />
+              </div>
+            }
+            endMessage={
+              <div className="text-muted-foreground my-6 text-center">
+                No more events to load
+              </div>
+            }
+            className="infinite-scroll-container"
+          >
+            <div className="flex justify-center">
+              <div className="grid w-full max-w-[488px] grid-cols-1 gap-6 lg:max-w-[1000px] lg:grid-cols-2">
+                {sortedEvents.map((event) => (
+                  <Event key={event.id} event={event} />
+                ))}
+              </div>
             </div>
-          </div>
+          </InfiniteScroll>
         )}
       </div>
     </div>
