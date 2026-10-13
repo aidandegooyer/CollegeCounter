@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router";
 import client from "@/services/sanity-client";
-import { formatDistance } from "date-fns";
+import { formatDistanceStrict } from "date-fns";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { ChevronLeft, ExternalLink } from "lucide-react";
 import { PortableText } from "@portabletext/react";
@@ -162,7 +162,7 @@ function Article() {
               className="font-medium"
             />
             <span>
-              {formatDistance(new Date(post.publishedAt), new Date(), {
+              {formatDistanceStrict(new Date(post.publishedAt), new Date(), {
                 addSuffix: true,
               })}
             </span>

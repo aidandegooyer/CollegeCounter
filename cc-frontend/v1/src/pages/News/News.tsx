@@ -1,7 +1,7 @@
 import logo from "@/assets/0.5x/C Logo@0.5x.png";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import client from "@/services/sanity-client";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNowStrict } from "date-fns";
 import { useState, useEffect, type ReactNode } from "react";
 import { Link } from "react-router";
 import AuthorName from "./AuthorName";
@@ -86,7 +86,13 @@ function News() {
     return (
       <>
         <section className="grid gap-6 py-6 lg:grid-cols-3">
-          <LeadStory post={lead} />
+          {/* Without a sidebar the lead takes the whole row */}
+          <div
+            className={`flex flex-col ${sidebar.length > 0 ? "lg:col-span-2" : "lg:col-span-3"}`}
+          >
+            <SectionLabel>Featured</SectionLabel>
+            <LeadStory post={lead} />
+          </div>
           {sidebar.length > 0 && (
             <aside>
               <SectionLabel>Latest</SectionLabel>
@@ -138,7 +144,10 @@ function News() {
 
   return (
     <div className="flex justify-center">
-      <div className="mx-4 w-full max-w-[1200px]">{renderContent()}</div>
+      <div className="mx-4 w-full max-w-[1200px]">
+        <h1 className="sr-only">News</h1>
+        {renderContent()}
+      </div>
     </div>
   );
 }
@@ -175,7 +184,9 @@ function Byline({ post }: { post: SanityPost }) {
         className="text-foreground relative z-10 text-sm"
       />
       <span className="text-muted-foreground shrink-0 text-sm">
-        {formatDistanceToNow(new Date(post.publishedAt), { addSuffix: true })}
+        {formatDistanceToNowStrict(new Date(post.publishedAt), {
+          addSuffix: true,
+        })}
       </span>
     </div>
   );
@@ -205,12 +216,12 @@ function TitleLink({
 
 function LeadStory({ post }: { post: SanityPost }) {
   return (
-    <article className={`${CARD} lg:col-span-2`}>
+    <article className={`${CARD} flex-1`}>
       <StoryImage post={post} />
       <div className="flex flex-1 flex-col p-4 pt-2">
-        <h2 className="text-2xl font-semibold">
+        <h3 className="text-2xl font-semibold">
           <TitleLink post={post}>{post.title}</TitleLink>
-        </h2>
+        </h3>
         {post.excerpt && (
           <p className="text-muted-foreground mt-2 line-clamp-3">
             {post.excerpt}
