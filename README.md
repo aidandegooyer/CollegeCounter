@@ -17,6 +17,15 @@ College Counter is a platform to view scores, rankings, and news for collegiate 
 
 ## Quick start (development)
 
+On macOS or Debian/Ubuntu, one script installs everything and sets up the project:
+
+```bash
+./setup.sh                       # or: ./setup.sh --dump dev_dump.sql
+./dev.sh                         # start the backend and frontend
+```
+
+The steps below do the same by hand.
+
 ### Prerequisites
 
 - Node.js 18+ and npm (newest version preferred)
