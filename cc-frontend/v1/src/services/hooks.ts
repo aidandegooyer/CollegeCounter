@@ -1,8 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+} from "@tanstack/react-query";
 import {
   fetchPublicTeams,
   fetchPublicPlayers,
   fetchPublicMatches,
+  fetchPublicCompetitions,
   fetchPublicSeasons,
   fetchPublicRankings,
   fetchPublicRankingItems,
@@ -20,6 +25,7 @@ import type {
   TeamQueryParams,
   PlayerQueryParams,
   MatchQueryParams,
+  CompetitionQueryParams,
   SeasonQueryParams,
   RankingQueryParams,
   RankingItemQueryParams,
@@ -54,6 +60,58 @@ export function usePublicMatches(params: MatchQueryParams = {}, options = {}) {
   return useQuery({
     queryKey: ["public", "matches", params],
     queryFn: () => fetchPublicMatches(params),
+    staleTime: DEFAULT_STALE_TIME,
+    ...options,
+  });
+}
+
+// Pages through matches for infinite scroll; previous results stay visible
+// while a new filter set loads
+export function useInfinitePublicMatches(
+  params: Omit<MatchQueryParams, "page"> = {},
+) {
+  return useInfiniteQuery({
+    queryKey: ["public", "matches", "infinite", params],
+    queryFn: ({ pageParam }) =>
+      fetchPublicMatches({ ...params, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.current_page < lastPage.total_pages
+        ? lastPage.current_page + 1
+        : undefined,
+    placeholderData: keepPreviousData,
+    staleTime: DEFAULT_STALE_TIME,
+  });
+}
+
+// Fetches every page of results (the API caps page_size at 100). Only use it
+// for bounded queries, such as a date window
+export function useAllPublicMatches(
+  params: Omit<MatchQueryParams, "page" | "page_size"> = {},
+) {
+  return useQuery({
+    queryKey: ["public", "matches", "all", params],
+    queryFn: async () => {
+      const page_size = 100;
+      const first = await fetchPublicMatches({ ...params, page: 1, page_size });
+      const rest = await Promise.all(
+        Array.from({ length: Math.max(first.total_pages - 1, 0) }, (_, i) =>
+          fetchPublicMatches({ ...params, page: i + 2, page_size }),
+        ),
+      );
+      return [first, ...rest].flatMap((page) => page.results);
+    },
+    staleTime: DEFAULT_STALE_TIME,
+  });
+}
+
+export function usePublicCompetitions(
+  params: CompetitionQueryParams = {},
+  options = {},
+) {
+  return useQuery({
+    queryKey: ["public", "competitions", params],
+    queryFn: () => fetchPublicCompetitions(params),
     staleTime: DEFAULT_STALE_TIME,
     ...options,
   });
@@ -226,6 +284,23 @@ export function usePublicEvents(params: EventQueryParams = {}, options = {}) {
     queryFn: () => fetchPublicEvents(params),
     staleTime: DEFAULT_STALE_TIME,
     ...options,
+  });
+}
+
+// Pages through events for infinite scroll
+export function useInfinitePublicEvents(
+  params: Omit<EventQueryParams, "page"> = {},
+) {
+  return useInfiniteQuery({
+    queryKey: ["public", "events", "infinite", params],
+    queryFn: ({ pageParam }) =>
+      fetchPublicEvents({ ...params, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.current_page < lastPage.total_pages
+        ? lastPage.current_page + 1
+        : undefined,
+    staleTime: DEFAULT_STALE_TIME,
   });
 }
 

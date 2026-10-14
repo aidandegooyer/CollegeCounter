@@ -1,5 +1,5 @@
 # Use the official Python runtime image
-FROM python:3.13.7-alpine
+FROM python:3.14.8-alpine
 
 # Create the app directory
 RUN mkdir /app
@@ -30,5 +30,9 @@ COPY . .
 # gunicorn config
 COPY gunicorn.conf.py .
 
+# Runs migrations before starting gunicorn
+RUN chmod +x entrypoint.sh
+
 EXPOSE 8000
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["gunicorn", "--config", "gunicorn.conf.py", "v1.wsgi:application"]

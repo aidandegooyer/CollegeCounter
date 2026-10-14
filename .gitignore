@@ -16,3 +16,4 @@ credentials
 /**/*.p12
 /**/*.jks
 /**/*.json
+backups/

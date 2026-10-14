@@ -4,3 +4,8 @@ __pycache__
 static/*
 college-counter-*.json
 instance
+.coverage
+htmlcov/
+
+# Pin the dev Python version to match the production image (root .gitignore ignores it)
+!.python-version

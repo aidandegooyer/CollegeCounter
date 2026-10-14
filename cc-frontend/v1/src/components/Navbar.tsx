@@ -8,7 +8,8 @@ import {
 } from "react-router";
 import { useEffect, useState } from "react";
 import logo from "../assets/0.1x/C Logo@0.1x.png";
-import { Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
 function Navbar() {
   const location = useLocation();
@@ -80,29 +81,7 @@ function Navbar() {
           </li>
 
           <li>
-            <NavLink
-              to={"/events"}
-              className={`transition-colors hover:text-blue-200 ${
-                location.pathname === "/events"
-                  ? "text-foreground"
-                  : "text-muted-foreground"
-              }`}
-            >
-              Events
-            </NavLink>
-          </li>
-
-           <li>
-            <NavLink
-              to="/about"
-              className={`transition-colors hover:text-blue-200 ${
-                location.pathname === "/about"
-                  ? "text-foreground"
-                  : "text-muted-foreground"
-              }`}
-            >
-              About Us
-            </NavLink>
+            <MoreMenu />
           </li>
         </ul>
         <div className="hidden md:block">
@@ -117,6 +96,56 @@ function Navbar() {
 }
 
 export default Navbar;
+
+const MORE_LINKS = [
+  { to: "/events", label: "Events" },
+  { to: "/about", label: "About Us" },
+];
+
+// Less-used pages, grouped to keep the navbar from crowding
+function MoreMenu() {
+  const location = useLocation();
+  const [isOpen, setIsOpen] = useState(false);
+
+  const isActive = (to: string) =>
+    location.pathname === to || location.pathname.startsWith(`${to}/`);
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger
+        className={`flex cursor-pointer items-center gap-1 transition-colors hover:text-blue-200 ${
+          MORE_LINKS.some((link) => isActive(link.to))
+            ? "text-foreground"
+            : "text-muted-foreground"
+        }`}
+      >
+        More
+        <ChevronDown
+          className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+        />
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-40 p-1">
+        <ul>
+          {MORE_LINKS.map((link) => (
+            <li key={link.to}>
+              <NavLink
+                to={link.to}
+                onClick={() => setIsOpen(false)}
+                className={`hover:bg-muted block rounded-sm px-2 py-1.5 text-sm transition-colors ${
+                  isActive(link.to)
+                    ? "text-foreground"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {link.label}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function SearchInput() {
   const navigate = useNavigate();

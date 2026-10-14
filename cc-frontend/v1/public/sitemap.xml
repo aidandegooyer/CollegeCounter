@@ -15,5 +15,8 @@
   <url>
     <loc>https://collegecounter.org/events</loc>
   </url>
+  <url>
+    <loc>https://collegecounter.org/privacy-policy</loc>
+  </url>
   <!-- Add more <url> entries for each static news article if desired -->
 </urlset>

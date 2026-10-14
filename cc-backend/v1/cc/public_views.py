@@ -17,7 +17,9 @@ from .models import (
     Participant,
     Ranking,
     RankingItem,
+    Competition,
 )
+from .views.elo import match_elo_data
 
 # Maximum items per page
 MAX_PAGE_SIZE = 100
@@ -325,9 +327,6 @@ def public_teams(request):
                 current_season = season
                 break
 
-        print(f"Today: {today}")
-        print(f"Current season: {current_season}")
-
         if current_season:
             # Get all the team's current participations in this season
             current_participants = (
@@ -564,7 +563,7 @@ def public_matches(request):
     team_id = request.query_params.get("team_id", "")
     team_id_1 = request.query_params.get("team_id_1", "")
     team_id_2 = request.query_params.get("team_id_2", "")
-    status = request.query_params.get("status", "")
+    status_filter = request.query_params.get("status", "")
     platform = request.query_params.get("platform", "")
     date_from = request.query_params.get("date_from", "")
     date_to = request.query_params.get("date_to", "")
@@ -623,8 +622,8 @@ def public_matches(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if status and status in ["scheduled", "in_progress", "completed", "cancelled"]:
-        query &= Q(status=status)
+    if status_filter in ["scheduled", "in_progress", "completed", "cancelled"]:
+        query &= Q(status=status_filter)
 
     if platform and platform in ["faceit", "playfly"]:
         query &= Q(platform=platform)
@@ -648,11 +647,12 @@ def public_matches(request):
 
     if date_to:
         try:
-            # Try parsing as full datetime first (ISO format)
-            to_date = parse_datetime(date_to)
-            # If that fails, try parsing as date and add end of day time
-            if not to_date:
+            # A bare date (YYYY-MM-DD) includes the whole day; parse_datetime
+            # would otherwise accept it as midnight and drop that day's matches
+            if len(date_to) == 10:
                 to_date = parse_datetime(f"{date_to}T23:59:59Z")
+            else:
+                to_date = parse_datetime(date_to)
             if to_date:
                 query &= Q(date__lte=to_date)
         except Exception:
@@ -684,8 +684,9 @@ def public_matches(request):
             )
 
     if competition_name:
-        # Filter by competition name using the relationship
-        query &= Q(competition__name__icontains=competition_name)
+        # Exact (case-insensitive) name match, so duplicate competitions that
+        # share a name are filtered together
+        query &= Q(competition__name__iexact=competition_name.strip())
 
     if event_id:
         try:
@@ -773,6 +774,7 @@ def public_matches(request):
                 "winner": winner,
                 "score_team1": match.score_team1,
                 "score_team2": match.score_team2,
+                "elo": match_elo_data(match),
                 "platform": match.platform,
                 "season": {"id": match.season.id, "name": match.season.name}
                 if match.season
@@ -877,6 +879,42 @@ def public_seasons(request):
         )
 
     return Response(result)
+
+
+@api_view(["GET"])
+def public_competitions(request):
+    """
+    Public API endpoint to fetch competition names.
+
+    Competitions can be duplicated (e.g. when a swiss event is re-imported), so
+    results are deduplicated by name (case-insensitive). Filter matches by
+    competition with public_matches' competition_name parameter.
+
+    Query Parameters:
+    - season_id: Only competitions with matches in this season
+
+    Returns {"results": [{"name": ...}]} sorted by name.
+    """
+    season_id = request.query_params.get("season_id", "")
+
+    competitions = Competition.objects.all()
+    if season_id:
+        try:
+            uuid.UUID(season_id)
+        except ValueError:
+            return Response(
+                {"error": "Invalid season_id format"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        competitions = competitions.filter(matches__season_id=season_id)
+
+    names = {}
+    for name in competitions.values_list("name", flat=True).distinct():
+        names.setdefault(name.strip().lower(), name.strip())
+
+    return Response(
+        {"results": [{"name": name} for name in sorted(names.values(), key=str.lower)]}
+    )
 
 
 @api_view(["GET"])

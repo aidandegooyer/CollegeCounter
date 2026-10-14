@@ -7,6 +7,11 @@ from . import webhooks
 urlpatterns = [
     path("", views.index, name="index"),
     path("import-matches/", views.import_matches, name="import_matches"),
+    path(
+        "import-matches/resolve-teams/",
+        views.resolve_import_teams,
+        name="resolve_import_teams",
+    ),
     path("seasons/", views.list_seasons, name="list_seasons"),
     path("seasons/create/", views.create_season, name="create_season"),
     path("events/create/", admin_views.create_event, name="create_event"),
@@ -27,8 +32,20 @@ urlpatterns = [
         views.apply_match_elo,
         name="apply_match_elo",
     ),
+    path(
+        "matches/<uuid:match_id>/revert-elo/",
+        views.revert_match_elo,
+        name="revert_match_elo",
+    ),
     path("matches/<uuid:match_id>/delete/", views.delete_match, name="delete_match"),
     path("matches/update/", views.update_matches, name="update_matches"),
+    path("matches/sync-review/", views.sync_review, name="sync_review"),
+    path("matches/sync-status/", views.sync_status_view, name="sync_status"),
+    path(
+        "matches/<uuid:match_id>/sync/",
+        views.retry_match_sync,
+        name="retry_match_sync",
+    ),
     path("clear-database/", views.clear_database, name="clear_database"),
     path("participants/", views.match_participants, name="match_participants"),
     path("player-elo/update/", views.update_player_elo, name="update_player_elo"),

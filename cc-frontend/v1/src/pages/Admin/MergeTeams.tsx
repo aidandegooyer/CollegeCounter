@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SearchSelect } from "@/components/SearchSelect";
@@ -32,6 +33,7 @@ function MergeTeams() {
   const [primaryTeamId, setPrimaryTeamId] = useState<string>("");
   const [secondaryTeamId, setSecondaryTeamId] = useState<string>("");
   const [confirmText, setConfirmText] = useState<string>("");
+  const [keepSecondaryElo, setKeepSecondaryElo] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<MergeResponse | null>(null);
   const [error, setError] = useState<string>("");
@@ -75,6 +77,7 @@ function MergeTeams() {
       const data = await mergeTeams({
         primary_team_id: primaryTeamId,
         secondary_team_id: secondaryTeamId,
+        keep_secondary_elo: keepSecondaryElo,
       });
 
       setResult(data);
@@ -181,6 +184,18 @@ function MergeTeams() {
               />
             </div>
 
+            {/* ELO option */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="keep-secondary-elo"
+                checked={keepSecondaryElo}
+                onCheckedChange={(checked) => setKeepSecondaryElo(!!checked)}
+              />
+              <Label htmlFor="keep-secondary-elo">
+                Keep ELO from secondary team
+              </Label>
+            </div>
+
             {/* Confirmation */}
             <div className="space-y-2">
               <Label htmlFor="confirm">
@@ -221,7 +236,19 @@ function MergeTeams() {
                       </h3>
                     </div>
                     <p className="text-sm text-green-600">Primary (Keep)</p>
-                    <p className="text-sm">ELO: {primaryTeam.elo}</p>
+                    <p className="text-sm">
+                      ELO:{" "}
+                      {keepSecondaryElo ? (
+                        <>
+                          <span className="line-through">
+                            {primaryTeam.elo}
+                          </span>{" "}
+                          → {secondaryTeam.elo}
+                        </>
+                      ) : (
+                        primaryTeam.elo
+                      )}
+                    </p>
                   </div>
 
                   <ArrowRight className="h-6 w-6 text-gray-400" />
@@ -264,7 +291,10 @@ function MergeTeams() {
                     </li>
                     <li>• The "{secondaryTeam.name}" team will be deleted</li>
                     <li>
-                      • ELO and stats will be preserved on "{primaryTeam.name}"
+                      •{" "}
+                      {keepSecondaryElo
+                        ? `"${primaryTeam.name}" will take the ELO of "${secondaryTeam.name}" (${secondaryTeam.elo})`
+                        : `ELO and stats will be preserved on "${primaryTeam.name}"`}
                     </li>
                   </ul>
                 </div>

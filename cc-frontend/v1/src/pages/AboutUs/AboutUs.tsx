@@ -3,6 +3,7 @@ import anthonyPhoto from "@/assets/about_photos/anthony.jpg";
 import haydenPhoto from "@/assets/about_photos/hadyen.jpg";
 import groupPhoto from "@/assets/about_photos/oj_group.jpg";
 import type { ReactNode } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 interface AboutHeroProps {
   image: string;
@@ -42,7 +43,7 @@ function AboutHero({
 }
 
 export default function AboutUs() {
-  document.title = "About Us - College Counter";
+  useDocumentTitle("About Us");
 
   return (
     <main className="app-container mx-auto w-full max-w-[1100px] px-4 py-8">
