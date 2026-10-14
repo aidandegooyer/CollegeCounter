@@ -4,6 +4,8 @@ import io
 from datetime import timedelta
 from unittest.mock import patch
 
+import requests
+
 from django.core.management import call_command
 from django.db import connections
 from django.test import TestCase, override_settings
@@ -194,6 +196,22 @@ class SyncPassTests(MatchSyncFixtures, TestCase):
         match.refresh_from_db()
         self.assertEqual(match.last_sync_error, "Internal error (KeyError): 'teams'")
 
+    def test_bad_json_is_the_platforms_failure(self):
+        match = self.make_match()
+        with self.assertNoLogs("cc.views.platform_sync", "ERROR"):
+            sync_match_with(match, requests.JSONDecodeError("Expecting value", "<html>", 0))
+        match.refresh_from_db()
+        self.assertEqual(match.sync_failures, 1)
+        self.assertTrue(match.last_sync_error.startswith("Expecting value"))
+
+    def test_our_value_errors_keep_the_traceback(self):
+        match = self.make_match()
+        with self.assertLogs("cc.views.platform_sync", "ERROR") as logs:
+            sync_match_with(match, ValueError("invalid literal for int()"))
+        self.assertIn("Traceback", logs.output[0])
+        match.refresh_from_db()
+        self.assertTrue(match.last_sync_error.startswith("Internal error (ValueError)"))
+
     def test_long_errors_are_truncated(self):
         match = self.make_match()
         sync_match_with(match, PlatformSyncError("x" * 5000))
@@ -216,6 +234,8 @@ class SyncPassTests(MatchSyncFixtures, TestCase):
         stale = self.make_match(starts_in=-timedelta(days=15))
         stale_live = self.make_match(status="in_progress", starts_in=-timedelta(days=15))
         finished = self.make_match(status="completed", starts_in=-timedelta(days=15))
+        # Not a platform we refresh, so there's nothing to review
+        self.make_match(platform="other", starts_in=-timedelta(days=15))
         summary, (faceit, _, _) = self.run_pass()
         self.assertEqual(summary["flagged_stale"], 2)
         faceit.assert_not_called()

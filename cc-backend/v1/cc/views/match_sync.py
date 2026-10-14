@@ -97,6 +97,9 @@ def flag_stale_matches(now):
     """
     return Match.objects.filter(
         status__in=["scheduled", "in_progress"],
+        # Only matches we'd otherwise refresh: retrying any other platform
+        # can't clear the flag
+        platform__in=PLATFORM_UPDATERS.keys(),
         date__lt=now - STALE_AFTER,
         sync_disabled=False,
     ).update(sync_disabled=True)

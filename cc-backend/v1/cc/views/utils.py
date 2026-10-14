@@ -27,9 +27,9 @@ def safe_parse_datetime(dt):
         # If parse_datetime fails, try to parse as unix timestamp string
         try:
             ts = float(dt)
-            return datetime.fromtimestamp(ts)
+            return datetime.fromtimestamp(ts, dt_timezone.utc)
         except ValueError:
             return None
     if isinstance(dt, (int, float)):
-        return datetime.fromtimestamp(dt)
+        return datetime.fromtimestamp(dt, dt_timezone.utc)
     return None

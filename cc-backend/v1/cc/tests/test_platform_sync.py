@@ -229,16 +229,17 @@ class UpdateFaceitMatchTests(SyncFixtures, TestCase):
         self.assertTrue(updated)
         self.assertEqual(self.match.status, "cancelled")
 
-    @unittest.expectedFailure
     def test_unchanged_refresh_is_not_an_update(self):
-        # BUG: safe_parse_datetime returns a naive datetime for unix timestamps
-        # (which is what Faceit sends), and a naive datetime never equals the
-        # aware one from the DB. So every refresh re-saves the match and
-        # reports it as updated.
-        data = {"status": "CANCELLED", "scheduled_at": 1759341600}
-        self.refresh(data)
-        updated, _ = self.refresh(data)
-        self.assertFalse(updated)
+        # Faceit sends unix timestamps; they must compare equal to the aware
+        # date from the DB, or every poll of a live match re-saves it
+        for data in (
+            {"status": "CANCELLED", "scheduled_at": 1759341600},
+            {"status": "ONGOING", "started_at": 1759341600},
+        ):
+            with self.subTest(status=data["status"]):
+                self.refresh(data)
+                updated, _ = self.refresh(data)
+                self.assertFalse(updated)
 
     def test_finished_maps_factions_via_team1_participant(self):
         Participant.objects.create(
@@ -303,12 +304,15 @@ class UpdateFaceitMatchTests(SyncFixtures, TestCase):
         )
         self.assert_fails_without_saving(self.finished(winner=None), "isn't either of our teams")
 
-    def test_live_without_mapping_still_updates_status(self):
+    def test_live_without_mapping_saves_status_but_fails(self):
+        # Shown as live, but reported so it doesn't sit at 0-0 looking healthy
         data = self.finished()
         data["status"] = "ONGOING"
-        updated, _ = self.refresh(data)
-        self.assertTrue(updated)
+        with self.assertRaisesMessage(PlatformSyncError, "Live on Faceit, but its teams don't match ours"):
+            self.refresh(data)
+        self.match.refresh_from_db()
         self.assertEqual(self.match.status, "in_progress")
+        self.assertIsNone(self.match.winner)
 
     def test_errors_are_raised(self):
         upstream = fake_response()  # json() raises

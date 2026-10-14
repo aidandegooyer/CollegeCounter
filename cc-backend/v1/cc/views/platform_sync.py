@@ -185,8 +185,9 @@ GIVE_UP_AFTER = timedelta(hours=12)
 STALE_AFTER = timedelta(days=14)
 
 # Failures that are the platform's, not ours: bad or missing responses, and
-# JSON that won't parse (ValueError)
-EXPECTED_SYNC_ERRORS = (PlatformSyncError, requests.RequestException, ValueError)
+# JSON that won't parse (requests.JSONDecodeError is a RequestException).
+# Anything else, e.g. a ValueError from our own parsing, is a bug.
+EXPECTED_SYNC_ERRORS = (PlatformSyncError, requests.RequestException)
 
 
 def save_synced_match(match, platform):
@@ -514,6 +515,7 @@ def update_faceit_match(match):
     match_data = response.json()
     updated = apply_platform_status(match, "faceit", match_data.get("status"))
     new_status = match.status
+    unmapped_error = None
 
     # Update date/time
     scheduled_at = match_data.get("scheduled_at")
@@ -634,8 +636,11 @@ def update_faceit_match(match):
                     f"({match.team1.name}, {match.team2.name}; factions {faction1_id}, {faction2_id})"
                 )
             else:
-                logger.warning(
-                    f"Could not map factions to teams for match {match.id}. Team1: {match.team1.name}, Team2: {match.team2.name}, Faction1: {faction1_id}, Faction2: {faction2_id}"
+                # Live, so still save the status below, but report it: its
+                # scores can't be shown until the teams are mapped
+                unmapped_error = (
+                    f"Live on Faceit, but its teams don't match ours "
+                    f"({match.team1.name}, {match.team2.name}; factions {faction1_id}, {faction2_id})"
                 )
         elif new_status == "completed":
             raise PlatformSyncError("Finished on Faceit, but it has no results yet")
@@ -643,6 +648,9 @@ def update_faceit_match(match):
     if updated:
         # Saves and reverts/applies Elo if the outcome changed
         save_synced_match(match, "Faceit")
+
+    if unmapped_error:
+        raise PlatformSyncError(unmapped_error)
 
     return updated
 

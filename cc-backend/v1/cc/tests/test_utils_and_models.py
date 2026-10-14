@@ -43,12 +43,12 @@ class SafeParseDatetimeTests(SimpleTestCase):
                 self.assertIsNotNone(parsed)
                 self.assertEqual(parsed.timestamp(), expected)
 
-    @unittest.expectedFailure
     def test_unix_timestamp_is_timezone_aware(self):
-        # BUG: the docstring promises an aware datetime, but timestamps go
-        # through datetime.fromtimestamp() with no tz, so they come back naive
-        # in the server's local time (Django then warns and assumes TIME_ZONE).
-        self.assertIsNotNone(safe_parse_datetime(1735689600).tzinfo)
+        for value in (1735689600, 1735689600.0, "1735689600"):
+            with self.subTest(value=value):
+                parsed = safe_parse_datetime(value)
+                self.assertIsNotNone(parsed.tzinfo)
+                self.assertEqual(parsed.timestamp(), 1735689600)
 
     def test_unparseable_values_return_none(self):
         for value in ("not a date", "", None, [], {}):
