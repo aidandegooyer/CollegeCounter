@@ -441,6 +441,23 @@ class ImportMatchDataTests(Fixtures, TestCase):
         self.import_([faceit_item(status="WEIRD", winner=None)])
         self.assertEqual(Match.objects.get().status, "scheduled")
 
+    def test_faceit_states_map_like_the_background_sync(self):
+        cases = [
+            ("SCHEDULED", "scheduled"),
+            ("READY", "scheduled"),
+            ("CONFIGURING", "in_progress"),
+            ("VOTING", "in_progress"),
+            ("PAUSED", "in_progress"),
+            ("MANUAL_RESULT", "in_progress"),
+            ("CANCELLED", "cancelled"),
+            ("ABORTED", "cancelled"),
+        ]
+        for faceit_status, expected in cases:
+            with self.subTest(faceit_status=faceit_status):
+                Match.objects.all().delete()
+                self.import_([faceit_item(status=faceit_status, winner=None)])
+                self.assertEqual(Match.objects.get().status, expected)
+
     def test_match_id_without_prefix(self):
         item = faceit_item(winner=None)
         item["match_id"] = MATCH_UUID

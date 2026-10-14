@@ -135,11 +135,11 @@ class UpdateMatchesEndpointTests(SyncFixtures, TestCase):
             body = self.client.post(reverse("update_matches"), {}, format="json").json()
         self.assertEqual(body["results"][0]["error"], "Internal error (KeyError): 'teams'")
 
-    def test_bad_request_data_is_500(self):
+    def test_invalid_match_id_is_400(self):
         response = self.client.post(
             reverse("update_matches"), {"match_ids": ["not-a-uuid"]}, format="json"
         )
-        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.status_code, 400)
 
 
 @override_settings(FACEIT_API_KEY="faceit-key")

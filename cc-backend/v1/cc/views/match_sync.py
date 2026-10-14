@@ -48,6 +48,9 @@ LEAGUESPOT_GAP_SECONDS = 2.0
 
 # Failing matches wait interval * 2^failures, up to this
 MAX_BACKOFF = HOUR
+# 2^10 already passes MAX_BACKOFF for every interval; capping the exponent
+# keeps a huge failure count from overflowing timedelta
+MAX_BACKOFF_EXPONENT = 10
 
 
 # Past their start time by more than this, unfinished matches are stragglers:
@@ -79,7 +82,8 @@ def interval_for(tier, match):
     intervals = INTERVALS[tier]
     interval = intervals.get(match.platform, intervals["default"])
     if match.sync_failures:
-        interval = max(interval, min(interval * 2**match.sync_failures, MAX_BACKOFF))
+        exponent = min(match.sync_failures, MAX_BACKOFF_EXPONENT)
+        interval = max(interval, min(interval * 2**exponent, MAX_BACKOFF))
     return interval
 
 

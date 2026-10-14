@@ -48,6 +48,18 @@ class RegentsLeagueWinnerTests(TestCase):
                 self.assertEqual(match.status, "completed")
                 self.assertIsNone(match.winner)
 
+    def test_import_maps_known_states(self):
+        for regents_status, expected in (("Scheduled", "scheduled"), ("In Progress", "in_progress")):
+            with self.subTest(regents_status=regents_status):
+                Match.objects.all().delete()
+                import_regentsleague_match_data(
+                    [regents_match(None, status=regents_status)], self.competition, self.season
+                )
+                match = Match.objects.get()
+                self.assertEqual(match.status, expected)
+                # Scores only come with a result
+                self.assertEqual((match.score_team1, match.score_team2), (0, 0))
+
     def test_import_unknown_status_defaults_to_scheduled(self):
         import_regentsleague_match_data(
             [regents_match(None, status="Postponed")], self.competition, self.season

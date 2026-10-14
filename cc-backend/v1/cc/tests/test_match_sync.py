@@ -1,6 +1,7 @@
 """Background match sync: tiers, back-off, giving up, and the admin review views."""
 
 import io
+import unittest
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -18,12 +19,14 @@ from cc.views.match_sync import (
     LEAGUESPOT_GAP_SECONDS,
     LEAGUESPOT_PER_PASS,
     due_matches,
+    flag_stale_matches,
     interval_for,
+    is_due,
     sync_due_matches,
     sync_status,
     tier_for,
 )
-from cc.views.platform_sync import PlatformSyncError, sync_match
+from cc.views.platform_sync import STALE_AFTER, PlatformSyncError, sync_match
 
 from .helpers import Fixtures, admin_settings, dev_client, fake_response, token_client
 
@@ -95,6 +98,47 @@ class TierTests(MatchSyncFixtures, TestCase):
             with self.subTest(kwargs):
                 self.assertEqual(tier_for(self.make_match(**kwargs), NOW), tier)
 
+    def test_tier_boundaries(self):
+        second = timedelta(seconds=1)
+        hour, day, week = timedelta(hours=1), timedelta(days=1), timedelta(days=7)
+        cases = [
+            (timedelta(0), "imminent"),
+            (hour, "imminent"),
+            (hour + second, "today"),
+            (day, "today"),
+            (day + second, "upcoming"),
+            (week, "upcoming"),
+            (week + second, None),
+            (-second, "overdue"),
+            (-timedelta(hours=12), "overdue"),
+            (-timedelta(hours=12) - second, "straggler"),
+        ]
+        for starts_in, tier in cases:
+            with self.subTest(starts_in=starts_in):
+                self.assertEqual(tier_for(self.make_match(starts_in=starts_in), NOW), tier)
+
+    def test_tracked_window_matches_the_tiers(self):
+        second = timedelta(seconds=1)
+        last_upcoming = self.make_match(starts_in=timedelta(days=7))
+        self.make_match(starts_in=timedelta(days=7) + second)
+        oldest = self.make_match(starts_in=-STALE_AFTER)
+        too_old = self.make_match(starts_in=-STALE_AFTER - second)
+        due = {match.id: tier for tier, match in due_matches(NOW)}
+        self.assertEqual(due, {last_upcoming.id: "upcoming", oldest.id: "straggler"})
+
+        self.assertEqual(flag_stale_matches(NOW), 1)
+        too_old.refresh_from_db()
+        oldest.refresh_from_db()
+        self.assertTrue(too_old.sync_disabled)
+        self.assertFalse(oldest.sync_disabled)
+
+    def test_due_once_the_interval_has_passed(self):
+        match = self.make_match(status="in_progress")
+        match.last_synced_at = NOW - timedelta(seconds=59)
+        self.assertFalse(is_due(match, "live", NOW))
+        match.last_synced_at = NOW - timedelta(minutes=1)
+        self.assertTrue(is_due(match, "live", NOW))
+
     def test_leaguespot_is_polled_less(self):
         faceit = self.make_match(status="in_progress")
         leaguespot = self.make_match(status="in_progress", platform="leaguespot")
@@ -106,6 +150,22 @@ class TierTests(MatchSyncFixtures, TestCase):
         self.assertEqual(interval_for("live", match), timedelta(minutes=8))
         match.sync_failures = 20
         self.assertEqual(interval_for("live", match), timedelta(hours=1))
+
+    def test_leaguespot_backoff_is_capped_too(self):
+        match = self.make_match(status="in_progress", platform="leaguespot", sync_failures=2)
+        self.assertEqual(interval_for("live", match), timedelta(minutes=20))
+        match.sync_failures = 5
+        self.assertEqual(interval_for("live", match), timedelta(hours=1))
+
+    def test_backoff_never_shortens_the_interval(self):
+        # LeagueSpot stragglers are polled every 24h, longer than the backoff cap
+        match = self.make_match(platform="leaguespot", sync_failures=3)
+        self.assertEqual(interval_for("straggler", match), timedelta(hours=24))
+
+    def test_huge_failure_counts_dont_overflow(self):
+        match = self.make_match(sync_failures=10_000)
+        self.assertEqual(interval_for("live", match), timedelta(hours=1))
+        self.assertEqual(interval_for("straggler", match), timedelta(hours=6))
 
     def test_due(self):
         live = self.make_match(status="in_progress", last_synced_at=NOW - timedelta(seconds=30))
@@ -274,9 +334,8 @@ class SyncPassTests(MatchSyncFixtures, TestCase):
         self.assertEqual(faceit.call_count, LEAGUESPOT_PER_PASS + 1)
 
 
-@override_settings(FACEIT_API_KEY="faceit-key")
-class MatchLifecycleTests(MatchSyncFixtures, TestCase):
-    """A Faceit match driven through the background sync, start to finish."""
+class FaceitMatchFixtures(MatchSyncFixtures):
+    """A Faceit match whose teams are mapped, refreshed against a faked API."""
 
     def setUp(self):
         super().setUp()
@@ -286,7 +345,8 @@ class MatchLifecycleTests(MatchSyncFixtures, TestCase):
             )
         self.match = self.make_match(starts_in=timedelta(minutes=30), url="https://faceit.com/x")
 
-    def faceit_pass(self, now, state, score=None, winner=None):
+    @staticmethod
+    def faceit_data(state, score=None, winner=None):
         data = {
             "status": state,
             "teams": {
@@ -299,6 +359,10 @@ class MatchLifecycleTests(MatchSyncFixtures, TestCase):
                 "winner": winner,
                 "score": {"faction1": score[0], "faction2": score[1]},
             }
+        return data
+
+    def faceit_pass(self, now, state, score=None, winner=None):
+        data = self.faceit_data(state, score, winner)
         with patch(
             "cc.views.platform_sync.requests.get", return_value=fake_response(json_data=data)
         ) as get:
@@ -306,6 +370,11 @@ class MatchLifecycleTests(MatchSyncFixtures, TestCase):
         self.match.refresh_from_db()
         self.alpha.refresh_from_db()
         return get
+
+
+@override_settings(FACEIT_API_KEY="faceit-key")
+class MatchLifecycleTests(FaceitMatchFixtures, TestCase):
+    """A Faceit match driven through the background sync, start to finish."""
 
     def test_elo_is_applied_once_on_completion(self):
         self.faceit_pass(NOW, "READY")
@@ -337,6 +406,50 @@ class MatchLifecycleTests(MatchSyncFixtures, TestCase):
         self.assertEqual(self.match.status, "cancelled")
         self.assertIsNone(self.match.winner)
         self.assertFalse(self.match.elo_applied)
+
+
+@override_settings(FACEIT_API_KEY="faceit-key")
+class OverlappingSyncTests(FaceitMatchFixtures, TestCase):
+    """The worker and an admin's manual refresh hitting the same match."""
+
+    def test_both_seeing_it_finish_apply_elo_once(self):
+        self.match.status = "in_progress"
+        self.match.save()
+        worker, manual = (Match.objects.get(pk=self.match.pk) for _ in range(2))
+        finished = fake_response(
+            json_data=self.faceit_data("FINISHED", score=(2, 0), winner="faction1")
+        )
+        with patch("cc.views.platform_sync.requests.get", return_value=finished):
+            self.assertEqual(sync_match(worker, NOW), ("updated", None))
+            self.alpha.refresh_from_db()
+            elo_after = self.alpha.elo
+            # The manual copy still thinks it's live, so it saves again
+            self.assertEqual(sync_match(manual, NOW), ("updated", None))
+        self.alpha.refresh_from_db()
+        self.assertGreater(elo_after, 1000)
+        self.assertEqual(self.alpha.elo, elo_after)
+        self.match.refresh_from_db()
+        self.assertTrue(self.match.elo_applied)
+
+    @unittest.expectedFailure
+    def test_admin_edit_during_the_request_survives(self):
+        # BUG: the updater saves every non-Elo field from the copy it loaded
+        # before asking the platform, so an admin's edit made while the
+        # request was in flight is overwritten
+        match = Match.objects.get(pk=self.match.pk)
+        live = fake_response(json_data=self.faceit_data("ONGOING", score=(1, 0)))
+
+        def admin_edits_then_platform_answers(*args, **kwargs):
+            Match.objects.filter(pk=match.pk).update(url="https://faceit.com/fixed")
+            return live
+
+        with patch(
+            "cc.views.platform_sync.requests.get", side_effect=admin_edits_then_platform_answers
+        ):
+            sync_match(match, NOW)
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, "in_progress")
+        self.assertEqual(self.match.url, "https://faceit.com/fixed")
 
 
 class ManagementCommandTests(MatchSyncFixtures, TestCase):
@@ -525,6 +638,86 @@ class UpdateMatchesSkipsGivenUpTests(MatchSyncFixtures, TestCase):
             ).json()
         self.assertEqual(body["total_processed"], 2)
         self.assertEqual(faceit.call_count, 2)
+
+
+@admin_settings
+class UpdateMatchesEndpointTests(MatchSyncFixtures, TestCase):
+    def post(self, data=None):
+        return dev_client().post(reverse("update_matches"), data or {}, format="json")
+
+    def test_reports_each_outcome(self):
+        updated = self.make_match()
+        failing = self.make_match(platform="leaguespot")
+        unchanged = self.make_match(platform="regentsleague")
+        unsupported = self.make_match(platform="other")
+        f, l, r = patch_updaters(
+            faceit=True, leaguespot=PlatformSyncError("LeagueSpot is down"), regents=False
+        )
+        with f, l, r:
+            response = self.post()
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(
+            (body["updated_count"], body["error_count"], body["total_processed"]), (1, 1, 4)
+        )
+        results = {result["match_id"]: result for result in body["results"]}
+        self.assertEqual(
+            results[str(updated.id)],
+            {
+                "match_id": str(updated.id),
+                "status": "updated",
+                "new_status": "scheduled",
+                "new_date": updated.date.isoformat(),
+            },
+        )
+        self.assertEqual(
+            results[str(failing.id)],
+            {"match_id": str(failing.id), "status": "error", "error": "LeagueSpot is down"},
+        )
+        self.assertEqual(results[str(unchanged.id)]["status"], "no_changes")
+        self.assertEqual(results[str(unsupported.id)]["status"], "unsupported")
+
+        failing.refresh_from_db()
+        self.assertEqual(failing.sync_failures, 1)
+        self.assertEqual(failing.last_sync_error, "LeagueSpot is down")
+
+    def test_filters(self):
+        live_leaguespot = self.make_match(status="in_progress", platform="leaguespot")
+        self.make_match(platform="leaguespot")
+        self.make_match(status="in_progress")
+        f, l, r = patch_updaters()
+        with f as faceit, l as leaguespot, r:
+            body = self.post({"platform": "LeagueSpot", "status_filter": "in_progress"}).json()
+        self.assertEqual(
+            [result["match_id"] for result in body["results"]], [str(live_leaguespot.id)]
+        )
+        faceit.assert_not_called()
+        self.assertEqual(leaguespot.call_count, 1)
+
+    def test_old_finished_matches_can_still_be_refreshed(self):
+        # Only unfinished matches go stale; a completed one can be re-checked
+        self.make_match(status="completed", starts_in=-timedelta(days=30))
+        f, l, r = patch_updaters()
+        with f as faceit, l, r:
+            body = self.post({"status_filter": "completed"}).json()
+        self.assertEqual(body["total_processed"], 1)
+        self.assertEqual(faceit.call_count, 1)
+
+    def test_bad_requests(self):
+        cases = [
+            {"match_ids": ["not-a-uuid"]},
+            {"match_ids": str(self.make_match().id)},
+            {"competition_id": "not-a-uuid"},
+            {"competition_id": "6f1c2a8e-4b1d-4c7e-9a52-0d3e8b7f1a90"},
+        ]
+        f, l, r = patch_updaters()
+        with f as faceit, l, r:
+            for data in cases:
+                with self.subTest(data=data):
+                    response = self.post(data)
+                    self.assertEqual(response.status_code, 400)
+                    self.assertIn("error", response.json())
+        faceit.assert_not_called()
 
 
 class SyncEndpointAuthTests(MatchSyncFixtures, TestCase):

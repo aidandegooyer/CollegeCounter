@@ -73,6 +73,19 @@ def update_matches(request):
         query = Match.objects.all()
 
         if match_ids:
+            if not isinstance(match_ids, list):
+                return Response(
+                    {"error": "match_ids must be a list"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                for match_id in match_ids:
+                    uuid.UUID(str(match_id))
+            except ValueError:
+                return Response(
+                    {"error": f"Invalid match id: {match_id}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             query = query.filter(id__in=match_ids)
 
         competition_id = data.get("competition_id")
