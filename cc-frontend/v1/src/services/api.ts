@@ -596,6 +596,7 @@ export interface SyncStatus {
   last_synced_at: string | null; // Most recent refresh attempt on any match
   worker_behind: boolean; // Due matches waiting well past their interval
   most_late_seconds: number;
+  worker_stalled: boolean; // Due matches, but nothing refreshed lately (or ever)
   tiers: Record<SyncTier, { tracked: number; due: number }>;
   platforms: Record<
     string,

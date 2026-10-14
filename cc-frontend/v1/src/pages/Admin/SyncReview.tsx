@@ -25,6 +25,8 @@ function SyncReview() {
   const [loadError, setLoadError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  // For matches that leave the list, so their row's note would go with them
+  const [message, setMessage] = useState("");
 
   const load = () => {
     setLoadError("");
@@ -48,13 +50,20 @@ function SyncReview() {
       const result = await retryMatchSync(match.id);
       if (result.outcome === "failed") {
         note(match.id, `Still failing: ${result.error}`);
+      } else if (result.outcome === "unsupported") {
+        note(
+          match.id,
+          `Matches on "${match.platform}" can't be updated automatically. Edit or cancel it instead.`,
+        );
       } else if (result.still_stale) {
         note(
           match.id,
           `Refreshed (${result.status}), but it's still unfinished long after its date, so it will be flagged again. Edit or cancel it instead.`,
         );
       } else {
-        note(match.id, `Refreshed (${result.status}); syncing again.`);
+        setMessage(
+          `${match.team1} vs ${match.team2} refreshed (${result.status}); it's updating automatically again.`,
+        );
       }
       load();
     } catch (err) {
@@ -104,91 +113,105 @@ function SyncReview() {
     );
   }
 
+  const banner = message && (
+    <Alert className="mt-4">
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
+  );
+
   if (matches.length === 0) {
     return (
-      <p className="text-muted-foreground mt-4">
-        No matches need review. Matches update automatically.
-      </p>
+      <>
+        {banner}
+        <p className="text-muted-foreground mt-4">
+          No matches need review. Matches update automatically.
+        </p>
+      </>
     );
   }
 
   return (
-    <ul className="mt-4 space-y-3">
-      {matches.map((match) => (
-        <li key={match.id} className="rounded-xl border-2 p-4 py-3">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <Link
-                to={`/matches/${match.id}`}
-                className="font-semibold hover:underline"
-              >
-                {match.team1} vs {match.team2}
-              </Link>
-              <div className="text-muted-foreground text-sm">
-                {match.competition ?? "No competition"} · {match.platform} ·{" "}
-                {formatDistanceToNow(new Date(match.date), { addSuffix: true })}
-              </div>
-              <div className="mt-1 text-sm">
-                {match.sync_disabled
-                  ? match.sync_failures > 0
-                    ? `Auto-update stopped after ${match.sync_failures} failed refreshes in a row.`
-                    : "Auto-update stopped: still unfinished long after its date."
-                  : null}
-                {match.unknown_platform_status && (
-                  <span>
-                    {" "}
-                    Unknown {match.platform} state "{match.platform_status}";
-                    kept as {match.status}.
-                  </span>
-                )}
-              </div>
-              <div className="text-muted-foreground mt-1 text-sm">
-                Last refresh:{" "}
-                {match.last_synced_at
-                  ? formatDistanceToNow(new Date(match.last_synced_at), {
-                      addSuffix: true,
-                    })
-                  : "never"}
-              </div>
-              {match.last_sync_error && (
-                <div className="text-muted-foreground mt-1 break-all font-mono text-xs">
-                  {match.last_sync_error}
+    <>
+      {banner}
+      <ul className="mt-4 space-y-3">
+        {matches.map((match) => (
+          <li key={match.id} className="rounded-xl border-2 p-4 py-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <Link
+                  to={`/matches/${match.id}`}
+                  className="font-semibold hover:underline"
+                >
+                  {match.team1} vs {match.team2}
+                </Link>
+                <div className="text-muted-foreground text-sm">
+                  {match.competition ?? "No competition"} · {match.platform} ·{" "}
+                  {formatDistanceToNow(new Date(match.date), {
+                    addSuffix: true,
+                  })}
                 </div>
-              )}
-              {notes[match.id] && (
+                <div className="mt-1 text-sm">
+                  {match.sync_disabled
+                    ? match.sync_failures > 0
+                      ? `Auto-update stopped after ${match.sync_failures} failed refreshes in a row.`
+                      : "Auto-update stopped: still unfinished long after its date."
+                    : null}
+                  {match.unknown_platform_status && (
+                    <span>
+                      {" "}
+                      Unknown {match.platform} state "{match.platform_status}";
+                      kept as {match.status}.
+                    </span>
+                  )}
+                </div>
                 <div className="text-muted-foreground mt-1 text-sm">
-                  {notes[match.id]}
+                  Last refresh:{" "}
+                  {match.last_synced_at
+                    ? formatDistanceToNow(new Date(match.last_synced_at), {
+                        addSuffix: true,
+                      })
+                    : "never"}
                 </div>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="cursor-pointer"
-                disabled={busyId === match.id}
-                onClick={() => retry(match)}
-              >
-                {busyId === match.id ? (
-                  <Spinner className="h-4 w-4" />
-                ) : (
-                  "Retry"
+                {match.last_sync_error && (
+                  <div className="text-muted-foreground mt-1 break-all font-mono text-xs">
+                    {match.last_sync_error}
+                  </div>
                 )}
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                className="cursor-pointer"
-                disabled={busyId === match.id}
-                onClick={() => cancel(match)}
-              >
-                Mark cancelled
-              </Button>
+                {notes[match.id] && (
+                  <div className="text-muted-foreground mt-1 text-sm">
+                    {notes[match.id]}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="cursor-pointer"
+                  disabled={busyId === match.id}
+                  onClick={() => retry(match)}
+                >
+                  {busyId === match.id ? (
+                    <Spinner className="h-4 w-4" />
+                  ) : (
+                    "Retry"
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="cursor-pointer"
+                  disabled={busyId === match.id}
+                  onClick={() => cancel(match)}
+                >
+                  Mark cancelled
+                </Button>
+              </div>
             </div>
-          </div>
-        </li>
-      ))}
-    </ul>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 

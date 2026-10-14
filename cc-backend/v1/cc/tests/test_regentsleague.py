@@ -4,6 +4,7 @@ from django.test import TestCase
 
 from cc.models import Competition, Match, Participant, Season, Team
 from cc.views import import_regentsleague_match_data, update_regentsleague_match
+from cc.views.platform_sync import PlatformSyncError
 
 
 def regents_match(winner, status="Completed"):
@@ -76,10 +77,11 @@ class RegentsLeagueWinnerTests(TestCase):
         self.assertEqual(match.status, "completed")
         self.assertIsNone(match.winner)
 
-    def test_refresh_with_missing_participants_does_not_crash(self):
+    def test_refresh_with_missing_participants_fails_without_saving(self):
         Participant.objects.all().delete()
-        match = self._refresh(regents_match({"id": 1}))
-        # Status/date still sync; scores and winner need participants
-        self.assertEqual(match.status, "completed")
+        # Saved completed without a result, it would never be refreshed again
+        with self.assertRaises(PlatformSyncError):
+            self._refresh(regents_match({"id": 1}))
+        match = Match.objects.get()
+        self.assertEqual(match.status, "scheduled")
         self.assertIsNone(match.winner)
-        self.assertEqual((match.score_team1, match.score_team2), (0, 0))

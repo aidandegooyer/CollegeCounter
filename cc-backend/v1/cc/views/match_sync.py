@@ -13,7 +13,7 @@ import time
 from collections import Counter
 from datetime import timedelta
 
-from django.db.models import Max, Q
+from django.db.models import Max
 from django.utils import timezone
 
 from ..models import Match
@@ -50,15 +50,22 @@ LEAGUESPOT_GAP_SECONDS = 2.0
 MAX_BACKOFF = HOUR
 
 
+# Past their start time by more than this, unfinished matches are stragglers:
+# probably stuck (e.g. Faceit's MANUAL_RESULT, waiting on an admin), not live
+STRAGGLER_AFTER = timedelta(hours=12)
+
+
 def tier_for(match, now):
     """The match's tier, or None if it isn't refreshed in the background."""
-    if match.status == "in_progress":
-        return "live"
-    if match.status != "scheduled":
+    if match.status not in ("scheduled", "in_progress"):
         return None
     until_start = match.date - now
+    if -until_start > STRAGGLER_AFTER:
+        return "straggler"
+    if match.status == "in_progress":
+        return "live"
     if until_start < timedelta(0):
-        return "overdue" if -until_start <= timedelta(hours=12) else "straggler"
+        return "overdue"
     if until_start <= HOUR:
         return "imminent"
     if until_start <= timedelta(hours=24):
@@ -95,16 +102,19 @@ def flag_stale_matches(now):
     ).update(sync_disabled=True)
 
 
-def tracked_matches(now):
-    """Matches the background sync refreshes, with their tier."""
-    candidates = Match.objects.filter(
+def tracked_queryset(now):
+    return Match.objects.filter(
         sync_disabled=False,
         platform__in=PLATFORM_UPDATERS.keys(),
         date__gte=now - STALE_AFTER,
         date__lte=now + timedelta(days=7),
-    ).filter(Q(status="scheduled") | Q(status="in_progress"))
+        status__in=["scheduled", "in_progress"],
+    ).select_related("team1", "team2", "competition", "season")
 
-    for match in candidates.select_related("team1", "team2", "competition", "season"):
+
+def tracked_matches(now):
+    """Matches the background sync refreshes, with their tier."""
+    for match in tracked_queryset(now):
         tier = tier_for(match, now)
         if tier:
             yield tier, match
@@ -131,6 +141,14 @@ def sync_due_matches(now=None, sleep=time.sleep):
 
     leaguespot_done = 0
     for tier, match in due_matches(now):
+        # A pass can take a while (LeagueSpot's gaps, slow responses), and the
+        # sync saves the whole match: reload it so an admin's edit since the
+        # pass started (e.g. Mark cancelled) isn't written back over
+        match = tracked_queryset(now).filter(pk=match.pk).first()
+        if match is None:
+            summary[f"{tier}:skipped"] += 1
+            continue
+
         if match.platform == "leaguespot":
             if leaguespot_done >= LEAGUESPOT_PER_PASS:
                 summary[f"{tier}:deferred"] += 1
@@ -184,6 +202,13 @@ def sync_status(now=None):
         (p["last_synced_at"] for p in platforms.values() if p["last_synced_at"]),
         default=None,
     )
+    # Matches are due but nothing has been refreshed lately: the worker isn't
+    # running. (Matches never synced don't count towards most_late, so this
+    # is what catches a worker that never started.)
+    due_now = sum(tier["due"] for tier in tiers.values())
+    stalled = due_now > 0 and (
+        last_synced_at is None or now - last_synced_at > WORKER_LATE_AFTER
+    )
     recent_errors = (
         Match.objects.filter(last_sync_error__isnull=False)
         .select_related("team1", "team2")
@@ -194,7 +219,8 @@ def sync_status(now=None):
         "last_synced_at": last_synced_at,
         # Due matches waiting well past their interval: the worker is down,
         # or there's more to refresh than it gets through
-        "worker_behind": most_late > WORKER_LATE_AFTER,
+        "worker_behind": stalled or most_late > WORKER_LATE_AFTER,
+        "worker_stalled": stalled,
         "most_late_seconds": int(most_late.total_seconds()),
         "tiers": tiers,
         "platforms": platforms,

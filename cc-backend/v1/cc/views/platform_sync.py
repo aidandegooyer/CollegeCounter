@@ -134,6 +134,7 @@ def update_matches(request):
                 logger.warning(
                     f"Unsupported platform for match {match.id}: {match.platform}"
                 )
+                results.append({"match_id": str(match.id), "status": "unsupported"})
             elif outcome == "updated":
                 updated_count += 1
                 results.append(
@@ -163,6 +164,7 @@ def update_matches(request):
         )
 
     except Exception as e:
+        logger.exception("update_matches failed")
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -182,6 +184,18 @@ GIVE_UP_AFTER = timedelta(hours=12)
 # the background sync flags them for review (sync_disabled)
 STALE_AFTER = timedelta(days=14)
 
+# Failures that are the platform's, not ours: bad or missing responses, and
+# JSON that won't parse (ValueError)
+EXPECTED_SYNC_ERRORS = (PlatformSyncError, requests.RequestException, ValueError)
+
+
+def save_synced_match(match, platform):
+    """Save a refreshed match, keeping its Elo in step with the outcome."""
+    warning = save_match_and_sync_elo(match)
+    if warning:
+        logger.warning("Match %s: %s", match.id, warning)
+    logger.info("Updated %s match %s", platform, match.id)
+
 
 def sync_match(match, now=None):
     """
@@ -200,13 +214,21 @@ def sync_match(match, now=None):
         # Looked up at call time so tests can patch the updaters
         updated = globals()[updater_name](match)
     except Exception as e:
+        if isinstance(e, EXPECTED_SYNC_ERRORS):
+            error = str(e)
+        else:
+            # A bug or database error, not the platform: keep the traceback.
+            # It's still recorded and backed off so one broken match can't
+            # stop the rest of the pass.
+            logger.exception("Unexpected error syncing match %s", match.id)
+            error = f"Internal error ({type(e).__name__}): {e}"
         failures = match.sync_failures + 1
         give_up = failures >= MAX_SYNC_FAILURES and match.date < now - GIVE_UP_AFTER
         fields = {
             "last_synced_at": now,
             "sync_failures": failures,
             # Truncated so a huge HTML error page can't bloat the row
-            "last_sync_error": str(e)[:1000],
+            "last_sync_error": error[:1000],
         }
         if give_up:
             fields["sync_disabled"] = True
@@ -215,11 +237,14 @@ def sync_match(match, now=None):
         if give_up:
             match.sync_disabled = True
             logger.warning(
-                "Giving up syncing match %s after %d failures: %s", match.id, failures, e
+                "Giving up syncing match %s after %d failures: %s",
+                match.id,
+                failures,
+                error,
             )
         else:
-            logger.error(f"Error updating match {match.id}: {e}")
-        return "failed", str(e)
+            logger.warning("Error updating match %s: %s", match.id, error)
+        return "failed", error
 
     Match.objects.filter(pk=match.pk).update(
         last_synced_at=now, sync_failures=0, last_sync_error=None
@@ -297,6 +322,18 @@ def retry_match_sync(request, match_id):
     except Match.DoesNotExist:
         return Response({"error": "Match not found"}, status=status.HTTP_404_NOT_FOUND)
 
+    if match.platform not in PLATFORM_UPDATERS:
+        # Nothing can refresh it; re-enabling it would only hide it from review
+        return Response(
+            {
+                "outcome": "unsupported",
+                "error": None,
+                "status": match.status,
+                "platform_status": match.platform_status,
+                "still_stale": False,
+            }
+        )
+
     Match.objects.filter(pk=match.pk).update(sync_disabled=False, sync_failures=0)
     match.sync_disabled = False
     match.sync_failures = 0
@@ -320,99 +357,250 @@ def update_regentsleague_match(match: Match):
     Update a single Regents League match with fresh data from the API
     Returns True if the match was updated, False if no changes
     """
-    try:
-        regentsleague_match_id = match.regentsleague_id
-        response = requests.get(
-            f"https://regent-league-api.poopdealer.lol/cc/match?id={regentsleague_match_id}",
-            timeout=30,
+    regentsleague_match_id = match.regentsleague_id
+    response = requests.get(
+        f"https://regent-league-api.poopdealer.lol/cc/match?id={regentsleague_match_id}",
+        timeout=30,
+    )
+
+    if response.status_code != 200:
+        raise PlatformSyncError(
+            f"Regents League API returned {response.status_code} for match {regentsleague_match_id}"
         )
 
-        if response.status_code != 200:
-            raise PlatformSyncError(
-                f"Regents League API returned {response.status_code} for match {regentsleague_match_id}"
+    match_data: dict = response.json()
+    updated = apply_platform_status(
+        match, "regentsleague", match_data.get("status")
+    )
+    new_status = match.status
+
+    parsed_date = safe_parse_datetime(match_data.get("date"))
+    if parsed_date and parsed_date != match.date:
+        match.date = parsed_date
+        updated = True
+
+    # Update results if match is finished
+    if new_status == "completed":
+        # Get team data to map factions to our teams using Faceit IDs
+        team1_data: dict = match_data.get("team1")
+        team2_data: dict = match_data.get("team2")
+
+        team1_id = team1_data.get("id")
+        team2_id = team2_data.get("id")
+
+        flipped = False
+        team1_participant = None
+        team2_participant = None
+        try:
+            team1_participant = Participant.objects.get(
+                team=match.team1,
+                competition=match.competition,
+                season=match.season,
+                regentsleague_id=team1_id,
             )
-
-        match_data: dict = response.json()
-        updated = apply_platform_status(
-            match, "regentsleague", match_data.get("status")
-        )
-        new_status = match.status
-
-        parsed_date = safe_parse_datetime(match_data.get("date"))
-        if parsed_date and parsed_date != match.date:
-            match.date = parsed_date
-            updated = True
-
-        # Update results if match is finished
-        if new_status == "completed":
-            # Get team data to map factions to our teams using Faceit IDs
-            team1_data: dict = match_data.get("team1")
-            team2_data: dict = match_data.get("team2")
-
-            team1_id = team1_data.get("id")
-            team2_id = team2_data.get("id")
-
-            flipped = False
-            team1_participant = None
-            team2_participant = None
+        except Participant.DoesNotExist:
+            # Sometimes team1 and team2 gets flipped after scored are entered.
             try:
                 team1_participant = Participant.objects.get(
                     team=match.team1,
                     competition=match.competition,
                     season=match.season,
-                    regentsleague_id=team1_id,
+                    regentsleague_id=team2_id,
                 )
+                flipped = True
             except Participant.DoesNotExist:
-                # Sometimes team1 and team2 gets flipped after scored are entered.
-                try:
-                    team1_participant = Participant.objects.get(
-                        team=match.team1,
-                        competition=match.competition,
-                        season=match.season,
-                        regentsleague_id=team2_id,
-                    )
-                    flipped = True
-                except Participant.DoesNotExist:
-                    logger.warning(
-                        f"Could not find participant for team1 {match.team1.name} in match {match.id}"
-                    )
+                logger.warning(
+                    f"Could not find participant for team1 {match.team1.name} in match {match.id}"
+                )
 
+        try:
+            team2_participant = Participant.objects.get(
+                team=match.team2,
+                competition=match.competition,
+                season=match.season,
+                regentsleague_id=team2_id,
+            )
+        except Participant.DoesNotExist:
+            # Sometimes team1 and team2 gets flipped after scored are entered.
             try:
                 team2_participant = Participant.objects.get(
                     team=match.team2,
                     competition=match.competition,
                     season=match.season,
-                    regentsleague_id=team2_id,
+                    regentsleague_id=team1_id,
                 )
+                flipped = True
             except Participant.DoesNotExist:
-                # Sometimes team1 and team2 gets flipped after scored are entered.
+                logger.warning(
+                    f"Could not find participant for team2 {match.team2.name} in match {match.id}"
+                )
+
+        if team1_participant and team2_participant:
+            if flipped:
+                team1 = match.team1
+                team2 = match.team2
+
+                match.team2 = team1
+                match.team1 = team2
+            logger.info(
+                f"Match {match.id}: {match.team1.name} -> {team1_participant}, {match.team2.name} -> {team2_participant}"
+            )
+
+            # Get scores
+            new_score_team1 = match_data.get("score_team1")
+            new_score_team2 = match_data.get("score_team2")
+
+            # Update scores if they changed
+            if new_score_team1 != match.score_team1:
+                match.score_team1 = new_score_team1
+                updated = True
+            if new_score_team2 != match.score_team2:
+                match.score_team2 = new_score_team2
+                updated = True
+
+            # Determine winner
+            winner_id = (match_data.get("winner") or {}).get("id")
+            new_winner = None
+            if winner_id is not None and winner_id == team1_participant.regentsleague_id:
+                new_winner = team1_participant.team
+            elif winner_id is not None and winner_id == team2_participant.regentsleague_id:
+                new_winner = team2_participant.team
+            if new_winner != match.winner:
+                match.winner = new_winner
+                updated = True
+        else:
+            # Saving it completed without a result would stick: completed
+            # matches aren't refreshed again
+            raise PlatformSyncError(
+                f"Finished on Regents League, but its teams don't match ours "
+                f"({match.team1.name}, {match.team2.name})"
+            )
+    if updated:
+        # Saves and reverts/applies Elo if the outcome changed
+        save_synced_match(match, "Regents League")
+
+    return updated
+
+
+def update_faceit_match(match):
+    """
+    Update a single Faceit match with fresh data from the API
+    Returns True if the match was updated, False if no changes
+    """
+    if not match.url:
+        raise PlatformSyncError("Match has no Faceit URL")
+
+    # Extract match ID from Faceit URL
+    # URLs are typically like: https://www.faceit.com/en/csgo/room/1-abc123-def456...
+    faceit_match_id = match.id
+
+    # Fetch match data from Faceit API
+    api_key = getattr(settings, "FACEIT_API_KEY", None)
+    if not api_key:
+        raise PlatformSyncError("FACEIT_API_KEY not configured")
+
+    headers = {"Authorization": f"Bearer {api_key}"}
+    response = requests.get(
+        f"https://open.faceit.com/data/v4/matches/1-{faceit_match_id}",
+        headers=headers,
+        timeout=30,
+    )
+
+    if response.status_code != 200:
+        raise PlatformSyncError(
+            f"Faceit API returned {response.status_code} for match {faceit_match_id}"
+        )
+
+    match_data = response.json()
+    updated = apply_platform_status(match, "faceit", match_data.get("status"))
+    new_status = match.status
+
+    # Update date/time
+    scheduled_at = match_data.get("scheduled_at")
+    started_at = match_data.get("started_at")
+    finished_at = match_data.get("finished_at")
+
+    # Use the most appropriate timestamp
+    if finished_at:
+        new_date = finished_at
+    elif started_at:
+        new_date = started_at
+    elif scheduled_at:
+        new_date = scheduled_at
+    else:
+        new_date = None
+
+    if new_date:
+        parsed_date = safe_parse_datetime(new_date)
+        if parsed_date and parsed_date != match.date:
+            match.date = parsed_date
+            updated = True
+
+    # Scores while live too, if Faceit has any yet (e.g. maps won in a Bo3);
+    # the winner only once it's finished
+    if new_status in ("in_progress", "completed"):
+        results = match_data.get("results") or {}
+        if results:
+            # Get team data to map factions to our teams using Faceit IDs
+            teams_data = match_data.get("teams", {})
+            faction1_data = teams_data.get("faction1", {})
+            faction2_data = teams_data.get("faction2", {})
+
+            faction1_id = faction1_data.get("faction_id")
+            faction2_id = faction2_data.get("faction_id")
+
+            # Look up teams by Faceit ID in participant table
+            team1_faction = None
+            team2_faction = None
+
+            try:
+                # Find which faction corresponds to team1
+                team1_participant = Participant.objects.get(
+                    team=match.team1,
+                    competition=match.competition,
+                    season=match.season,
+                    faceit_id__isnull=False,
+                )
+                if team1_participant.faceit_id == faction1_id:
+                    team1_faction = "faction1"
+                    team2_faction = "faction2"
+                elif team1_participant.faceit_id == faction2_id:
+                    team1_faction = "faction2"
+                    team2_faction = "faction1"
+            except Participant.DoesNotExist:
+                logger.warning(
+                    f"Could not find participant for team1 {match.team1.name} in match {match.id}"
+                )
+
+            # Double-check with team2 if we haven't found a mapping yet
+            if not team1_faction:
                 try:
                     team2_participant = Participant.objects.get(
                         team=match.team2,
                         competition=match.competition,
                         season=match.season,
-                        regentsleague_id=team1_id,
+                        faceit_id__isnull=False,
                     )
-                    flipped = True
+                    if team2_participant.faceit_id == faction1_id:
+                        team2_faction = "faction1"
+                        team1_faction = "faction2"
+                    elif team2_participant.faceit_id == faction2_id:
+                        team2_faction = "faction2"
+                        team1_faction = "faction1"
                 except Participant.DoesNotExist:
                     logger.warning(
                         f"Could not find participant for team2 {match.team2.name} in match {match.id}"
                     )
 
-            if team1_participant and team2_participant:
-                if flipped:
-                    team1 = match.team1
-                    team2 = match.team2
-
-                    match.team2 = team1
-                    match.team1 = team2
+            if team1_faction and team2_faction:
                 logger.info(
-                    f"Match {match.id}: {match.team1.name} -> {team1_participant}, {match.team2.name} -> {team2_participant}"
+                    f"Match {match.id}: {match.team1.name} -> {team1_faction}, {match.team2.name} -> {team2_faction}"
                 )
 
                 # Get scores
-                new_score_team1 = match_data.get("score_team1")
-                new_score_team2 = match_data.get("score_team2")
+                scores = results.get("score", {})
+                new_score_team1 = scores.get(team1_faction, 0)
+                new_score_team2 = scores.get(team2_faction, 0)
 
                 # Update scores if they changed
                 if new_score_team1 != match.score_team1:
@@ -423,182 +611,41 @@ def update_regentsleague_match(match: Match):
                     updated = True
 
                 # Determine winner
-                winner_id = (match_data.get("winner") or {}).get("id")
+                winner_faction = results.get("winner")
                 new_winner = None
-                if winner_id is not None and winner_id == team1_participant.regentsleague_id:
-                    new_winner = team1_participant.team
-                elif winner_id is not None and winner_id == team2_participant.regentsleague_id:
-                    new_winner = team2_participant.team
-                if new_winner != match.winner:
-                    match.winner = new_winner
-                    updated = True
-        if updated:
-            # Saves and reverts/applies Elo if the outcome changed
-            save_match_and_sync_elo(match)
-            logger.info(f"Updated Regent League match {match.id}")
+                if winner_faction == team1_faction:
+                    new_winner = match.team1
+                elif winner_faction == team2_faction:
+                    new_winner = match.team2
 
-        return updated
-
-    except Exception as e:
-        logger.error(f"Error updating Regents League match {match.id}: {str(e)}")
-        raise
-
-
-def update_faceit_match(match):
-    """
-    Update a single Faceit match with fresh data from the API
-    Returns True if the match was updated, False if no changes
-    """
-    if not match.url:
-        return False
-
-    try:
-        # Extract match ID from Faceit URL
-        # URLs are typically like: https://www.faceit.com/en/csgo/room/1-abc123-def456...
-        faceit_match_id = match.id
-
-        # Fetch match data from Faceit API
-        api_key = getattr(settings, "FACEIT_API_KEY", None)
-        if not api_key:
-            raise PlatformSyncError("FACEIT_API_KEY not configured")
-
-        headers = {"Authorization": f"Bearer {api_key}"}
-        response = requests.get(
-            f"https://open.faceit.com/data/v4/matches/1-{faceit_match_id}",
-            headers=headers,
-            timeout=30,
-        )
-
-        if response.status_code != 200:
-            raise PlatformSyncError(
-                f"Faceit API returned {response.status_code} for match {faceit_match_id}"
-            )
-
-        match_data = response.json()
-        updated = apply_platform_status(match, "faceit", match_data.get("status"))
-        new_status = match.status
-
-        # Update date/time
-        scheduled_at = match_data.get("scheduled_at")
-        started_at = match_data.get("started_at")
-        finished_at = match_data.get("finished_at")
-
-        # Use the most appropriate timestamp
-        if finished_at:
-            new_date = finished_at
-        elif started_at:
-            new_date = started_at
-        elif scheduled_at:
-            new_date = scheduled_at
-        else:
-            new_date = None
-
-        if new_date:
-            parsed_date = safe_parse_datetime(new_date)
-            if parsed_date and parsed_date != match.date:
-                match.date = parsed_date
-                updated = True
-
-        # Scores while live too, if Faceit has any yet (e.g. maps won in a Bo3);
-        # the winner only once it's finished
-        if new_status in ("in_progress", "completed"):
-            results = match_data.get("results") or {}
-            if results:
-                # Get team data to map factions to our teams using Faceit IDs
-                teams_data = match_data.get("teams", {})
-                faction1_data = teams_data.get("faction1", {})
-                faction2_data = teams_data.get("faction2", {})
-
-                faction1_id = faction1_data.get("faction_id")
-                faction2_id = faction2_data.get("faction_id")
-
-                # Look up teams by Faceit ID in participant table
-                team1_faction = None
-                team2_faction = None
-
-                try:
-                    # Find which faction corresponds to team1
-                    team1_participant = Participant.objects.get(
-                        team=match.team1,
-                        competition=match.competition,
-                        season=match.season,
-                        faceit_id__isnull=False,
-                    )
-                    if team1_participant.faceit_id == faction1_id:
-                        team1_faction = "faction1"
-                        team2_faction = "faction2"
-                    elif team1_participant.faceit_id == faction2_id:
-                        team1_faction = "faction2"
-                        team2_faction = "faction1"
-                except Participant.DoesNotExist:
-                    logger.warning(
-                        f"Could not find participant for team1 {match.team1.name} in match {match.id}"
-                    )
-
-                # Double-check with team2 if we haven't found a mapping yet
-                if not team1_faction:
-                    try:
-                        team2_participant = Participant.objects.get(
-                            team=match.team2,
-                            competition=match.competition,
-                            season=match.season,
-                            faceit_id__isnull=False,
+                if new_status == "completed":
+                    if new_winner is None:
+                        raise PlatformSyncError(
+                            f"Finished on Faceit, but its winner {winner_faction!r} isn't either of our teams"
                         )
-                        if team2_participant.faceit_id == faction1_id:
-                            team2_faction = "faction1"
-                            team1_faction = "faction2"
-                        elif team2_participant.faceit_id == faction2_id:
-                            team2_faction = "faction2"
-                            team1_faction = "faction1"
-                    except Participant.DoesNotExist:
-                        logger.warning(
-                            f"Could not find participant for team2 {match.team2.name} in match {match.id}"
-                        )
-
-                if team1_faction and team2_faction:
-                    logger.info(
-                        f"Match {match.id}: {match.team1.name} -> {team1_faction}, {match.team2.name} -> {team2_faction}"
-                    )
-
-                    # Get scores
-                    scores = results.get("score", {})
-                    new_score_team1 = scores.get(team1_faction, 0)
-                    new_score_team2 = scores.get(team2_faction, 0)
-
-                    # Update scores if they changed
-                    if new_score_team1 != match.score_team1:
-                        match.score_team1 = new_score_team1
-                        updated = True
-                    if new_score_team2 != match.score_team2:
-                        match.score_team2 = new_score_team2
-                        updated = True
-
-                    # Determine winner
-                    winner_faction = results.get("winner")
-                    new_winner = None
-                    if winner_faction == team1_faction:
-                        new_winner = match.team1
-                    elif winner_faction == team2_faction:
-                        new_winner = match.team2
-
-                    if new_status == "completed" and new_winner != match.winner:
+                    if new_winner != match.winner:
                         match.winner = new_winner
                         updated = True
-                else:
-                    logger.warning(
-                        f"Could not map factions to teams for match {match.id}. Team1: {match.team1.name}, Team2: {match.team2.name}, Faction1: {faction1_id}, Faction2: {faction2_id}"
-                    )
+            elif new_status == "completed":
+                # Saving it completed without a result would stick: completed
+                # matches aren't refreshed again
+                raise PlatformSyncError(
+                    f"Finished on Faceit, but its teams don't match ours "
+                    f"({match.team1.name}, {match.team2.name}; factions {faction1_id}, {faction2_id})"
+                )
+            else:
+                logger.warning(
+                    f"Could not map factions to teams for match {match.id}. Team1: {match.team1.name}, Team2: {match.team2.name}, Faction1: {faction1_id}, Faction2: {faction2_id}"
+                )
+        elif new_status == "completed":
+            raise PlatformSyncError("Finished on Faceit, but it has no results yet")
 
-        if updated:
-            # Saves and reverts/applies Elo if the outcome changed
-            save_match_and_sync_elo(match)
-            logger.info(f"Updated Faceit match {match.id}")
+    if updated:
+        # Saves and reverts/applies Elo if the outcome changed
+        save_synced_match(match, "Faceit")
 
-        return updated
+    return updated
 
-    except Exception as e:
-        logger.error(f"Error updating Faceit match {match.id}: {str(e)}")
-        raise
 
 
 def update_leaguespot_match(match):
@@ -607,137 +654,141 @@ def update_leaguespot_match(match):
     Returns True if the match was updated, False if no changes
     """
 
-    try:
-        # Extract match ID from LeagueSpot URL or use the stored match ID
-        leaguespot_match_id = match.id
+    # Extract match ID from LeagueSpot URL or use the stored match ID
+    leaguespot_match_id = match.id
 
-        # First, get the match data to check status and timing
-        headers = get_leaguespot_headers()
-        match_response = requests.get(
-            f"https://api.leaguespot.gg/api/v2/matches/{leaguespot_match_id}",
-            headers=headers,
-            timeout=30,
+    # First, get the match data to check status and timing
+    headers = get_leaguespot_headers()
+    match_response = requests.get(
+        f"https://api.leaguespot.gg/api/v2/matches/{leaguespot_match_id}",
+        headers=headers,
+        timeout=30,
+    )
+
+    if match_response.status_code != 200:
+        raise PlatformSyncError(
+            f"LeagueSpot API returned {match_response.status_code} for match {leaguespot_match_id}"
         )
 
-        if match_response.status_code != 200:
-            raise PlatformSyncError(
-                f"LeagueSpot API returned {match_response.status_code} for match {leaguespot_match_id}"
-            )
+    match_data = match_response.json()
+    updated = apply_platform_status(
+        match, "leaguespot", match_data.get("currentState")
+    )
 
-        match_data = match_response.json()
-        updated = apply_platform_status(
-            match, "leaguespot", match_data.get("currentState")
-        )
+    # Update date/time
+    scheduled_time = match_data.get("scheduled_at") or match_data.get(
+        "startTimeUTC"
+    )
+    if scheduled_time:
+        parsed_date = safe_parse_datetime(scheduled_time)
+        if parsed_date and parsed_date != match.date:
+            match.date = parsed_date
+            updated = True
 
-        # Update date/time
-        scheduled_time = match_data.get("scheduled_at") or match_data.get(
-            "startTimeUTC"
-        )
-        if scheduled_time:
-            parsed_date = safe_parse_datetime(scheduled_time)
-            if parsed_date and parsed_date != match.date:
-                match.date = parsed_date
-                updated = True
-
-        if match.status != "completed":
-            # LeagueSpot has no live scores, so only status and time can change
-            if updated:
-                save_match_and_sync_elo(match)
-                logger.info(f"Updated LeagueSpot match {match.id}")
-            return updated
-
-        # Get participants data to check scores and winner
-        participants_response = requests.get(
-            f"https://api.leaguespot.gg/api/v1/matches/{leaguespot_match_id}/participants",
-            headers=headers,
-            timeout=30,
-        )
-
-        if participants_response.status_code == 200:
-            participants_data = participants_response.json()
-
-            if len(participants_data) >= 2:
-                # Extract scores and winner from participants
-                team1_score = 0
-                team2_score = 0
-                winner_team_id = None
-                participant_score = 0
-
-                # Find the participant that matches each team using the Participant model
-                for participant in participants_data:
-                    participant_team_id = participant.get("teamId")
-                    participant_id = participant.get("participantId")
-                    participant_score = participant.get("score", 0)
-                    is_winner = participant.get("isWinner", False)
-
-                    # Try to find our team through the Participant model
-                    try:
-                        # First try by playfly_participant_id
-                        db_participant = Participant.objects.get(
-                            playfly_participant_id=participant_id,
-                            competition=match.competition,
-                            season=match.season,
-                        )
-                        team = db_participant.team
-                    except Participant.DoesNotExist:
-                        # If not found by participant ID, try by playfly_id (team ID)
-                        try:
-                            db_participant = Participant.objects.get(
-                                playfly_id=participant_team_id,
-                                competition=match.competition,
-                                season=match.season,
-                            )
-                            team = db_participant.team
-                        except Participant.DoesNotExist:
-                            # Can't find this team, skip
-                            logger.warning(
-                                f"Could not find team for LeagueSpot participant {participant_id} or team {participant_team_id}"
-                            )
-                            continue
-
-                    # Check which team this matches
-                    if team and team.id == match.team1.id:
-                        team1_score = int(participant_score)
-                        if is_winner:
-                            winner_team_id = match.team1.id
-                    elif team and team.id == match.team2.id:
-                        team2_score = int(participant_score)
-                        if is_winner:
-                            winner_team_id = match.team2.id
-
-                # Update scores if they changed
-                if team1_score != match.score_team1:
-                    match.score_team1 = team1_score
-                    updated = True
-
-                if team2_score != match.score_team2:
-                    match.score_team2 = team2_score
-                    updated = True
-
-                # Update winner
-                new_winner = None
-                if winner_team_id:
-                    if winner_team_id == match.team1.id:
-                        new_winner = match.team1
-                    elif winner_team_id == match.team2.id:
-                        new_winner = match.team2
-
-                if new_winner != match.winner:
-                    match.winner = new_winner
-                    updated = True
-
-        else:
-            logger.warning(
-                f"LeagueSpot participants API returned {participants_response.status_code} for match {leaguespot_match_id}"
-            )
-
+    if match.status != "completed":
+        # LeagueSpot has no live scores, so only status and time can change
         if updated:
-            # Saves and reverts/applies Elo if the outcome changed
-            save_match_and_sync_elo(match)
-            logger.info(f"Updated LeagueSpot match {match.id}")
-
+            save_synced_match(match, "LeagueSpot")
         return updated
 
-    except Exception as e:
-        logger.error(f"Error updating LeagueSpot match {match.id}: {str(e)}")
-        raise
+    # Get participants data to check scores and winner
+    participants_response = requests.get(
+        f"https://api.leaguespot.gg/api/v1/matches/{leaguespot_match_id}/participants",
+        headers=headers,
+        timeout=30,
+    )
+
+    # It's completed on LeagueSpot: any problem getting the result fails the
+    # sync rather than saving it completed without one, which would stick
+    # (completed matches aren't refreshed again)
+    if participants_response.status_code != 200:
+        raise PlatformSyncError(
+            f"LeagueSpot participants API returned {participants_response.status_code} for match {leaguespot_match_id}"
+        )
+
+    participants_data = participants_response.json()
+    if len(participants_data) < 2:
+        raise PlatformSyncError(
+            f"Finished on LeagueSpot, but it lists {len(participants_data)} participant(s)"
+        )
+
+    # Extract scores and winner from participants
+    team1_score = None
+    team2_score = None
+    winner_team_id = None
+
+    # Find the participant that matches each team using the Participant model
+    for participant in participants_data:
+        participant_team_id = participant.get("teamId")
+        participant_id = participant.get("participantId")
+        participant_score = participant.get("score", 0)
+        is_winner = participant.get("isWinner", False)
+
+        # Try to find our team through the Participant model
+        try:
+            # First try by playfly_participant_id
+            db_participant = Participant.objects.get(
+                playfly_participant_id=participant_id,
+                competition=match.competition,
+                season=match.season,
+            )
+            team = db_participant.team
+        except Participant.DoesNotExist:
+            # If not found by participant ID, try by playfly_id (team ID)
+            try:
+                db_participant = Participant.objects.get(
+                    playfly_id=participant_team_id,
+                    competition=match.competition,
+                    season=match.season,
+                )
+                team = db_participant.team
+            except Participant.DoesNotExist:
+                # Can't find this team; checked below
+                logger.warning(
+                    f"Could not find team for LeagueSpot participant {participant_id} or team {participant_team_id}"
+                )
+                continue
+
+        # Check which team this matches
+        if team and team.id == match.team1.id:
+            team1_score = int(participant_score)
+            if is_winner:
+                winner_team_id = match.team1.id
+        elif team and team.id == match.team2.id:
+            team2_score = int(participant_score)
+            if is_winner:
+                winner_team_id = match.team2.id
+
+    if team1_score is None or team2_score is None:
+        raise PlatformSyncError(
+            f"Finished on LeagueSpot, but its participants don't match our teams "
+            f"({match.team1.name}, {match.team2.name})"
+        )
+
+    # Update scores if they changed
+    if team1_score != match.score_team1:
+        match.score_team1 = team1_score
+        updated = True
+
+    if team2_score != match.score_team2:
+        match.score_team2 = team2_score
+        updated = True
+
+    # Update winner
+    new_winner = None
+    if winner_team_id:
+        if winner_team_id == match.team1.id:
+            new_winner = match.team1
+        elif winner_team_id == match.team2.id:
+            new_winner = match.team2
+
+    if new_winner != match.winner:
+        match.winner = new_winner
+        updated = True
+
+    if updated:
+        # Saves and reverts/applies Elo if the outcome changed
+        save_synced_match(match, "LeagueSpot")
+
+    return updated
+

@@ -38,7 +38,12 @@ class Command(BaseCommand):
             except Exception:
                 # Keep the worker alive through database or platform outages
                 logger.exception("Match sync pass failed")
-                connection.close()
+                # Start the next pass on a fresh connection (closing it also
+                # drops the advisory lock)
+                try:
+                    connection.close()
+                except Exception:
+                    logger.exception("Couldn't close the database connection")
             time.sleep(max(0, PASS_SECONDS - (time.monotonic() - started)))
 
     def run_pass(self):
@@ -48,12 +53,18 @@ class Command(BaseCommand):
         try:
             summary = sync_due_matches()
         finally:
-            self.release_lock()
+            try:
+                self.release_lock()
+            except Exception:
+                # Don't hide whatever broke the pass; the lock goes with
+                # the connection, which the loop closes
+                logger.exception("Couldn't release the match sync lock")
 
         activity = {key: count for key, count in summary.items() if count}
         if activity:
             message = ", ".join(f"{key}={count}" for key, count in sorted(activity.items()))
-            logger.info("Match sync: %s", message)
+            failed = any(key.endswith(":failed") for key in activity)
+            logger.log(logging.WARNING if failed else logging.INFO, "Match sync: %s", message)
             self.stdout.write(message)
 
     # Two workers (e.g. during a deploy) would refresh every match twice

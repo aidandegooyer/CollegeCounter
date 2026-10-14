@@ -114,26 +114,35 @@ function SyncMetrics() {
     0,
   );
   const minutesLate = Math.round(status.most_late_seconds / 60);
+  const workerLabel = status.worker_stalled
+    ? "Not running"
+    : status.worker_behind
+      ? `${minutesLate} min behind`
+      : "On time";
 
   return (
     <div className="mt-4 space-y-6">
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            Couldn't refresh these numbers ({error}); showing them as of{" "}
+            {ago(status.now)}.
+          </AlertDescription>
+        </Alert>
+      )}
       {status.worker_behind && (
         <Alert variant="destructive">
           <AlertDescription>
-            Matches are waiting up to {minutesLate} min past when they should
-            have been refreshed. The match-sync worker may not be running, or it
-            can't keep up.
+            {status.worker_stalled
+              ? `${dueNow} matches are due, but nothing has been refreshed ${status.last_synced_at ? `since ${ago(status.last_synced_at)}` : "yet"}. The match-sync worker isn't running.`
+              : `Matches are waiting up to ${minutesLate} min past when they should have been refreshed. The match-sync worker can't keep up.`}
           </AlertDescription>
         </Alert>
       )}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Stat label="Last refresh" value={ago(status.last_synced_at)} />
-        <Stat
-          label="Worker"
-          value={status.worker_behind ? `${minutesLate} min behind` : "On time"}
-          warn={status.worker_behind}
-        />
+        <Stat label="Worker" value={workerLabel} warn={status.worker_behind} />
         <Stat label="Due now" value={dueNow} />
         <Stat
           label="Failing (retrying)"
