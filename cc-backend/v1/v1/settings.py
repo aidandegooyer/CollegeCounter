@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 
 import dj_database_url
 
@@ -185,6 +186,8 @@ LOGGING = {
             "class": "cc.discord_logging.DiscordWebhookHandler",
             "level": "WARNING",
             "webhook_url": DISCORD_ALERTS_WEBHOOK_URL,
+            # Say so at startup if production has no webhook (but not in tests)
+            "warn_if_disabled": not DEBUG and sys.argv[1:2] != ["test"],
         },
     },
     "loggers": {
@@ -195,5 +198,4 @@ LOGGING = {
             "propagate": False,
         },
     },
-    "root": {"handlers": ["console"], "level": "WARNING"},
 }
