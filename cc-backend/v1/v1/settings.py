@@ -37,6 +37,8 @@ PLAYFLY_API_KEY = os.getenv("PLAYFLY_API_KEY", "")
 FACEIT_API_KEY = os.getenv("FACEIT_API_KEY", "")
 NWES_API_KEY = os.getenv("NWES_API_KEY", "")
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
+# Alerts channel for backend warnings and errors (not the news channel above)
+DISCORD_ALERTS_WEBHOOK_URL = os.getenv("DISCORD_ALERTS_WEBHOOK_URL", "")
 
 
 if DEBUG:
@@ -169,3 +171,29 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# Warnings and errors from our code, and unhandled 500s, go to stderr and the
+# Discord alerts channel. django.request logs 4xx (e.g. 404s) as warnings, so
+# only its errors are sent.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "level": "WARNING"},
+        "discord": {
+            "class": "cc.discord_logging.DiscordWebhookHandler",
+            "level": "WARNING",
+            "webhook_url": DISCORD_ALERTS_WEBHOOK_URL,
+        },
+    },
+    "loggers": {
+        "cc": {"handlers": ["console", "discord"], "level": "WARNING", "propagate": False},
+        "django.request": {
+            "handlers": ["console", "discord"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+    "root": {"handlers": ["console"], "level": "WARNING"},
+}
