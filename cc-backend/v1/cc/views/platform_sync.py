@@ -20,10 +20,30 @@ import uuid
 import requests
 
 from .elo import save_match_and_sync_elo
+from .match_status import is_known_platform_status, map_platform_status
 from .proxies import get_leaguespot_headers
 from .utils import safe_parse_datetime
 
 logger = logging.getLogger(__name__)
+
+
+class PlatformSyncError(Exception):
+    """A platform couldn't be asked about a match (bad response, missing config)."""
+
+
+def apply_platform_status(match, platform, raw):
+    """
+    Record the platform's raw state and set our status from it. Unknown states
+    leave the status as it was. Returns True if anything changed.
+    """
+    raw = None if raw is None else str(raw)
+    changed = raw != match.platform_status
+    match.platform_status = raw
+    new_status = map_platform_status(platform, raw)
+    if new_status and new_status != match.status:
+        match.status = new_status
+        changed = True
+    return changed
 
 
 @api_view(["POST"])
@@ -85,6 +105,14 @@ def update_matches(request):
         now = timezone.now()
         one_week_from_now = now + timedelta(weeks=1)
 
+        if not match_ids:
+            # Matches the background sync gave up on, and old ones it no
+            # longer tries, are only refreshed when asked for by ID
+            query = query.filter(sync_disabled=False).exclude(
+                models.Q(date__lt=now - STALE_AFTER)
+                & ~models.Q(status__in=["completed", "cancelled"])
+            )
+
         # Include matches that:
         # 1. Have no date (null dates)
         # 2. Are in the past or within the next week
@@ -95,45 +123,33 @@ def update_matches(request):
             | models.Q(status="in_progress")  # Currently in progress matches
         )
 
-        matches = query
+        matches = list(query)
         updated_count = 0
         error_count = 0
         results = []
 
         for match in matches:
-            try:
-                updated = False
-
-                if match.platform == "faceit":
-                    updated = update_faceit_match(match)
-                elif match.platform == "leaguespot":
-                    updated = update_leaguespot_match(match)
-                elif match.platform == "regentsleague":
-                    updated = update_regentsleague_match(match)
-                else:
-                    logger.warning(
-                        f"Unsupported platform for match {match.id}: {match.platform}"
-                    )
-                    continue
-
-                if updated:
-                    updated_count += 1
-                    results.append(
-                        {
-                            "match_id": str(match.id),
-                            "status": "updated",
-                            "new_status": match.status,
-                            "new_date": match.date.isoformat() if match.date else None,
-                        }
-                    )
-                else:
-                    results.append({"match_id": str(match.id), "status": "no_changes"})
-
-            except Exception as e:
-                error_count += 1
-                logger.error(f"Error updating match {match.id}: {str(e)}")
+            outcome, error = sync_match(match, now)
+            if outcome == "unsupported":
+                logger.warning(
+                    f"Unsupported platform for match {match.id}: {match.platform}"
+                )
+            elif outcome == "updated":
+                updated_count += 1
                 results.append(
-                    {"match_id": str(match.id), "status": "error", "error": str(e)}
+                    {
+                        "match_id": str(match.id),
+                        "status": "updated",
+                        "new_status": match.status,
+                        "new_date": match.date.isoformat() if match.date else None,
+                    }
+                )
+            elif outcome == "unchanged":
+                results.append({"match_id": str(match.id), "status": "no_changes"})
+            else:
+                error_count += 1
+                results.append(
+                    {"match_id": str(match.id), "status": "error", "error": error}
                 )
 
         return Response(
@@ -150,6 +166,155 @@ def update_matches(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+PLATFORM_UPDATERS = {
+    "faceit": "update_faceit_match",
+    "leaguespot": "update_leaguespot_match",
+    "regentsleague": "update_regentsleague_match",
+}
+
+# A match that keeps failing this long after it was due to start is given up
+# on (sync_disabled) after this many failures in a row. Matches nearer their
+# start time back off instead, so a platform outage can't disable live matches.
+MAX_SYNC_FAILURES = 5
+GIVE_UP_AFTER = timedelta(hours=12)
+
+# Unfinished matches this far past their start time aren't refreshed any more;
+# the background sync flags them for review (sync_disabled)
+STALE_AFTER = timedelta(days=14)
+
+
+def sync_match(match, now=None):
+    """
+    Refresh one match from its platform and record the attempt.
+
+    Returns (outcome, error): outcome is "updated", "unchanged", "failed" or
+    "unsupported" (a platform we can't refresh), and error is the failure's
+    message.
+    """
+    now = now or timezone.now()
+    updater_name = PLATFORM_UPDATERS.get(match.platform)
+    if not updater_name:
+        return "unsupported", None
+
+    try:
+        # Looked up at call time so tests can patch the updaters
+        updated = globals()[updater_name](match)
+    except Exception as e:
+        failures = match.sync_failures + 1
+        give_up = failures >= MAX_SYNC_FAILURES and match.date < now - GIVE_UP_AFTER
+        fields = {
+            "last_synced_at": now,
+            "sync_failures": failures,
+            # Truncated so a huge HTML error page can't bloat the row
+            "last_sync_error": str(e)[:1000],
+        }
+        if give_up:
+            fields["sync_disabled"] = True
+        Match.objects.filter(pk=match.pk).update(**fields)
+        match.sync_failures = failures
+        if give_up:
+            match.sync_disabled = True
+            logger.warning(
+                "Giving up syncing match %s after %d failures: %s", match.id, failures, e
+            )
+        else:
+            logger.error(f"Error updating match {match.id}: {e}")
+        return "failed", str(e)
+
+    Match.objects.filter(pk=match.pk).update(
+        last_synced_at=now, sync_failures=0, last_sync_error=None
+    )
+    match.last_synced_at = now
+    match.sync_failures = 0
+    match.last_sync_error = None
+    return ("updated" if updated else "unchanged"), None
+
+
+@api_view(["GET"])
+@firebase_auth_required(min_role="admin")
+def sync_review(request):
+    """
+    Unfinished matches the background sync needs an admin for: ones it gave up
+    on (sync_disabled), and ones in a platform state we don't recognise.
+    """
+    unfinished = (
+        Match.objects.exclude(status__in=["completed", "cancelled"])
+        .filter(models.Q(sync_disabled=True) | models.Q(platform_status__isnull=False))
+        .select_related("team1", "team2", "competition")
+        .order_by("-date")
+    )
+    matches = [
+        match
+        for match in unfinished
+        if match.sync_disabled
+        or not is_known_platform_status(match.platform, match.platform_status)
+    ]
+    return Response(
+        {
+            "matches": [
+                {
+                    "id": str(match.id),
+                    "team1": match.team1.name,
+                    "team2": match.team2.name,
+                    "date": match.date.isoformat(),
+                    "status": match.status,
+                    "platform": match.platform,
+                    "platform_status": match.platform_status,
+                    "unknown_platform_status": not is_known_platform_status(
+                        match.platform, match.platform_status
+                    )
+                    and match.platform_status is not None,
+                    "sync_disabled": match.sync_disabled,
+                    "sync_failures": match.sync_failures,
+                    "last_sync_error": match.last_sync_error,
+                    "last_synced_at": (
+                        match.last_synced_at.isoformat() if match.last_synced_at else None
+                    ),
+                    "competition": match.competition.name if match.competition else None,
+                }
+                for match in matches
+            ]
+        }
+    )
+
+
+@api_view(["GET"])
+@firebase_auth_required(min_role="admin")
+def sync_status_view(request):
+    """How the background match sync is doing, for the control panel."""
+    # Imported here: match_sync imports this module
+    from .match_sync import sync_status
+
+    return Response(sync_status())
+
+
+@api_view(["POST"])
+@firebase_auth_required(min_role="admin")
+def retry_match_sync(request, match_id):
+    """Re-enable background sync for a match and refresh it now."""
+    try:
+        match = Match.objects.select_related("team1", "team2").get(id=match_id)
+    except Match.DoesNotExist:
+        return Response({"error": "Match not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    Match.objects.filter(pk=match.pk).update(sync_disabled=False, sync_failures=0)
+    match.sync_disabled = False
+    match.sync_failures = 0
+    outcome, error = sync_match(match)
+    match.refresh_from_db()
+    return Response(
+        {
+            "outcome": outcome,
+            "error": error,
+            "status": match.status,
+            "platform_status": match.platform_status,
+            # Still long past its start time, so the next pass flags it again
+            "still_stale": match.status in ("scheduled", "in_progress")
+            and match.date < timezone.now() - STALE_AFTER,
+        }
+    )
+
+
 def update_regentsleague_match(match: Match):
     """
     Update a single Regents League match with fresh data from the API
@@ -163,25 +328,15 @@ def update_regentsleague_match(match: Match):
         )
 
         if response.status_code != 200:
-            logger.warning(
-                f"Regent League API returned {response.status_code} for match {regentsleague_match_id}"
+            raise PlatformSyncError(
+                f"Regents League API returned {response.status_code} for match {regentsleague_match_id}"
             )
-            return False
 
         match_data: dict = response.json()
-        # Check if any updates are needed
-        updated = False
-
-        # Update status
-        status_mapping = {
-            "Completed": "completed",
-            "In Progress": "in_progress",
-            "Scheduled": "scheduled",
-        }
-        new_status = status_mapping.get(match_data.get("status"), "scheduled")
-        if new_status != match.status:
-            match.status = new_status
-            updated = True
+        updated = apply_platform_status(
+            match, "regentsleague", match_data.get("status")
+        )
+        new_status = match.status
 
         parsed_date = safe_parse_datetime(match_data.get("date"))
         if parsed_date and parsed_date != match.date:
@@ -305,8 +460,7 @@ def update_faceit_match(match):
         # Fetch match data from Faceit API
         api_key = getattr(settings, "FACEIT_API_KEY", None)
         if not api_key:
-            logger.error("FACEIT_API_KEY not configured")
-            return False
+            raise PlatformSyncError("FACEIT_API_KEY not configured")
 
         headers = {"Authorization": f"Bearer {api_key}"}
         response = requests.get(
@@ -316,27 +470,13 @@ def update_faceit_match(match):
         )
 
         if response.status_code != 200:
-            logger.warning(
+            raise PlatformSyncError(
                 f"Faceit API returned {response.status_code} for match {faceit_match_id}"
             )
-            return False
 
         match_data = response.json()
-
-        # Check if any updates are needed
-        updated = False
-
-        # Update status
-        status_mapping = {
-            "FINISHED": "completed",
-            "ONGOING": "in_progress",
-            "CANCELLED": "cancelled",
-            "READY": "scheduled",
-        }
-        new_status = status_mapping.get(match_data.get("status"), "scheduled")
-        if new_status != match.status:
-            match.status = new_status
-            updated = True
+        updated = apply_platform_status(match, "faceit", match_data.get("status"))
+        new_status = match.status
 
         # Update date/time
         scheduled_at = match_data.get("scheduled_at")
@@ -359,9 +499,10 @@ def update_faceit_match(match):
                 match.date = parsed_date
                 updated = True
 
-        # Update results if match is finished
-        if new_status == "completed":
-            results = match_data.get("results", {})
+        # Scores while live too, if Faceit has any yet (e.g. maps won in a Bo3);
+        # the winner only once it's finished
+        if new_status in ("in_progress", "completed"):
+            results = match_data.get("results") or {}
             if results:
                 # Get team data to map factions to our teams using Faceit IDs
                 teams_data = match_data.get("teams", {})
@@ -440,7 +581,7 @@ def update_faceit_match(match):
                     elif winner_faction == team2_faction:
                         new_winner = match.team2
 
-                    if new_winner != match.winner:
+                    if new_status == "completed" and new_winner != match.winner:
                         match.winner = new_winner
                         updated = True
                 else:
@@ -479,31 +620,14 @@ def update_leaguespot_match(match):
         )
 
         if match_response.status_code != 200:
-            print(
+            raise PlatformSyncError(
                 f"LeagueSpot API returned {match_response.status_code} for match {leaguespot_match_id}"
             )
-            return False
 
         match_data = match_response.json()
-
-        # Check if any updates are needed
-        updated = False
-
-        # Update status based on LeagueSpot status
-        status_mapping = {
-            3: "completed",
-            2: "in_progress",
-            1: "scheduled",
-            0: "scheduled",
-        }
-        api_status = match_data.get("currentState", 0)
-        new_status = (
-            status_mapping[api_status] if api_status in status_mapping else "scheduled"
+        updated = apply_platform_status(
+            match, "leaguespot", match_data.get("currentState")
         )
-        print(f"LeagueSpot match {match.id} status from {match.status} to {new_status}")
-        if new_status != match.status:
-            match.status = new_status
-            updated = True
 
         # Update date/time
         scheduled_time = match_data.get("scheduled_at") or match_data.get(
@@ -516,12 +640,12 @@ def update_leaguespot_match(match):
                 updated = True
 
         if match.status != "completed":
-            # If match is not completed, no need to update scores/winner
-            save_match_and_sync_elo(match)
-            print(f"Updated scheduled LeagueSpot match {match.id}")
+            # LeagueSpot has no live scores, so only status and time can change
+            if updated:
+                save_match_and_sync_elo(match)
+                logger.info(f"Updated LeagueSpot match {match.id}")
             return updated
 
-        print(f"Fetching participants for completed LeagueSpot match {match.id}")
         # Get participants data to check scores and winner
         participants_response = requests.get(
             f"https://api.leaguespot.gg/api/v1/matches/{leaguespot_match_id}/participants",

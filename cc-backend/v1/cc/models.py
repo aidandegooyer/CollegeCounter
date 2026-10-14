@@ -125,6 +125,32 @@ class Match(models.Model):
     team1_elo_change = models.IntegerField(null=True, blank=True)
     team2_elo_change = models.IntegerField(null=True, blank=True)
 
+    # Background sync bookkeeping, written by views.match_sync. db_default keeps
+    # inserts from code that predates these fields working.
+    last_synced_at = models.DateTimeField(
+        null=True, blank=True, help_text="Last refresh attempt, successful or not"
+    )
+    sync_failures = models.IntegerField(
+        default=0, db_default=0, help_text="Failed refreshes in a row"
+    )
+    sync_disabled = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Skipped by the background sync; needs an admin to review",
+    )
+    platform_status = models.CharField(
+        max_length=40,
+        null=True,
+        blank=True,
+        help_text="The platform's own status for the match, as last seen",
+    )
+    last_sync_error = models.TextField(
+        null=True, blank=True, help_text="Why the last refresh failed, if it did"
+    )
+
+    class Meta:
+        indexes = [models.Index(fields=["status", "date"])]
+
     def __str__(self):
         return (
             f"{self.team1} vs {self.team2} on {self.date.strftime('%Y-%m-%d %H:%M:%S')}"

@@ -5,7 +5,7 @@ import { PlayerStatsTable } from "@/components/PlayerStatsTable";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { PublicMatch } from "@/services/api";
+import type { PaginatedResponse, PublicMatch } from "@/services/api";
 import { proxyNWES } from "@/services/api";
 import { calculateMatchStars } from "@/services/elo";
 import { usePublicMatches, usePublicTeams } from "@/services/hooks";
@@ -18,7 +18,16 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 export function Match() {
   const { id } = useParams<{ id: string }>();
 
-  const { data, isLoading, error } = usePublicMatches({ id });
+  // Live matches are refreshed from their platform about once a minute
+  const { data, isLoading, error } = usePublicMatches(
+    { id },
+    {
+      refetchInterval: (query: {
+        state: { data?: PaginatedResponse<PublicMatch> };
+      }) =>
+        query.state.data?.results[0]?.status === "in_progress" ? 60_000 : false,
+    },
+  );
 
   const match = data?.results[0];
   useDocumentTitle(

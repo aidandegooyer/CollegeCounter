@@ -70,6 +70,27 @@ services:
       db:
         condition: service_healthy
 
+  # Refreshes matches from Faceit / LeagueSpot / Regents League in the
+  # background (cc/views/match_sync.py). Same image as the backend; skips its
+  # entrypoint so only the backend runs migrations. No VIRTUAL_HOST, so the
+  # proxy doesn't route to it.
+  match-sync:
+    build: ./cc-backend/v1
+    restart: always
+    entrypoint: ["python", "manage.py", "sync_matches", "--loop"]
+    environment:
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+      PLAYFLY_API_KEY: ${PLAYFLY_API_KEY}
+      FACEIT_API_KEY: ${FACEIT_API_KEY}
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+
   db:
     image: postgres:15
     restart: always

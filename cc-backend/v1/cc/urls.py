@@ -39,6 +39,13 @@ urlpatterns = [
     ),
     path("matches/<uuid:match_id>/delete/", views.delete_match, name="delete_match"),
     path("matches/update/", views.update_matches, name="update_matches"),
+    path("matches/sync-review/", views.sync_review, name="sync_review"),
+    path("matches/sync-status/", views.sync_status_view, name="sync_status"),
+    path(
+        "matches/<uuid:match_id>/sync/",
+        views.retry_match_sync,
+        name="retry_match_sync",
+    ),
     path("clear-database/", views.clear_database, name="clear_database"),
     path("participants/", views.match_participants, name="match_participants"),
     path("player-elo/update/", views.update_player_elo, name="update_player_elo"),

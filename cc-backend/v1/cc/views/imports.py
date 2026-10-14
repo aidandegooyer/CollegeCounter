@@ -27,6 +27,7 @@ from collections import Counter
 import requests
 
 from .elo import apply_elos_in_date_order
+from .match_status import map_platform_status
 from .utils import safe_parse_datetime
 
 logger = logging.getLogger(__name__)
@@ -455,13 +456,11 @@ def import_regentsleague_match_data(matches: list[dict], competition, season, pi
         score_team2 = 0
         winner = None
 
-        status_mapping = {
-            "Completed": "completed",
-            "In Progress": "in_progress",
-            "Scheduled": "scheduled",
-            # Add other status mappings as needed
-        }
-        match_status = status_mapping.get(match_data.get("status"), "scheduled")
+        # New matches need a status; unknown states start as scheduled
+        match_status = (
+            map_platform_status("regentsleague", match_data.get("status"))
+            or "scheduled"
+        )
 
         if match_status == "completed":
             score_team1 = match_data.get("score_team1")
@@ -551,15 +550,10 @@ def import_match_data(
         if match_id and str(match_id).startswith("1-"):
             match_id = str(match_id)[2:]
 
-        # Convert Faceit status to our status format
-        status_mapping = {
-            "FINISHED": "completed",
-            "ONGOING": "in_progress",
-            "CANCELLED": "cancelled",
-            "READY": "scheduled",
-            # Add other status mappings as needed
-        }
-        match_status = status_mapping.get(status_value, "scheduled")
+        # Convert Faceit status to our status format (LeagueSpot imports are
+        # converted to Faceit's format by the frontend). New matches need a
+        # status; unknown states start as scheduled.
+        match_status = map_platform_status("faceit", status_value) or "scheduled"
 
         # Parse scheduled/started/finished times
         scheduled_at = match_data.get("scheduled_at")

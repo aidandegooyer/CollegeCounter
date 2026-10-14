@@ -33,6 +33,9 @@ from .imports import (  # noqa: F401
 )
 from .platform_sync import (  # noqa: F401
     update_matches,
+    sync_review,
+    sync_status_view,
+    retry_match_sync,
     update_regentsleague_match,
     update_faceit_match,
     update_leaguespot_match,
