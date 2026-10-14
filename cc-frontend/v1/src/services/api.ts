@@ -565,6 +565,86 @@ export const updateMatches = async (
   return response.data;
 };
 
+// A match the background sync needs an admin for
+export interface SyncReviewMatch {
+  id: string;
+  team1: string;
+  team2: string;
+  date: string;
+  status: "scheduled" | "in_progress" | "completed" | "cancelled";
+  platform: string;
+  platform_status: string | null;
+  unknown_platform_status: boolean; // A platform state we don't map yet
+  sync_disabled: boolean; // The background sync gave up on it
+  sync_failures: number;
+  last_sync_error: string | null;
+  last_synced_at: string | null;
+  competition: string | null;
+}
+
+export type SyncTier =
+  | "live"
+  | "overdue"
+  | "imminent"
+  | "today"
+  | "upcoming"
+  | "straggler";
+
+// Health of the background match sync
+export interface SyncStatus {
+  now: string;
+  last_synced_at: string | null; // Most recent refresh attempt on any match
+  worker_behind: boolean; // Due matches waiting well past their interval
+  most_late_seconds: number;
+  worker_stalled: boolean; // Due matches, but nothing refreshed lately (or ever)
+  tiers: Record<SyncTier, { tracked: number; due: number }>;
+  platforms: Record<
+    string,
+    {
+      tracked: number;
+      due: number;
+      failing: number;
+      last_synced_at: string | null;
+    }
+  >;
+  failing: number; // Matches whose last refresh failed, still being retried
+  disabled: number; // Unfinished matches the sync has stopped refreshing
+  recent_errors: {
+    match_id: string;
+    team1: string;
+    team2: string;
+    platform: string;
+    error: string;
+    failures: number;
+    at: string | null;
+  }[];
+}
+
+export interface RetryMatchSyncResponse {
+  outcome: "updated" | "unchanged" | "failed" | "unsupported";
+  error: string | null;
+  status: SyncReviewMatch["status"];
+  platform_status: string | null;
+  still_stale: boolean; // Long past its date, so it'll be flagged again
+}
+
+export const fetchSyncReview = async (): Promise<SyncReviewMatch[]> => {
+  const response = await api.get(`/matches/sync-review/`);
+  return response.data.matches;
+};
+
+export const fetchSyncStatus = async (): Promise<SyncStatus> => {
+  const response = await api.get(`/matches/sync-status/`);
+  return response.data;
+};
+
+export const retryMatchSync = async (
+  matchId: string,
+): Promise<RetryMatchSyncResponse> => {
+  const response = await api.post(`/matches/${matchId}/sync/`);
+  return response.data;
+};
+
 export const createRankingSnapshot = async (
   options: {
     season_id?: string;

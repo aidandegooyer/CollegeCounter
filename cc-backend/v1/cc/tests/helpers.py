@@ -3,6 +3,7 @@
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
+import requests
 from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -20,7 +21,7 @@ def fake_response(status_code=200, json_data=None, text=None, headers=None, cont
         response.json.return_value = json_data
         response.text = text if text is not None else str(json_data)
     else:
-        response.json.side_effect = ValueError("No JSON")
+        response.json.side_effect = requests.JSONDecodeError("No JSON", "", 0)
         response.text = text if text is not None else ""
     return response
 

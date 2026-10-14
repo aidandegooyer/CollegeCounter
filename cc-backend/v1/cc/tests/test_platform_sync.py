@@ -15,6 +15,7 @@ from cc.views import (
     update_leaguespot_match,
     update_regentsleague_match,
 )
+from cc.views.platform_sync import PlatformSyncError
 
 from .helpers import Fixtures, admin_settings, dev_client, fake_response
 
@@ -56,7 +57,7 @@ class UpdateMatchesEndpointTests(SyncFixtures, TestCase):
         faceit = self.make_match(platform="faceit")
         leaguespot = self.make_match(platform="leaguespot")
         regents = self.make_match(platform="regentsleague")
-        self.make_match(platform="other")
+        other = self.make_match(platform="other")
 
         response, (f, l, r) = self.post(faceit=True, leaguespot=False, regents=True)
         self.assertEqual(response.status_code, 200)
@@ -66,7 +67,12 @@ class UpdateMatchesEndpointTests(SyncFixtures, TestCase):
         statuses = {result["match_id"]: result["status"] for result in body["results"]}
         self.assertEqual(
             statuses,
-            {str(faceit.id): "updated", str(leaguespot.id): "no_changes", str(regents.id): "updated"},
+            {
+                str(faceit.id): "updated",
+                str(leaguespot.id): "no_changes",
+                str(regents.id): "updated",
+                str(other.id): "unsupported",
+            },
         )
         self.assertEqual(f.call_count, 1)
         self.assertEqual(l.call_count, 1)
@@ -113,18 +119,27 @@ class UpdateMatchesEndpointTests(SyncFixtures, TestCase):
     def test_errors_are_counted_per_match(self):
         self.make_match(platform="faceit")
         with patch(
-            "cc.views.platform_sync.update_faceit_match", side_effect=RuntimeError("api down")
+            "cc.views.platform_sync.update_faceit_match",
+            side_effect=PlatformSyncError("api down"),
         ):
             response = self.client.post(reverse("update_matches"), {}, format="json")
         body = response.json()
         self.assertEqual(body["error_count"], 1)
         self.assertEqual(body["results"][0]["error"], "api down")
 
-    def test_bad_request_data_is_500(self):
+    def test_unexpected_errors_are_marked_internal(self):
+        self.make_match(platform="faceit")
+        with patch(
+            "cc.views.platform_sync.update_faceit_match", side_effect=KeyError("teams")
+        ), self.assertLogs("cc.views.platform_sync", "ERROR"):
+            body = self.client.post(reverse("update_matches"), {}, format="json").json()
+        self.assertEqual(body["results"][0]["error"], "Internal error (KeyError): 'teams'")
+
+    def test_invalid_match_id_is_400(self):
         response = self.client.post(
             reverse("update_matches"), {"match_ids": ["not-a-uuid"]}, format="json"
         )
-        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.status_code, 400)
 
 
 @override_settings(FACEIT_API_KEY="faceit-key")
@@ -154,21 +169,55 @@ class UpdateFaceitMatchTests(SyncFixtures, TestCase):
             },
         }
 
-    def test_no_url_or_api_key_is_noop(self):
+    def test_no_url_or_missing_api_key_fails(self):
         self.match.url = None
-        self.match.save()
-        self.assertFalse(update_faceit_match(self.match))
+        with self.assertRaisesMessage(PlatformSyncError, "no Faceit URL"):
+            update_faceit_match(self.match)
         self.match.url = "https://faceit.com/room/1-x"
         with override_settings(FACEIT_API_KEY=""):
-            self.assertFalse(update_faceit_match(self.match))
+            with self.assertRaises(PlatformSyncError):
+                update_faceit_match(self.match)
 
-    def test_non_200_is_noop(self):
-        updated, get = self.refresh(response=fake_response(status_code=404))
-        self.assertFalse(updated)
+    def test_non_200_fails(self):
+        with self.assertRaises(PlatformSyncError):
+            self.refresh(response=fake_response(status_code=404))
+
+    def test_request_url_and_auth_header(self):
+        with patch(
+            "cc.views.platform_sync.requests.get",
+            return_value=fake_response(json_data={"status": "READY"}),
+        ) as get:
+            update_faceit_match(Match.objects.get(pk=self.match.pk))
         self.assertEqual(
             get.call_args.args[0], f"https://open.faceit.com/data/v4/matches/1-{self.match.id}"
         )
         self.assertEqual(get.call_args.kwargs["headers"], {"Authorization": "Bearer faceit-key"})
+
+    def test_unknown_state_keeps_status_and_records_it(self):
+        updated, _ = self.refresh({"status": "SOMETHING_NEW"})
+        self.assertTrue(updated)
+        self.assertEqual(self.match.status, "scheduled")
+        self.assertEqual(self.match.platform_status, "SOMETHING_NEW")
+        updated, _ = self.refresh({"status": "SOMETHING_NEW"})
+        self.assertFalse(updated)
+
+    def test_veto_is_live(self):
+        self.refresh({"status": "VOTING"})
+        self.assertEqual(self.match.status, "in_progress")
+        self.refresh({"status": "ABORTED"})
+        self.assertEqual(self.match.status, "cancelled")
+
+    def test_live_scores_without_a_winner(self):
+        Participant.objects.create(
+            team=self.alpha, competition=self.competition, season=self.season, faceit_id="f-alpha"
+        )
+        data = dict(self.finished(winner="faction1", score=(1, 0)), status="ONGOING")
+        updated, _ = self.refresh(data)
+        self.assertTrue(updated)
+        self.assertEqual(self.match.status, "in_progress")
+        self.assertEqual((self.match.score_team1, self.match.score_team2), (1, 0))
+        self.assertIsNone(self.match.winner)
+        self.assertFalse(self.match.elo_applied)
 
     def test_status_and_date_updates(self):
         updated, _ = self.refresh({"status": "ONGOING", "started_at": 1759341600})
@@ -180,16 +229,17 @@ class UpdateFaceitMatchTests(SyncFixtures, TestCase):
         self.assertTrue(updated)
         self.assertEqual(self.match.status, "cancelled")
 
-    @unittest.expectedFailure
     def test_unchanged_refresh_is_not_an_update(self):
-        # BUG: safe_parse_datetime returns a naive datetime for unix timestamps
-        # (which is what Faceit sends), and a naive datetime never equals the
-        # aware one from the DB. So every refresh re-saves the match and
-        # reports it as updated.
-        data = {"status": "CANCELLED", "scheduled_at": 1759341600}
-        self.refresh(data)
-        updated, _ = self.refresh(data)
-        self.assertFalse(updated)
+        # Faceit sends unix timestamps; they must compare equal to the aware
+        # date from the DB, or every poll of a live match re-saves it
+        for data in (
+            {"status": "CANCELLED", "scheduled_at": 1759341600},
+            {"status": "ONGOING", "started_at": 1759341600},
+        ):
+            with self.subTest(status=data["status"]):
+                self.refresh(data)
+                updated, _ = self.refresh(data)
+                self.assertFalse(updated)
 
     def test_finished_maps_factions_via_team1_participant(self):
         Participant.objects.create(
@@ -226,35 +276,42 @@ class UpdateFaceitMatchTests(SyncFixtures, TestCase):
                 )
                 self.assertEqual(self.match.winner, expected_winner)
 
-    def test_finished_without_mapping_only_updates_status(self):
+    # Saved completed without a result, a match would never be refreshed
+    # again; failing keeps it retrying and shows the admin why
+    def assert_fails_without_saving(self, data, message):
+        with self.assertRaisesMessage(PlatformSyncError, message):
+            self.refresh(data)
+        self.assertEqual(self.match.status, "scheduled")
+        self.assertIsNone(self.match.winner)
+
+    def test_finished_without_mapping_fails(self):
         Participant.objects.create(
             team=self.alpha, competition=self.competition, season=self.season, faceit_id="other"
         )
-        updated, _ = self.refresh(self.finished())
-        self.assertTrue(updated)
-        self.assertEqual(self.match.status, "completed")
-        self.assertIsNone(self.match.winner)
+        self.assert_fails_without_saving(self.finished(), "teams don't match ours")
 
-    def test_finished_without_any_participants(self):
-        updated, _ = self.refresh(self.finished())
-        self.assertTrue(updated)
-        self.assertIsNone(self.match.winner)
+    def test_finished_without_any_participants_fails(self):
+        self.assert_fails_without_saving(self.finished(), "teams don't match ours")
 
-    def test_finished_without_results(self):
+    def test_finished_without_results_fails(self):
         data = self.finished()
         data["results"] = {}
-        updated, _ = self.refresh(data)
-        self.assertTrue(updated)
-        self.assertIsNone(self.match.winner)
+        self.assert_fails_without_saving(data, "no results yet")
 
-    def test_unknown_winner_faction_clears_winner(self):
+    def test_finished_with_unknown_winner_fails(self):
         Participant.objects.create(
             team=self.alpha, competition=self.competition, season=self.season, faceit_id="f-alpha"
         )
-        self.match.winner = self.alpha
-        self.match.status = "completed"
-        self.match.save()
-        self.refresh(self.finished(winner=None))
+        self.assert_fails_without_saving(self.finished(winner=None), "isn't either of our teams")
+
+    def test_live_without_mapping_saves_status_but_fails(self):
+        # Shown as live, but reported so it doesn't sit at 0-0 looking healthy
+        data = self.finished()
+        data["status"] = "ONGOING"
+        with self.assertRaisesMessage(PlatformSyncError, "Live on Faceit, but its teams don't match ours"):
+            self.refresh(data)
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, "in_progress")
         self.assertIsNone(self.match.winner)
 
     def test_errors_are_raised(self):
@@ -285,8 +342,9 @@ class UpdateLeaguespotMatchTests(SyncFixtures, TestCase):
         self.match.refresh_from_db()
         return updated
 
-    def test_non_200_is_noop(self):
-        self.assertFalse(self.refresh({}, match_status=500))
+    def test_non_200_fails(self):
+        with self.assertRaises(PlatformSyncError):
+            self.refresh({}, match_status=500)
 
     def test_scheduled_updates_date_and_status(self):
         self.assertTrue(
@@ -298,11 +356,18 @@ class UpdateLeaguespotMatchTests(SyncFixtures, TestCase):
             self.refresh({"currentState": 2, "startTimeUTC": "2025-11-01T18:00:00Z"})
         )
 
-    def test_unknown_state_is_scheduled(self):
+    def test_unknown_state_keeps_status_and_records_it(self):
         self.match.status = "in_progress"
         self.match.save()
         self.assertTrue(self.refresh({"currentState": 99}))
-        self.assertEqual(self.match.status, "scheduled")
+        self.assertEqual(self.match.status, "in_progress")
+        self.assertEqual(self.match.platform_status, "99")
+
+    def test_unchanged_scheduled_match_is_not_saved(self):
+        self.refresh({"currentState": 1})
+        with patch("cc.views.platform_sync.save_match_and_sync_elo") as save:
+            self.assertFalse(self.refresh({"currentState": 1}))
+        save.assert_not_called()
 
     def test_completed_reads_participants(self):
         Participant.objects.create(
@@ -338,14 +403,30 @@ class UpdateLeaguespotMatchTests(SyncFixtures, TestCase):
         self.refresh({"currentState": 3}, participants)
         self.assertEqual(self.match.winner, self.alpha)
 
-    def test_completed_with_too_few_participants(self):
-        self.assertTrue(self.refresh({"currentState": 3}, [{"participantId": "x"}]))
+    def assert_fails_without_saving(self, message, participants=None, **kwargs):
+        with self.assertRaisesMessage(PlatformSyncError, message):
+            self.refresh({"currentState": 3}, participants, **kwargs)
+        self.assertEqual(self.match.status, "scheduled")
         self.assertIsNone(self.match.winner)
 
-    def test_completed_participants_error(self):
-        self.assertTrue(self.refresh({"currentState": 3}, participants_status=500))
-        self.assertEqual(self.match.status, "completed")
-        self.assertIsNone(self.match.winner)
+    def test_completed_with_too_few_participants_fails(self):
+        self.assert_fails_without_saving("1 participant", [{"participantId": "x"}])
+
+    def test_completed_participants_error_fails(self):
+        self.assert_fails_without_saving("returned 500", participants_status=500)
+
+    def test_completed_with_an_unknown_team_fails(self):
+        Participant.objects.create(
+            team=self.alpha, competition=self.competition, season=self.season, playfly_id="t-alpha"
+        )
+        self.match.score_team1, self.match.score_team2 = 1, 0
+        self.match.save()
+        participants = [
+            {"participantId": "a", "teamId": "t-alpha", "score": 1, "isWinner": True},
+            {"participantId": "b", "teamId": "t-unknown", "score": 0},
+        ]
+        self.assert_fails_without_saving("don't match our teams", participants)
+        self.assertEqual((self.match.score_team1, self.match.score_team2), (1, 0))
 
     def test_errors_are_raised(self):
         with patch("cc.views.platform_sync.requests.get", side_effect=ValueError("boom")):
@@ -354,12 +435,13 @@ class UpdateLeaguespotMatchTests(SyncFixtures, TestCase):
 
 
 class UpdateRegentsleagueErrorTests(SyncFixtures, TestCase):
-    def test_non_200_is_noop(self):
+    def test_non_200_fails(self):
         match = self.make_match(platform="regentsleague", regentsleague_id=5)
         with patch(
             "cc.views.platform_sync.requests.get", return_value=fake_response(status_code=404)
         ) as get:
-            self.assertFalse(update_regentsleague_match(match))
+            with self.assertRaises(PlatformSyncError):
+                update_regentsleague_match(match)
         self.assertIn("id=5", get.call_args.args[0])
 
     def test_status_and_date_only(self):
@@ -371,6 +453,26 @@ class UpdateRegentsleagueErrorTests(SyncFixtures, TestCase):
             self.assertTrue(update_regentsleague_match(match))
         match.refresh_from_db()
         self.assertEqual(match.status, "in_progress")
+
+    def test_completed_with_unknown_teams_fails(self):
+        match = self.make_match(platform="regentsleague", regentsleague_id=5)
+        data = {"status": "Completed", "team1": {"id": 1}, "team2": {"id": 2}}
+        with patch(
+            "cc.views.platform_sync.requests.get", return_value=fake_response(json_data=data)
+        ), self.assertRaisesMessage(PlatformSyncError, "teams don't match ours"):
+            update_regentsleague_match(match)
+        match.refresh_from_db()
+        self.assertEqual(match.status, "scheduled")
+
+    def test_unknown_state_keeps_status_and_records_it(self):
+        match = self.make_match(platform="regentsleague", regentsleague_id=5, status="in_progress")
+        with patch(
+            "cc.views.platform_sync.requests.get",
+            return_value=fake_response(json_data={"status": "Postponed"}),
+        ):
+            self.assertTrue(update_regentsleague_match(match))
+        match.refresh_from_db()
+        self.assertEqual((match.status, match.platform_status), ("in_progress", "Postponed"))
 
     def test_errors_are_raised(self):
         match = self.make_match(platform="regentsleague", regentsleague_id=5)

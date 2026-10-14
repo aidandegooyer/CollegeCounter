@@ -616,6 +616,8 @@ class BackfillMigrationTests(TransactionTestCase):
         executor = MigrationExecutor(connection)
         executor.loader.build_graph()
         executor.migrate(self.after)
+        # The model as of 0013, since later migrations add columns
+        Match = executor.loader.project_state(self.after).apps.get_model("cc", "Match")
 
         applied = dict(Match.objects.values_list("id", "elo_applied"))
         self.assertEqual(
