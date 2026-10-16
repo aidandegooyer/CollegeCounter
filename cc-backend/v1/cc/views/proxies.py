@@ -8,6 +8,8 @@ from rest_framework import status
 import logging
 import requests
 
+from ..models import Match
+
 logger = logging.getLogger(__name__)
 
 
@@ -243,3 +245,120 @@ def proxy_nwes(request):
             {"error": f"Unexpected error: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["GET"])
+def proxy_faceit_match_stats(request, match_id):
+    match = Match.objects.filter(id=match_id).only("id", "platform", "status").first()
+
+    if match is None:
+        logger.warning(
+            "Rejected Faceit stats request for an unknown match: match_id=%s",
+            match_id,
+        )
+        return Response(
+            {"error": "Faceit match not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if match.platform.lower() != "faceit":
+        return Response(
+            {"error": "Match is not a Faceit match"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if match.status != "completed":
+        return Response(
+            {"error": "Faceit stats are only available for completed matches"},
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    faceit_api_key = getattr(settings, "FACEIT_API_KEY", "")
+
+    if not faceit_api_key:
+        logger.error("FACEIT_API_KEY is not configured")
+        return Response(
+            {"error": "Faceit integration is not configured"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    api_url = f"https://open.faceit.com/data/v4/matches/1-{match_id}/stats"
+
+    headers = {
+        "Authorization": f"Bearer {faceit_api_key}",
+        "Accept": "application/json",
+    }
+
+    try:
+        response = requests.get(
+            api_url,
+            headers=headers,
+            timeout=20,
+        )
+
+    except requests.exceptions.Timeout:
+        logger.warning(
+            "Faceit match stats request timed out: match_id=%s",
+            match_id,
+        )
+        return Response(
+            {"error": "Faceit API request timed out"},
+            status=status.HTTP_504_GATEWAY_TIMEOUT,
+        )
+    except requests.exceptions.RequestException:
+        logger.exception(
+            "Faceit match stats request failed: match_id=%s",
+            match_id,
+        )
+        return Response(
+            {"error": "Unable to reach the Faceit API"},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    if response.status_code != 200:
+        # Don't pass Faceit's status through: a 401/403 means our API key is
+        # bad, not that the client is unauthenticated. Only 404 (no stats yet)
+        # is meaningful to the client.
+        if response.status_code == 404:
+            client_status = status.HTTP_404_NOT_FOUND
+            log = logger.warning
+        elif response.status_code in (401, 403):
+            client_status = status.HTTP_502_BAD_GATEWAY
+            log = logger.error
+        elif response.status_code == 429:
+            client_status = status.HTTP_503_SERVICE_UNAVAILABLE
+            log = logger.warning
+        else:
+            client_status = status.HTTP_502_BAD_GATEWAY
+            log = logger.warning
+        log(
+            "Faceit returned status %s for match %s: %s",
+            response.status_code,
+            match_id,
+            response.text[:200],
+        )
+        error_response = Response(
+            {
+                "error": "Faceit rejected the match statistics request",
+                "upstream_status": response.status_code,
+            },
+            status=client_status,
+        )
+        retry_after = response.headers.get("Retry-After")
+        if response.status_code == 429 and retry_after:
+            error_response["Retry-After"] = retry_after
+        return error_response
+
+    try:
+        stats = response.json()
+    except ValueError:
+        logger.error(
+            "Faceit returned invalid JSON for match %s",
+            match_id,
+        )
+        return Response(
+            {"error": "Faceit returned an invalid response"},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    return Response(stats)
