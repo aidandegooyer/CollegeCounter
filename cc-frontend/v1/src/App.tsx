@@ -23,6 +23,7 @@ import { Event } from "./pages/Event/Event";
 import { Search } from "./pages/Search/Search";
 import AboutUs from "./pages/AboutUs/AboutUs";
 import PrivacyPolicy from "./pages/PrivacyPolicy/PrivacyPolicy";
+import { HeadToHead } from "./pages/HeadToHead/HeadToHead";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDrfCYvSpHIFdvVkVsaMSMgil-d2W9JZWc",
@@ -85,6 +86,7 @@ function App() {
             <Route path="/matches" element={<Matches />} />
             <Route path="/events" element={<Events />} />
             <Route path="/search" element={<Search />} />
+            <Route path="/head-to-head" element={<HeadToHead />} />
             <Route path="/teams/:id" element={<Team />} />
             <Route path="/matches/:id" element={<Match />} />
             <Route path="/events/:id" element={<Event />} />
