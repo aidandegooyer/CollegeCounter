@@ -138,7 +138,7 @@ export function Match() {
                   type="team"
                 />
                 <div className="flex items-center">
-                  <span className="text-muted-foreground mr-2 mt-1 text-sm">
+                  <span className="text-muted-foreground mt-1 mr-2 text-sm">
                     #{team1?.results[0]?.current_ranking?.rank}
                   </span>
                   <h2
@@ -161,7 +161,7 @@ export function Match() {
                   type="team"
                 />
                 <div className="flex items-center">
-                  <span className="text-muted-foreground mr-2 mt-1 text-sm">
+                  <span className="text-muted-foreground mt-1 mr-2 text-sm">
                     #{team2?.results[0]?.current_ranking?.rank}
                   </span>
                   <h2
@@ -186,7 +186,7 @@ export function Match() {
               </div>
             )}
             {match.url && (
-              <div className="w-full flex justify-center">
+              <div className="flex w-full justify-center">
                 <a
                   href={
                     match.url.includes("{lang}")
@@ -315,14 +315,13 @@ function Scoreboard(match: PublicMatch, stars: number, matchDate: Date | null) {
   );
 }
 
-function Stats({ match }: { match: PublicMatch; }){
-  if (match.platform=== "faceit") {
+function Stats({ match }: { match: PublicMatch }) {
+  if (match.platform?.toLowerCase() === "faceit") {
     return <FaceITStats match={match} />;
   }
 
   const externalMatchIds = match.event_match?.extra_info?.external_match_ids as
-    | string[]
-    | undefined;
+    string[] | undefined;
 
   const hasExternalIds = externalMatchIds && externalMatchIds.length > 0;
   const isMatchCompleted = match.status === "completed";
@@ -331,9 +330,7 @@ function Stats({ match }: { match: PublicMatch; }){
   if (!isMatchCompleted || !hasExternalIds) {
     return (
       <div className="text-md flex min-w-48 flex-col items-center justify-center px-4 py-1">
-        <div className="text-lg font-semibold">
-          Stats are Unavailable
-        </div>
+        <div className="text-lg font-semibold">Stats are Unavailable</div>
       </div>
     );
   }
@@ -601,7 +598,9 @@ function FaceITStats({ match }: { match: PublicMatch }) {
     if (status === 404) {
       return (
         <div className="text-md flex min-w-48 flex-col items-center justify-center px-4 py-1">
-          <div className="text-lg font-semibold">Stats are not available yet</div>
+          <div className="text-lg font-semibold">
+            Stats are not available yet
+          </div>
         </div>
       );
     }
@@ -633,7 +632,11 @@ function FaceITStats({ match }: { match: PublicMatch }) {
   const availableMaps = data.rounds.slice(0, 5);
   const selectedMap = availableMaps[selectedMapIndex] ?? availableMaps[0];
 
-  if (selectedMap == undefined || !selectedMap.teams || selectedMap.teams.length === 0) {
+  if (
+    selectedMap == undefined ||
+    !selectedMap.teams ||
+    selectedMap.teams.length === 0
+  ) {
     return (
       <div className="text-md flex min-w-48 flex-col items-center justify-center px-4 py-1">
         <div className="text-lg font-semibold">No FACEIT Rounds Found</div>
@@ -679,15 +682,15 @@ function FaceITStats({ match }: { match: PublicMatch }) {
               role="tab"
               aria-selected={isSelected}
               onClick={() => setSelectedMapIndex(index)}
-              className={`relative min-h-28 overflow-hidden border-r last:border-r-0 ${
-                isSelected ? "ring-primary ring-2 ring-inset" : "opacity-50"
+              className={`relative min-h-28 cursor-pointer overflow-hidden border-r last:border-r-0 ${
+                isSelected ? "ring-primary ring-2 ring-inset" : "opacity-60"
               }`}
             >
               {mapImage && (
                 <img
                   src={mapImage}
                   alt=""
-                  className="absolute inset-0 h-full w-full object-cover"
+                  className="absolute inset-0 h-full w-full scale-110 object-cover blur-[1px]"
                 />
               )}
               <span className="absolute inset-0 bg-black/55" />
@@ -695,8 +698,10 @@ function FaceITStats({ match }: { match: PublicMatch }) {
                 <span className="text-lg font-bold">
                   {mapName || round.stats_map}
                 </span>
-                <span className="text-sm font-semibold">{round.score.replace("/", "-")}</span>
-                {winningTeamLogo && winningTeam && (
+                <span className="text-sm font-semibold">
+                  {round.score.replace("/", "-")}
+                </span>
+                {winningTeam && (
                   <Logo
                     src={winningTeamLogo}
                     type="team"

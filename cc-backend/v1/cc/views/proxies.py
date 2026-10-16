@@ -316,18 +316,38 @@ def proxy_faceit_match_stats(request, match_id):
         )
 
     if response.status_code != 200:
-        logger.warning(
-            "Faceit returned status %s for match %s",
+        # Don't pass Faceit's status through: a 401/403 means our API key is
+        # bad, not that the client is unauthenticated. Only 404 (no stats yet)
+        # is meaningful to the client.
+        if response.status_code == 404:
+            client_status = status.HTTP_404_NOT_FOUND
+            log = logger.warning
+        elif response.status_code in (401, 403):
+            client_status = status.HTTP_502_BAD_GATEWAY
+            log = logger.error
+        elif response.status_code == 429:
+            client_status = status.HTTP_503_SERVICE_UNAVAILABLE
+            log = logger.warning
+        else:
+            client_status = status.HTTP_502_BAD_GATEWAY
+            log = logger.warning
+        log(
+            "Faceit returned status %s for match %s: %s",
             response.status_code,
             match_id,
+            response.text[:200],
         )
-        return Response(
+        error_response = Response(
             {
                 "error": "Faceit rejected the match statistics request",
                 "upstream_status": response.status_code,
             },
-            status=response.status_code,
+            status=client_status,
         )
+        retry_after = response.headers.get("Retry-After")
+        if response.status_code == 429 and retry_after:
+            error_response["Retry-After"] = retry_after
+        return error_response
 
     try:
         stats = response.json()

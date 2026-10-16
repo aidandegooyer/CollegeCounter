@@ -50,9 +50,13 @@ FaceItStatsTableProps) {
         </TableHeader>
         <TableBody>
           {[...players]
-            .sort((a, b) => b.stat_kills - a.stat_kills)
+            .sort((a, b) => (b.stat_kills ?? -1) - (a.stat_kills ?? -1))
             .map((player) => {
-              const plusMinus = player.stat_kills - player.stat_deaths;
+              const plusMinus =
+                player.stat_kills !== undefined &&
+                player.stat_deaths !== undefined
+                  ? player.stat_kills - player.stat_deaths
+                  : undefined;
 
               return (
                 <TableRow key={player.player_id}>
@@ -60,19 +64,19 @@ FaceItStatsTableProps) {
                     {player.stat_username || "Unknown"}
                   </TableCell>
                   <TableCell className="text-right">
-                    {player.stat_kills}
+                    {player.stat_kills ?? "N/A"}
                   </TableCell>
                   <TableCell className="text-right">
-                    {player.stat_deaths}
+                    {player.stat_deaths ?? "N/A"}
                   </TableCell>
                   <TableCell className="text-right">
-                    {player.stat_assists}
+                    {player.stat_assists ?? "N/A"}
                   </TableCell>
 
                   <TableCell
-                    className={`text-right ${plusMinus > 0 ? "text-green-500" : plusMinus < 0 ? "text-red-500" : "text-muted-foreground"}`}
+                    className={`text-right ${plusMinus !== undefined && plusMinus > 0 ? "text-green-500" : plusMinus !== undefined && plusMinus < 0 ? "text-red-500" : "text-muted-foreground"}`}
                   >
-                    {plusMinus > 0 ? `+${plusMinus}` : plusMinus}
+                    {plusMinus === undefined ? "N/A" : plusMinus > 0 ? `+${plusMinus}` : plusMinus}
                   </TableCell>
 
                   <TableCell className="text-right">{player.stat_kd}</TableCell>
