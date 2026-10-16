@@ -1,5 +1,3 @@
-import { CompetitionLabel } from "@/components/CompetitionLabel";
-import { CountdownTimer } from "@/components/CountdownTimer";
 import Logo from "@/components/Logo";
 import { PlayerStatsTable } from "@/components/PlayerStatsTable";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -7,15 +5,13 @@ import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { PaginatedResponse, PublicMatch } from "@/services/api";
 import { fetchFaceItStats, proxyNWES } from "@/services/api";
-import { calculateMatchStars } from "@/services/elo";
 import { usePublicMatches, usePublicTeams } from "@/services/hooks";
-import { Star } from "lucide-react";
-import { NavLink, useParams } from "react-router";
+import { useParams } from "react-router";
+import { MatchHeader } from "./MatchHeader";
 import { useQuery } from "@tanstack/react-query";
 import { CommonOpponents } from "@/components/h2h/CommonOpponents";
 import { HeadToHeadRecord } from "@/components/h2h/HeadToHeadRecord";
 import { RecentMatches } from "@/components/h2h/RecentMatches";
-import { Button } from "@/components/ui/button";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { FaceItStatsTable } from "@/components/FaceItStatsTable";
 import { useState } from "react";
@@ -88,13 +84,6 @@ export function Match() {
     error: team2Error,
   } = usePublicTeams({ id: match?.team2.id });
 
-  const matchDate = match?.date ? new Date(match.date) : null;
-
-  const stars = calculateMatchStars(
-    match?.team1.elo || 1000,
-    match?.team2.elo || 1000,
-  );
-
   if (isLoading || team1Loading || team2Loading || !data) {
     return (
       <div className="flex h-40 items-center justify-center">
@@ -117,114 +106,12 @@ export function Match() {
 
   return (
     <div className="app-container flex justify-center">
-      <div className="mx-4 w-full max-w-[800px]">
-        <div className="relative mb-4 overflow-hidden rounded-2xl border-2 p-4">
-          {/* Gradient overlay for completed matches */}
-          {match.status === "completed" && (
-            <div
-              className="pointer-events-none absolute inset-0 -z-10 opacity-15"
-              style={{
-                background:
-                  match.score_team1 > match.score_team2
-                    ? "linear-gradient(to right, rgb(34, 197, 94) 0%, transparent 43%, transparent 57%, rgb(239, 68, 68) 100%)"
-                    : "linear-gradient(to right, rgb(239, 68, 68) 0%, transparent 35%, transparent 65%, rgb(34, 197, 94) 100%)",
-              }}
-            />
-          )}
-          <div className="flex items-center justify-between">
-            <NavLink to={`/teams/${match.team1.id}`}>
-              <span className="flex flex-col items-center justify-center space-x-4">
-                <Logo
-                  src={match.team1.picture}
-                  className="h-32 w-32 rounded-md"
-                  alt="Team"
-                  type="team"
-                />
-                <div className="flex items-center">
-                  <span className="text-muted-foreground mt-1 mr-2 text-sm">
-                    #{team1?.results[0]?.current_ranking?.rank}
-                  </span>
-                  <h2
-                    className={`text-center text-xl ${match.score_team1 < match.score_team2 ? "text-muted-foreground" : "text-foreground"}`}
-                  >
-                    {match.team1.name}
-                  </h2>
-                </div>
-              </span>
-            </NavLink>
-            <div className="hidden sm:block">
-              {Scoreboard(match, stars, matchDate)}
-            </div>
-            <NavLink to={`/teams/${match.team2.id}`}>
-              <span className="ml-4 flex flex-col items-center justify-center space-x-4">
-                <Logo
-                  src={match.team2.picture}
-                  className="h-32 w-32 rounded-md"
-                  alt="Team"
-                  type="team"
-                />
-                <div className="flex items-center">
-                  <span className="text-muted-foreground mt-1 mr-2 text-sm">
-                    #{team2?.results[0]?.current_ranking?.rank}
-                  </span>
-                  <h2
-                    className={`overflow-hidden text-center text-xl ${match.score_team2 < match.score_team1 ? "text-muted-foreground" : "text-foreground"}`}
-                  >
-                    {match.team2.name}
-                  </h2>
-                </div>
-              </span>
-            </NavLink>
-          </div>
-
-          <div className="block sm:hidden">
-            {Scoreboard(match, stars, matchDate)}
-          </div>
-        </div>
-        <div className="mt-4">
-          <div className="hidden justify-between sm:flex">
-            {match.status === "scheduled" && (
-              <div className="inline w-40">
-                <CountdownTimer targetDate={new Date(match.date)} size="sm" />
-              </div>
-            )}
-            {match.url && (
-              <div className="flex w-full justify-center">
-                <a
-                  href={
-                    match.url.includes("{lang}")
-                      ? match.url.replace("{lang}", navigator.language || "en")
-                      : match.url
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button className="cursor-pointer">
-                    View Match on Original Platform -{">"}
-                  </Button>
-                </a>
-              </div>
-            )}
-          </div>
-          <div className="block sm:hidden">{MatchInfo(match, stars)}</div>
-        </div>
-        {match.url && (
-          <div className="mt-4 flex w-full justify-center text-right sm:hidden">
-            <a
-              href={
-                match.url.includes("{lang}")
-                  ? match.url.replace("{lang}", navigator.language || "en")
-                  : match.url
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button className="cursor-pointer">
-                View Match on Original Platform -{">"}
-              </Button>
-            </a>
-          </div>
-        )}
+      <div className="mx-4 w-full max-w-[800px] min-w-0">
+        <MatchHeader
+          match={match}
+          team1Rank={team1?.results[0]?.current_ranking?.rank}
+          team2Rank={team2?.results[0]?.current_ranking?.rank}
+        />
         {match.status === "completed" && (
           <div className="mt-4">
             <div className="flex w-full items-center justify-center rounded-2xl border-2 p-2 lg:col-span-3">
@@ -236,89 +123,6 @@ export function Match() {
           <MatchPreview match={match} />
         )}
       </div>
-    </div>
-  );
-}
-
-function MatchInfo(match: PublicMatch, stars: number) {
-  return (
-    <div className="flex flex-col items-center justify-center text-base">
-      {match.status === "scheduled" && (
-        <>
-          <div className="text-lg font-semibold">
-            {new Date(match.date).toLocaleString(
-              typeof navigator !== "undefined" ? navigator.language : "en-US",
-              {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              },
-            )}
-          </div>
-          <div className="text-xl font-bold">
-            {new Date(match.date).toLocaleString(
-              typeof navigator !== "undefined" ? navigator.language : "en-US",
-              {
-                hour: "numeric",
-                minute: "2-digit",
-                hour12: true,
-              },
-            )}
-          </div>
-        </>
-      )}
-      {match.competition && (
-        <CompetitionLabel competition={match.competition?.name} h={12} />
-      )}
-
-      {match.status === "scheduled" && (
-        <span className="text-muted-foreground space-x-.5 mt-1 flex items-center justify-center">
-          {Array.from({ length: stars }).map((_, i) => (
-            <Star key={i} size={14} className="fill-muted-foreground" />
-          ))}
-          {Array.from({ length: 5 - stars }).map((_, i) => (
-            <Star key={i} size={14} className="text-gray-700" />
-          ))}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function Scoreboard(match: PublicMatch, stars: number, matchDate: Date | null) {
-  return (
-    <div className="mx-4 my-4 text-center text-3xl font-bold sm:mt-0">
-      {matchDate && match.status === "scheduled" && (
-        <div className="hidden sm:block">{MatchInfo(match, stars)}</div>
-      )}
-      {(match.status === "completed" || match.status === "in_progress") && (
-        <div className="mt-4 text-4xl">
-          <span
-            className={
-              match.score_team1 < match.score_team2
-                ? "text-muted-foreground"
-                : "text-foreground"
-            }
-          >
-            {match.score_team1}
-          </span>{" "}
-          -{" "}
-          <span
-            className={
-              match.score_team2 < match.score_team1
-                ? "text-muted-foreground"
-                : "text-foreground"
-            }
-          >
-            {match.score_team2}
-          </span>
-        </div>
-      )}
-      {match.competition && match.status === "completed" && (
-        <div className="text-base">
-          <CompetitionLabel competition={match.competition?.name} h={12} />
-        </div>
-      )}
     </div>
   );
 }
@@ -486,7 +290,7 @@ function Stats({ match }: { match: PublicMatch }) {
   if (allMatches.length === 1) {
     const stat = allMatches[0];
     return (
-      <div className="flex w-full flex-col gap-4 p-4">
+      <div className="flex w-full min-w-0 flex-col gap-4 p-4">
         <h3 className="text-center text-xl font-bold">
           Match Statistics - Map 1
         </h3>
@@ -530,7 +334,7 @@ function Stats({ match }: { match: PublicMatch }) {
   }
 
   return (
-    <div className="flex w-full flex-col gap-4 p-4">
+    <div className="flex w-full min-w-0 flex-col gap-4 p-4">
       <h3 className="text-center text-xl font-bold">Match Statistics</h3>
       <Tabs defaultValue="map-0" className="w-full">
         <TabsList

@@ -7,29 +7,29 @@ function PlayerRankingComponent(player: PublicPlayer & { rank: number }) {
     <div
       className={"team-ranking-component w-full rounded-xl border-2 p-2 pl-4"}
     >
-      <div className="flex justify-between">
-        <div className="flex items-center space-x-2">
-          <span className="mr-3 text-end font-mono text-xl">
+      <div className="flex justify-between gap-2">
+        <div className="flex min-w-0 items-center space-x-2">
+          <span className="mr-3 text-end font-mono text-lg sm:text-xl">
             {player.rank + 1}
           </span>
-          <div className="flex w-16 items-center justify-center">
+          <div className="flex w-12 shrink-0 items-center justify-center sm:w-16">
             <Logo
               src={player.picture}
-              className="h-16 rounded-sm"
+              className="h-12 rounded-sm sm:h-16"
               alt="pfp"
               type="player"
             />
           </div>
-          <span className="truncate overflow-ellipsis whitespace-nowrap text-xl">
+          <span className="min-w-0 truncate text-lg sm:text-xl">
             {player.name}
           </span>
-          <div className="bg-secondary drop-shadow-secondary drop-shadow-lg/50 ml-2 hidden rounded-md p-1 px-2 text-xs sm:block">
+          <div className="bg-secondary drop-shadow-secondary ml-2 hidden shrink-0 rounded-md p-1 px-2 text-xs drop-shadow-lg/50 sm:block">
             {player.team?.name}
           </div>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex shrink-0 items-center space-x-2 sm:space-x-4">
           <RankBadge elo={player.elo || 0} className="h-8 w-8" />
-          <div className="bg-primary drop-shadow-primary drop-shadow-lg/50 rounded-md p-1 px-2 font-mono text-lg">
+          <div className="bg-primary drop-shadow-primary rounded-md p-1 px-2 font-mono text-lg drop-shadow-lg/50">
             {player.elo}
           </div>
         </div>
