@@ -10,7 +10,7 @@ export function MatchResultBadge({
   const { label, badge } = MATCH_RESULT_STYLES[result];
   return (
     <span
-      className={`inline-block w-6 rounded text-center text-xs font-bold ${badge} ${className}`}
+      className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded font-mono text-xs font-bold ${badge} ${className}`}
     >
       {label}
     </span>

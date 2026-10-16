@@ -1,17 +1,15 @@
 import Logo from "@/components/Logo";
 import {
-  usePublicPlayers,
   usePublicEvents,
   usePublicTeams,
   useTeamRanking,
 } from "@/services/hooks";
 import { useParams } from "react-router";
-import UpcomingMatchesWidget from "../Home/UpcomingMatchesWidget";
-import ResultsWidget from "../Home/ResultsWidget";
+import TeamMatches from "./TeamMatches";
+import TeamRoster from "./TeamRoster";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { CompetitionLabel } from "@/components/CompetitionLabel";
-import RankBadge from "@/components/RankBadge";
 import { Link } from "react-router";
 import { Trophy } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -86,7 +84,7 @@ export function Team() {
               </div>
             </div>
           </span>
-          <div className="ml-4 mr-8 mt-4 sm:mt-0 sm:text-right">
+          <div className="mt-4 mr-8 ml-4 sm:mt-0 sm:text-right">
             <h2 className="text-6xl">
               #
               {rankingData ? (
@@ -106,14 +104,11 @@ export function Team() {
           </div>
         </div>
 
-        <PlayerComponent team_id={id} />
+        {id && <TeamRoster teamId={id} />}
 
         {/* <Trophycase teamId={id} /> */}
 
-        <div className="mx-4 mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <UpcomingMatchesWidget teamId={id} limit={20} />
-          <ResultsWidget teamId={id} limit={20} />
-        </div>
+        {id && <TeamMatches teamId={id} />}
       </div>
     </div>
   );
@@ -129,8 +124,11 @@ interface EventTrophyLogoProps {
   className: string;
 }
 
-function EventTrophyLogo({eventName, eventPicture, className,}: 
-  EventTrophyLogoProps) {
+function EventTrophyLogo({
+  eventName,
+  eventPicture,
+  className,
+}: EventTrophyLogoProps) {
   return (
     <span className="relative block">
       <Logo
@@ -140,7 +138,7 @@ function EventTrophyLogo({eventName, eventPicture, className,}:
         type="team"
       />
       <Trophy
-        className="absolute bottom-0 right-0 h-4 w-4 text-yellow-500"
+        className="absolute right-0 bottom-0 h-4 w-4 text-yellow-500"
         aria-hidden="true"
       />
     </span>
@@ -202,60 +200,6 @@ function TrophycaseLogos({ teamId }: TrophycaseProps) {
           />
         </Link>
       ))}
-    </div>
-  );
-}
-
-interface PlayerComponentProps {
-  team_id?: string;
-}
-
-function PlayerComponent(props: PlayerComponentProps) {
-  if (!props.team_id) return <div>No team ID provided</div>;
-  const {
-    data: playerData,
-    isLoading: playerIsLoading,
-    error: playerError,
-  } = usePublicPlayers({
-    team_id: props.team_id,
-    visible: true,
-    sort: "elo",
-    order: "desc",
-    page_size: 5,
-  });
-  return (
-    <div className="mx-4 rounded-xl border-2 p-4">
-      {playerIsLoading && <div>Loading players...</div>}
-      {playerError && <div>Error loading players</div>}
-      {playerData && playerData.results.length === 0 && (
-        <div>No players found for this team.</div>
-      )}
-      {playerData && playerData.results.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5">
-          {playerData.results.map((player) => (
-            <div
-              key={player.id}
-              className="flex flex-col items-center space-y-2"
-            >
-              <div className="flex w-32 justify-center">
-                <Logo
-                  src={player.picture}
-                  className="h-32 rounded-md"
-                  alt="Player"
-                  type="player"
-                />
-              </div>
-              <div className="space-y-0.5 text-center">
-                <p className="font-semibold">{player.name}</p>
-                <RankBadge elo={player.elo || 0} className="mx-auto h-8 w-8" />
-                <p className="text-muted-foreground text-sm">
-                  ELO: {player.elo || "N/A"}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
