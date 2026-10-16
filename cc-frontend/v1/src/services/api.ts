@@ -1653,3 +1653,34 @@ export const fetchFaceItStats = async (
   );
   return normalizeFaceItStats(response.data);
 };
+
+export interface PublicTeamRankingHistoryRequest {
+  team_id: string;
+  season_id?: string;
+}
+
+export interface PublicTeamRankingHistoryItem {
+  id: string;
+  rank: number;
+  elo: number;
+  ranking_date: string;
+  season: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+export interface PublicTeamRankingHistoryResponse {
+  team_id: string;
+  ranking_history: PublicTeamRankingHistoryItem[]; // newest first
+}
+
+export const fetchPublicTeamRankingHistory = async (
+  params: PublicTeamRankingHistoryRequest,
+): Promise<PublicTeamRankingHistoryResponse> => {
+  const queryString = convertToQueryString(params);
+  const response = await api.get(
+    `/public/team_ranking_history${queryString ? `?${queryString}` : ""}`,
+  );
+  return response.data;
+};
