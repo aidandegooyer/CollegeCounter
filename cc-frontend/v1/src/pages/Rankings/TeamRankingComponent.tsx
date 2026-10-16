@@ -74,22 +74,24 @@ function TeamRankingComponent(props: TeamRankingComponentProps) {
       }
       onClick={() => setExpanded(!expanded)}
     >
-      <div className="flex justify-between">
-        <div className="flex items-center space-x-2">
-          <span className="mr-3 text-end font-mono text-xl">{props.rank}</span>
+      <div className="flex justify-between gap-2">
+        <div className="flex min-w-0 items-center space-x-2">
+          <span className="mr-3 text-end font-mono text-lg sm:text-xl">
+            {props.rank}
+          </span>
           <Logo
             src={props.team.picture}
-            className="h-8 w-8 rounded-sm"
+            className="h-8 w-8 shrink-0 rounded-sm"
             alt="pfp"
             type="team"
           />
-          <NavLink to={`/teams/${props.team.id}`}>
-            <span className="truncate overflow-ellipsis whitespace-nowrap text-xl underline transition-colors hover:text-blue-400">
+          <NavLink to={`/teams/${props.team.id}`} className="min-w-0">
+            <span className="block truncate text-lg underline transition-colors hover:text-blue-400 sm:text-xl">
               {props.team.name}
             </span>
           </NavLink>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex shrink-0 items-center space-x-2">
           <div>
             <div className="flex items-center space-x-1">
               {props.rankChange !== undefined && (
@@ -138,7 +140,7 @@ function TeamRankingComponent(props: TeamRankingComponentProps) {
               )}
             </div>
           </div>
-          <div className="bg-secondary drop-shadow-secondary drop-shadow-lg/50 rounded-md p-1 px-2 font-mono text-lg">
+          <div className="bg-secondary drop-shadow-secondary rounded-md p-1 px-2 font-mono text-lg drop-shadow-lg/50">
             {props.team.elo}
           </div>
         </div>
