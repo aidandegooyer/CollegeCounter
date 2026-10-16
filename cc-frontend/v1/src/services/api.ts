@@ -1286,7 +1286,7 @@ export interface ApplyMatchEloResponse {
 export const createMatch = async (
   data: CreateMatchRequest,
 ): Promise<CreateMatchResponse> => {
-  const response = await api.post("/admin/matches", data);
+  const response = await api.post("/matches/create/", data);
   return response.data;
 };
 

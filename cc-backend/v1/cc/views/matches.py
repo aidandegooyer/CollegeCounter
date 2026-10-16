@@ -174,7 +174,7 @@ def create_match(request):
     {
         "team1_id": "uuid",
         "team2_id": "uuid",
-        "date": "2025-01-01T15:00:00Z",  // Optional
+        "date": "2025-01-01T15:00:00Z",
         "status": "scheduled",  // Optional, defaults to "scheduled"
         "url": "https://example.com",  // Optional
         "score_team1": 0,  // Optional, defaults to 0
@@ -212,16 +212,19 @@ def create_match(request):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Optional fields
+        # Match.date is NOT NULL, so a date is required
         date_str = request.data.get("date")
-        match_date = None
-        if date_str:
-            match_date = safe_parse_datetime(date_str)
-            if not match_date:
-                return Response(
-                    {"error": "Invalid date format"}, status=status.HTTP_400_BAD_REQUEST
-                )
+        if not date_str:
+            return Response(
+                {"error": "date is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        match_date = safe_parse_datetime(date_str)
+        if not match_date:
+            return Response(
+                {"error": "Invalid date format"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
+        # Optional fields
         match_status = request.data.get("status", "scheduled")
         url = request.data.get("url")
         score_team1 = request.data.get("score_team1", 0)
@@ -380,7 +383,7 @@ def create_event_match(request):
         "event_id": "uuid",
         "round": 1,
         "num_in_bracket": 1,
-        "date": "2025-01-01T15:00:00Z",  // Optional
+        "date": "2025-01-01T15:00:00Z",
         "status": "scheduled",  // Optional
         "url": "https://example.com",  // Optional
         "score_team1": 0,  // Optional
@@ -431,16 +434,19 @@ def create_event_match(request):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Optional fields
+        # Match.date is NOT NULL, so a date is required
         date_str = request.data.get("date")
-        match_date = None
-        if date_str:
-            match_date = safe_parse_datetime(date_str)
-            if not match_date:
-                return Response(
-                    {"error": "Invalid date format"}, status=status.HTTP_400_BAD_REQUEST
-                )
+        if not date_str:
+            return Response(
+                {"error": "date is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        match_date = safe_parse_datetime(date_str)
+        if not match_date:
+            return Response(
+                {"error": "Invalid date format"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
+        # Optional fields
         match_status = request.data.get("status", "scheduled")
         url = request.data.get("url")
         score_team1 = request.data.get("score_team1", 0)
@@ -586,7 +592,7 @@ def update_event_match(request, match_id):
         "event_id": "uuid",  // Required for PUT, optional for PATCH
         "round": 1,  // Required for PUT, optional for PATCH
         "num_in_bracket": 1,  // Required for PUT, optional for PATCH
-        "date": "2025-01-01T15:00:00Z",  // Optional
+        "date": "2025-01-01T15:00:00Z",
         "status": "scheduled",  // Optional
         "url": "https://example.com",  // Optional
         "score_team1": 0,  // Optional
@@ -828,7 +834,7 @@ def update_match(request, match_id):
     {
         "team1_id": "uuid",  // Required for PUT, optional for PATCH
         "team2_id": "uuid",  // Required for PUT, optional for PATCH
-        "date": "2025-01-01T15:00:00Z",  // Optional
+        "date": "2025-01-01T15:00:00Z",
         "status": "completed",
         "url": "https://example.com",
         "score_team1": 2,
