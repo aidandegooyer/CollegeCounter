@@ -1,5 +1,17 @@
 import axios from "axios";
 import { getAuth } from "firebase/auth";
+import {
+  normalizeFaceItStats,
+  type FaceItApiResponse,
+  type FaceItMatchStatsResponse,
+} from "@/services/faceit-stats";
+
+export type {
+  FaceItMapStats,
+  FaceItMatchStatsResponse,
+  FaceItPlayerStats,
+  FaceItTeamStats,
+} from "@/services/faceit-stats";
 
 // Use Vite's import.meta.env for environment variables in frontend
 const API_BASE_URL =
@@ -859,12 +871,14 @@ export interface PublicMatch {
     name: string;
     picture?: string;
     elo: number;
+    faceit_id?: string;
   };
   team2: {
     id: string;
     name: string;
     picture?: string;
     elo: number;
+    faceit_id?: string;
   };
   date: string;
   status: string;
@@ -1286,7 +1300,7 @@ export interface ApplyMatchEloResponse {
 export const createMatch = async (
   data: CreateMatchRequest,
 ): Promise<CreateMatchResponse> => {
-  const response = await api.post("/admin/matches", data);
+  const response = await api.post("/matches/create/", data);
   return response.data;
 };
 
@@ -1618,4 +1632,24 @@ export interface NWESProxyParams {
 export const proxyNWES = async (params: NWESProxyParams): Promise<any> => {
   const response = await api.get("/proxy/nwes/", { params });
   return response.data;
+};
+
+// FaceIT API Proxy
+export interface FaceItProxyParams {
+  matchId: string;
+}
+
+/**
+ * Proxy request to FaceIT API. The API key is automatically added on the backend.
+ *
+ * @param params - The College Counter match ID.
+ * @returns Promise with the FaceIT API response
+ */
+export const fetchFaceItStats = async (
+  params: FaceItProxyParams,
+): Promise<FaceItMatchStatsResponse> => {
+  const response = await api.get<FaceItApiResponse>(
+    `/proxy/faceit/matches/${encodeURIComponent(params.matchId)}/stats/`,
+  );
+  return normalizeFaceItStats(response.data);
 };

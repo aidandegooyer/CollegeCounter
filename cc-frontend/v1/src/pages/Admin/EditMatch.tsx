@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { isAxiosError } from "axios";
 import {
   fetchAllMatches,
   fetchAllTeams,
@@ -1313,7 +1314,8 @@ function MatchCreateForm({
   const handleSelectChange = (value: string, name: string) => {
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      // "No Winner" is a sentinel for the Select, not a team id
+      [name]: name === "winner_id" && value === "__no_winner__" ? "" : value,
     }));
   };
 
@@ -1342,7 +1344,7 @@ function MatchCreateForm({
       const createData: CreateMatchRequest = {
         team1_id: formData.team1_id,
         team2_id: formData.team2_id,
-        date: formData.date ? localInputToISO(formData.date) : undefined,
+        date: localInputToISO(formData.date),
         status: formData.status,
         url: formData.url || undefined,
         score_team1: formData.score_team1,
@@ -1378,7 +1380,9 @@ function MatchCreateForm({
       console.error("Error creating match:", error);
       setNotification({
         type: "error",
-        message: "Failed to create match",
+        message:
+          (isAxiosError(error) && error.response?.data?.error) ||
+          "Failed to create match",
       });
     } finally {
       setCreating(false);
@@ -1413,13 +1417,14 @@ function MatchCreateForm({
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="date">Date & Time</Label>
+            <Label htmlFor="date">Date & Time *</Label>
             <Input
               id="date"
               name="date"
               type="datetime-local"
               value={formData.date}
               onChange={handleInputChange}
+              required
             />
           </div>
           <div className="space-y-2">
@@ -1641,7 +1646,8 @@ function EventMatchCreateForm({
   const handleSelectChange = (value: string, name: string) => {
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      // "No Winner" is a sentinel for the Select, not a team id
+      [name]: name === "winner_id" && value === "__no_winner__" ? "" : value,
     }));
   };
 
@@ -1691,7 +1697,7 @@ function EventMatchCreateForm({
         event_id: formData.event_id,
         round: formData.round,
         num_in_bracket: formData.num_in_bracket,
-        date: formData.date ? localInputToISO(formData.date) : undefined,
+        date: localInputToISO(formData.date),
         status: formData.status,
         url: formData.url || undefined,
         score_team1: formData.score_team1,
@@ -1741,7 +1747,9 @@ function EventMatchCreateForm({
       console.error("Error creating event match:", error);
       setNotification({
         type: "error",
-        message: "Failed to create event match",
+        message:
+          (isAxiosError(error) && error.response?.data?.error) ||
+          "Failed to create event match",
       });
     } finally {
       setCreating(false);
@@ -1826,13 +1834,14 @@ function EventMatchCreateForm({
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="date">Date & Time</Label>
+            <Label htmlFor="date">Date & Time *</Label>
             <Input
               id="date"
               name="date"
               type="datetime-local"
               value={formData.date}
               onChange={handleInputChange}
+              required
             />
           </div>
           <div className="space-y-2">
