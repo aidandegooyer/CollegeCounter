@@ -7,6 +7,7 @@ import {
 import { useParams } from "react-router";
 import TeamMatches from "./TeamMatches";
 import TeamRoster from "./TeamRoster";
+import TeamRankingGraph from "./TeamRankingGraph";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { CompetitionLabel } from "@/components/CompetitionLabel";
@@ -105,6 +106,9 @@ export function Team() {
         </div>
 
         {id && <TeamRoster teamId={id} />}
+
+        {/* key resets the picked season when navigating between teams */}
+        {id && <TeamRankingGraph key={id} teamId={id} />}
 
         {/* <Trophycase teamId={id} /> */}
 

@@ -18,6 +18,7 @@ import {
   fetchAdminPlayers,
   fetchAdminMatches,
   fetchPublicTeamRanking,
+  fetchPublicTeamRankingHistory,
   fetchAdminCustomEvents,
   fetchAdminCustomEvent,
 } from "@/services/api";
@@ -291,6 +292,21 @@ export function useTeamRanking(params: PublicTeamRankingRequest, options = {}) {
     queryKey: ["public", "team-ranking", params],
     queryFn: () => fetchPublicTeamRanking(params),
     staleTime: DEFAULT_STALE_TIME,
+    ...options,
+  });
+}
+
+export function useTeamRankingHistory(
+  teamId: string | undefined,
+  seasonId: string | undefined,
+  options = {},
+) {
+  return useQuery({
+    queryKey: ["public", "rankings", "team-history", teamId, seasonId],
+    queryFn: () =>
+      fetchPublicTeamRankingHistory({ team_id: teamId!, season_id: seasonId }),
+    staleTime: DEFAULT_STALE_TIME,
+    enabled: !!teamId && !!seasonId,
     ...options,
   });
 }
