@@ -10,6 +10,8 @@ import {
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import SyncMetrics from "./SyncMetrics";
+import SyncReview from "./SyncReview";
 
 function ControlPanel() {
   const [isUpdating, setIsUpdating] = useState(false);
@@ -344,6 +346,13 @@ function ControlPanel() {
             )}
           </Button>
         </div>
+      </div>
+      <div className="mt-8">
+        <h2 className="text-4xl">Match Auto-Update</h2>
+        <hr></hr>
+        <SyncMetrics />
+        <h3 className="mt-6 font-semibold">Matches needing review</h3>
+        <SyncReview />
       </div>
       <div className="mt-8">
         <h2 className="text-4xl">Rankings</h2>

@@ -3,9 +3,10 @@ import { ChevronRight } from "lucide-react";
 import { NavLink } from "react-router";
 import client from "@/services/sanity-client";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
-import { formatDistanceToNow, formatDistanceToNowStrict } from "date-fns";
+import { formatDistanceToNowStrict } from "date-fns";
 import { useNavigate } from "react-router";
 import cc_news from "@/assets/cc news.png";
+import AuthorName from "@/pages/News/AuthorName";
 
 interface PortableTextBlock {
   _type: "block";
@@ -134,8 +135,13 @@ function FeaturedNews({ post }: { post: SanityPost }) {
         <h2 className="text-lg font-semibold">{post.title}</h2>
 
         <div className="mt-2 flex justify-between">
-          <span className="text-foreground bg-secondary rounded px-1 py-0.5 text-sm">
-            {post.author || "College Counter Staff"}
+          {/* Keep the author link's click from also opening the post */}
+          <span onClick={(e) => e.stopPropagation()}>
+            <AuthorName
+              author={post.author}
+              authorLink={post.authorLink}
+              className="text-foreground text-sm"
+            />
           </span>
           <span className="text-muted-foreground text-sm">
             {formatDistanceToNowStrict(new Date(post.publishedAt), {
@@ -162,7 +168,9 @@ function NewsItem({ post }: { post: SanityPost }) {
       <div className="flex w-full justify-between">
         <h3 className="font-semibold">{post.title}</h3>
         <span className="text-muted-foreground w-30 text-end">
-          {formatDistanceToNow(new Date(post.publishedAt), { addSuffix: true })}
+          {formatDistanceToNowStrict(new Date(post.publishedAt), {
+            addSuffix: true,
+          })}
         </span>
       </div>
     </li>

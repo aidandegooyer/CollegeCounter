@@ -17,7 +17,10 @@ function LiveMatchesWidget() {
       status: "in_progress",
     },
     {
-      staleTime: 1000 * 30, // Refresh every 30 seconds for live data
+      staleTime: 1000 * 30,
+      // Live matches are refreshed from their platform about once a minute;
+      // polling also picks up matches that have just gone live
+      refetchInterval: 60_000,
     },
   );
 

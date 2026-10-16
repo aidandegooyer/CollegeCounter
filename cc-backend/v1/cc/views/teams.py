@@ -276,6 +276,13 @@ def merge_teams(request):
                     existing_participant.playfly_participant_id = (
                         secondary_participant.playfly_participant_id
                     )
+                if (
+                    secondary_participant.regentsleague_id
+                    and not existing_participant.regentsleague_id
+                ):
+                    existing_participant.regentsleague_id = (
+                        secondary_participant.regentsleague_id
+                    )
 
                 existing_participant.save()
                 secondary_participant.delete()

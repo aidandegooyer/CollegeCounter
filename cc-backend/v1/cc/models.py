@@ -125,6 +125,32 @@ class Match(models.Model):
     team1_elo_change = models.IntegerField(null=True, blank=True)
     team2_elo_change = models.IntegerField(null=True, blank=True)
 
+    # Background sync bookkeeping, written by views.match_sync. db_default keeps
+    # inserts from code that predates these fields working.
+    last_synced_at = models.DateTimeField(
+        null=True, blank=True, help_text="Last refresh attempt, successful or not"
+    )
+    sync_failures = models.IntegerField(
+        default=0, db_default=0, help_text="Failed refreshes in a row"
+    )
+    sync_disabled = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Skipped by the background sync; needs an admin to review",
+    )
+    platform_status = models.CharField(
+        max_length=40,
+        null=True,
+        blank=True,
+        help_text="The platform's own status for the match, as last seen",
+    )
+    last_sync_error = models.TextField(
+        null=True, blank=True, help_text="Why the last refresh failed, if it did"
+    )
+
+    class Meta:
+        indexes = [models.Index(fields=["status", "date"])]
+
     def __str__(self):
         return (
             f"{self.team1} vs {self.team2} on {self.date.strftime('%Y-%m-%d %H:%M:%S')}"
@@ -300,6 +326,34 @@ class Competition(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100)
+
+    # Where the competition was last imported from, so it can be re-imported to
+    # pick up new matches (e.g. later swiss/bracket rounds). Null for
+    # competitions created by hand or imported before this was recorded.
+    source_platform = models.CharField(max_length=20, blank=True, null=True)
+    source_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Faceit championship, LeagueSpot season/stage or Regents League division",
+    )
+    source_id_type = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        help_text='LeagueSpot only: whether source_id is a "season" or "stage"',
+    )
+    import_type = models.CharField(
+        max_length=10, blank=True, null=True, help_text='"league" or "event"'
+    )
+    source_event = models.ForeignKey(
+        "Event",
+        on_delete=models.SET_NULL,
+        related_name="+",
+        blank=True,
+        null=True,
+        help_text="The event an event import adds its matches to",
+    )
 
     def __str__(self):
         return self.name

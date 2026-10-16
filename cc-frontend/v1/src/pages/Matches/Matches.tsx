@@ -1,11 +1,23 @@
-import { ArrowRight, Menu, Star } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import {
+  ArrowRight,
+  ChevronDown,
+  SlidersHorizontal,
+  Star,
+  X,
+} from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
-import { usePublicMatches, usePublicSeasons } from "@/services/hooks";
+import {
+  useAllPublicMatches,
+  useInfinitePublicMatches,
+  usePublicCompetitions,
+  usePublicMatches,
+  usePublicSeasons,
+} from "@/services/hooks";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import type { PublicMatch, MatchQueryParams } from "@/services/api";
+import type { PublicMatch } from "@/services/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -16,25 +28,32 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import Logo from "@/components/Logo";
 import { calculateEloChanges, calculateMatchStars } from "@/services/elo";
-import { NavLink, useNavigate } from "react-router";
+import { NavLink, useLocation, useNavigate } from "react-router";
 import { CompetitionLabel } from "@/components/CompetitionLabel";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 function Matches() {
-  const getInitialMatchType = () => {
-    const hash = window.location.hash.replace("#", "");
-    if (hash === "live" || hash === "upcoming" || hash === "past") {
-      return hash;
-    }
-    return "upcoming";
+  // The selected tab lives in the hash, so back/forward switch tabs
+  const location = useLocation();
+  const navigate = useNavigate();
+  const hash = location.hash.replace("#", "");
+  const matchType =
+    hash === "live" || hash === "upcoming" || hash === "past"
+      ? hash
+      : "upcoming";
+  const setMatchType = (tab: typeof matchType) => {
+    // Each tab has its own filters, so don't carry them over
+    if (tab !== matchType) navigate({ hash: tab });
   };
-
-  const [matchType, setMatchType] = useState(getInitialMatchType() || "live");
-  useEffect(() => {
-    window.location.hash = matchType;
-  }, [matchType]);
-  document.title = "Matches - College Counter";
+  useDocumentTitle("Matches");
 
   return (
     <div className="app-container mx-4 flex justify-center">
@@ -199,168 +218,213 @@ function LiveMatch({ match }: LiveMatchProps) {
   );
 }
 
-function Upcoming() {
-  // Competition filter state
-  const [selectedCompetitions, setSelectedCompetitions] = useState<string[]>(
-    [],
+// Filters live in the URL so they survive a refresh and can be shared
+function useUrlSearchParams() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const searchParams = new URLSearchParams(location.search);
+
+  const update = (mutate: (params: URLSearchParams) => void) => {
+    const params = new URLSearchParams(location.search);
+    mutate(params);
+    const search = params.toString();
+    // Keep the hash, which holds the selected Live/Upcoming/Past tab
+    navigate(
+      { search: search ? `?${search}` : "", hash: location.hash },
+      { replace: true },
+    );
+  };
+
+  return [searchParams, update] as const;
+}
+
+interface FilterChip {
+  label: string;
+  onRemove: () => void;
+}
+
+interface FilterBarProps {
+  chips: FilterChip[];
+  onClearAll: () => void;
+  children: React.ReactNode;
+}
+
+// Shared shell for the Upcoming and Past filters: controls, then a row of
+// removable chips for whatever is active. On mobile the controls collapse
+// behind the header (chips stay visible); on desktop they're always shown.
+function FilterBar({ chips, onClearAll, children }: FilterBarProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="mt-4 rounded-xl border-2 p-4">
+      <h2 className="text-base">
+        <button
+          type="button"
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex w-full cursor-pointer items-center gap-2 md:pointer-events-none md:cursor-default"
+        >
+          <SlidersHorizontal className="text-muted-foreground size-4" />
+          Filter matches
+          {chips.length > 0 && (
+            <Badge className="md:hidden">{chips.length}</Badge>
+          )}
+          <ChevronDown
+            className={`text-muted-foreground ml-auto size-4 transition-transform md:hidden ${isOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+      </h2>
+      <div className={`mt-3 ${isOpen ? "" : "hidden md:block"}`}>
+        {children}
+      </div>
+      {chips.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {chips.map((chip) => (
+            <Badge key={chip.label} variant="secondary" className="py-1 pl-2.5">
+              {chip.label}
+              <button
+                type="button"
+                aria-label={`Remove ${chip.label} filter`}
+                className="hover:text-foreground text-muted-foreground cursor-pointer"
+                onClick={chip.onRemove}
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
+          <Button
+            variant="link"
+            size="sm"
+            className="text-muted-foreground h-auto cursor-pointer px-1"
+            onClick={onClearAll}
+          >
+            Clear all
+          </Button>
+        </div>
+      )}
+    </div>
   );
-  const [minStarCount, setMinStarCount] = useState<number>(0);
-  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+}
 
-  // Get upcoming matches for today (using local timezone)
-  const today = new Date();
-  // Format date in local timezone as YYYY-MM-DD
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  console.log("Today:", todayStr);
-  // Set end of today (23:59:59) as the cutoff for today's matches
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0); // Set to 00:00:00
+// Local YYYY-MM-DD, since the API treats bare dates as whole days
+function toDateParam(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
-  // Get matches for this week (next 7 days)
-  const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+function endOfDay(date: Date, daysAhead = 0) {
+  const end = new Date(date);
+  end.setDate(end.getDate() + daysAhead);
+  end.setHours(23, 59, 59, 999);
+  return end;
+}
 
-  // Get later matches (beyond this week)
-  const monthFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-  // Format date in local timezone as YYYY-MM-DD
-  const monthStr = `${monthFromNow.getFullYear()}-${String(monthFromNow.getMonth() + 1).padStart(2, "0")}-${String(monthFromNow.getDate()).padStart(2, "0")}`;
+function useUpcomingFilters() {
+  const [searchParams, updateSearchParams] = useUrlSearchParams();
+  const competitions = searchParams.getAll("competition");
+  const minStars = Math.min(
+    Math.max(Number(searchParams.get("min_stars")) || 0, 0),
+    5,
+  );
 
-  // Single API call to get all upcoming matches
+  const setCompetitions = (names: string[]) =>
+    updateSearchParams((params) => {
+      params.delete("competition");
+      names.forEach((name) => params.append("competition", name));
+    });
+  const setMinStars = (stars: number) =>
+    updateSearchParams((params) => {
+      if (stars > 0) params.set("min_stars", String(stars));
+      else params.delete("min_stars");
+    });
+
+  return { competitions, minStars, setCompetitions, setMinStars };
+}
+
+interface RatedMatch {
+  match: PublicMatch;
+  stars: number;
+}
+
+function Upcoming() {
+  const { competitions, minStars, setCompetitions, setMinStars } =
+    useUpcomingFilters();
+
+  // Fixed for the life of the page so the day buckets and query stay stable
+  const [now] = useState(() => new Date());
+
   const {
     data: allMatches,
-    isLoading: allMatchesLoading,
-    error: allMatchesError,
-  } = usePublicMatches({
-    date_from: todayStr,
-    date_to: monthStr,
+    isLoading,
+    error,
+  } = useAllPublicMatches({
+    date_from: toDateParam(now),
+    date_to: toDateParam(endOfDay(now, 30)),
     status: "scheduled",
     sort: "date",
     order: "asc",
-    page_size: 200,
   });
 
-  // Split matches into different time periods and extract competitions
-  const {
-    todayMatches,
-    tomorrowMatches,
-    weekMatches,
-    laterMatches,
-    availableCompetitions,
-  } = React.useMemo(() => {
-    if (!allMatches?.results) {
-      return {
-        todayMatches: [],
-        tomorrowMatches: [],
-        weekMatches: [],
-        laterMatches: [],
-        availableCompetitions: [],
-      };
-    }
-
-    const matches = allMatches.results;
-    const todayEnd = new Date(today);
-    todayEnd.setHours(23, 59, 59, 999);
-
-    const tomorrowEnd = new Date(tomorrow);
-    tomorrowEnd.setHours(23, 59, 59, 999);
-
-    const weekEnd = new Date(weekFromNow);
-    weekEnd.setHours(23, 59, 59, 999);
-
-    // Split matches by time period
-    const todayMatchList: PublicMatch[] = [];
-    const tomorrowMatchList: PublicMatch[] = [];
-    const weekMatchList: PublicMatch[] = [];
-    const laterMatchList: PublicMatch[] = [];
-
-    matches.forEach((match) => {
-      const matchDate = new Date(match.date || "");
-
-      if (matchDate <= todayEnd) {
-        todayMatchList.push(match);
-      } else if (matchDate <= tomorrowEnd) {
-        tomorrowMatchList.push(match);
-      } else if (matchDate <= weekEnd) {
-        weekMatchList.push(match);
-      } else {
-        laterMatchList.push(match);
-      }
-    });
-
-    // Extract unique competitions
-    const competitions = new Set<string>();
-    matches.forEach((match) => {
-      if (match.competition?.name) {
-        competitions.add(match.competition.name);
-      }
-    });
-
-    return {
-      todayMatches: todayMatchList,
-      tomorrowMatches: tomorrowMatchList,
-      weekMatches: weekMatchList,
-      laterMatches: laterMatchList,
-      availableCompetitions: Array.from(competitions).sort(),
-    };
-  }, [allMatches, today, tomorrow, weekFromNow]);
-
-  // tomorrowMatches is available for future use when adding tomorrow section
-
-  // Helper function to filter matches by selected competitions and minimum star count
-  const filterMatches = (matches: PublicMatch[]) => {
-    return matches.filter((match) => {
-      // Filter by competition
-      const passesCompetitionFilter =
-        selectedCompetitions.length === 0 ||
-        (match.competition?.name &&
-          selectedCompetitions.includes(match.competition.name));
-
-      // Filter by minimum star count
-      const matchStars = calculateMatchStars(
+  const { ratedMatches, availableCompetitions } = useMemo(() => {
+    const ratedMatches: RatedMatch[] = (allMatches ?? []).map((match) => ({
+      match,
+      stars: calculateMatchStars(
         match.team1?.elo || 1000,
         match.team2?.elo || 1000,
-      );
-      const passesStarFilter = matchStars >= minStarCount;
+      ),
+    }));
 
-      return passesCompetitionFilter && passesStarFilter;
-    });
-  };
-
-  // Helper function to sort matches by date then by stars (descending)
-  const sortMatchesByDateAndStars = (matches: PublicMatch[]) => {
-    return [...matches].sort((a, b) => {
-      // First sort by date
-      const dateA = new Date(a.date || 0).getTime();
-      const dateB = new Date(b.date || 0).getTime();
-
-      if (dateA !== dateB) {
-        return dateA - dateB; // Earlier dates first
+    // Deduplicate by name, since re-imported competitions share one
+    const names = new Map<string, string>();
+    for (const { match } of ratedMatches) {
+      const name = match.competition?.name?.trim();
+      if (name && !names.has(name.toLowerCase())) {
+        names.set(name.toLowerCase(), name);
       }
+    }
 
-      // If dates are the same, sort by stars (highest first)
-      const starsA = calculateMatchStars(
-        a.team1?.elo || 1000,
-        a.team2?.elo || 1000,
+    return {
+      ratedMatches,
+      availableCompetitions: [...names.values()].sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    };
+  }, [allMatches]);
+
+  const sections = useMemo(() => {
+    const selected = new Set(competitions.map((c) => c.toLowerCase()));
+    const visible = ratedMatches
+      .filter(
+        ({ match, stars }) =>
+          stars >= minStars &&
+          (selected.size === 0 ||
+            selected.has(match.competition?.name?.trim().toLowerCase() ?? "")),
+      )
+      // Earliest first, then highest stars, then highest combined ELO
+      .sort(
+        (a, b) =>
+          new Date(a.match.date || 0).getTime() -
+            new Date(b.match.date || 0).getTime() ||
+          b.stars - a.stars ||
+          (b.match.team1.elo || 1000) +
+            (b.match.team2.elo || 1000) -
+            ((a.match.team1.elo || 1000) + (a.match.team2.elo || 1000)),
       );
-      const starsB = calculateMatchStars(
-        b.team1?.elo || 1000,
-        b.team2?.elo || 1000,
-      );
 
-      if (starsA !== starsB) {
-        return starsB - starsA; // Higher stars first
-      }
+    const buckets = [
+      { title: "Today", empty: "today", end: endOfDay(now) },
+      { title: "Tomorrow", empty: "tomorrow", end: endOfDay(now, 1) },
+      { title: "This Week", empty: "this week", end: endOfDay(now, 7) },
+      { title: "This Month", empty: "this month", end: endOfDay(now, 30) },
+    ].map((bucket) => ({ ...bucket, matches: [] as RatedMatch[] }));
 
-      // If stars are the same, sort by combined ELO (highest first)
-      return (
-        (b.team1.elo || 1000) +
-        (b.team2.elo || 1000) -
-        ((a.team1.elo || 1000) + (a.team2.elo || 1000))
-      );
-    });
-  };
+    for (const rated of visible) {
+      const date = new Date(rated.match.date || 0);
+      buckets.find((bucket) => date <= bucket.end)?.matches.push(rated);
+    }
+    return buckets;
+  }, [ratedMatches, competitions, minStars, now]);
 
-  if (allMatchesError) {
+  if (error) {
     return (
       <Alert variant="destructive" className="mt-4">
         <AlertTitle className="text-lg">Error</AlertTitle>
@@ -371,279 +435,161 @@ function Upcoming() {
     );
   }
 
+  const chips: FilterChip[] = competitions.map((name) => ({
+    label: name,
+    onRemove: () => setCompetitions(competitions.filter((c) => c !== name)),
+  }));
+  if (minStars > 0) {
+    chips.push({
+      label: `${minStars}+ stars`,
+      onRemove: () => setMinStars(0),
+    });
+  }
+
   return (
     <>
-      {/* Competition Filter */}
-      {(allMatchesLoading || availableCompetitions.length > 0) && (
-        <div
-          className={`competition-filter mb-4 w-full cursor-pointer rounded-xl border-2 p-4 ${
-            isFilterExpanded ? "max-h-[1000px]" : "max-h-16"
-          } transition-all duration-300`}
-          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-        >
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-semibold">Filter Matches</h2>
-            <Menu />
-          </div>
-          <div
-            className={`transition-all duration-200 ${
-              isFilterExpanded ? "opacity-100" : "pointer-events-none opacity-0"
-            }`}
-          >
-            {allMatchesLoading ? (
-              <div className="flex h-10 items-center justify-center">
-                <Spinner />
-              </div>
-            ) : (
-              <>
-                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-                  {availableCompetitions.map((competition) => (
-                    <div
-                      key={competition}
-                      className="flex items-center space-x-2"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Checkbox
-                        id={`competition-${competition}`}
-                        checked={selectedCompetitions.includes(competition)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedCompetitions([
-                              ...selectedCompetitions,
-                              competition,
-                            ]);
-                          } else {
-                            setSelectedCompetitions(
-                              selectedCompetitions.filter(
-                                (c) => c !== competition,
-                              ),
-                            );
-                          }
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <Label
-                        htmlFor={`competition-${competition}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {competition}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 flex space-x-2">
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedCompetitions(availableCompetitions);
-                    }}
-                    variant="outline"
-                    size="sm"
-                  >
-                    Select All
-                  </Button>
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedCompetitions([]);
-                    }}
-                    variant="outline"
-                    size="sm"
-                  >
-                    Clear All
-                  </Button>
-                </div>
+      <div className="mb-2">
+        <h1>Upcoming Matches</h1>
+        <hr />
+      </div>
 
-                {/* Minimum Star Count Filter */}
-                <div
-                  className="mt-6 border-t pt-4"
-                  onClick={(e) => e.stopPropagation()}
+      <FilterBar
+        chips={chips}
+        onClearAll={() => {
+          setCompetitions([]);
+          setMinStars(0);
+        }}
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:items-end">
+          <div className="space-y-1 md:w-64">
+            <Label htmlFor="upcoming-competitions">Competitions</Label>
+            <CompetitionMultiSelect
+              id="upcoming-competitions"
+              options={availableCompetitions}
+              selected={competitions}
+              onChange={setCompetitions}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Minimum stars</Label>
+            <div className="flex flex-wrap gap-1">
+              {[0, 1, 2, 3, 4, 5].map((stars) => (
+                <button
+                  key={stars}
+                  type="button"
+                  aria-pressed={minStars === stars}
+                  onClick={() => setMinStars(stars)}
+                  className={`flex h-9 cursor-pointer items-center gap-1 rounded-md px-3 text-sm transition-colors ${
+                    minStars === stars
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
                 >
-                  <Label
-                    htmlFor="min-star-count"
-                    className="text-sm font-semibold"
-                  >
-                    Minimum Star Rating
-                  </Label>
-                  <div className="mt-2 flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      {[0, 1, 2, 3, 4, 5].map((starCount) => (
-                        <button
-                          key={starCount}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMinStarCount(starCount);
-                          }}
-                          className={`flex items-center space-x-1 rounded-md px-2 py-1 text-xs transition-colors ${
-                            minStarCount === starCount
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-muted-foreground hover:bg-muted/80"
-                          }`}
-                        >
-                          <span>
-                            {starCount === 0 ? "Any" : `${starCount}+`}
-                          </span>
-                          {starCount > 0 && (
-                            <div className="flex">
-                              {Array.from({ length: starCount }).map((_, i) => (
-                                <Star
-                                  key={i}
-                                  size={10}
-                                  className="fill-current"
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Reset All Filters */}
-                <div className="mt-4 flex justify-center border-t pt-4">
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedCompetitions(availableCompetitions);
-                      setMinStarCount(0);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="text-muted-foreground"
-                  >
-                    Reset All Filters
-                  </Button>
-                </div>
-              </>
-            )}
+                  {stars === 0 ? (
+                    "Any"
+                  ) : (
+                    <>
+                      {stars}+
+                      <Star size={12} className="fill-current" />
+                    </>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      )}
+      </FilterBar>
 
-      <h1>Today</h1>
-      <hr />
-      {allMatchesLoading ? (
-        <div className="flex h-20 items-center justify-center">
-          <Spinner />
-        </div>
-      ) : (
-        (() => {
-          const filteredTodayMatches = filterMatches(todayMatches);
-          return filteredTodayMatches.length > 0 ? (
+      {sections.map((section, i) => (
+        <section key={section.title} className={i === 0 ? "mt-6" : "mt-8"}>
+          <h2 className="font-block text-3xl font-normal">{section.title}</h2>
+          <hr />
+          {isLoading ? (
+            <div className="flex h-20 items-center justify-center">
+              <Spinner />
+            </div>
+          ) : section.matches.length > 0 ? (
             <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {sortMatchesByDateAndStars(filteredTodayMatches).map((match) => (
-                <UpcomingMatch
-                  key={match.id}
-                  match={match}
-                  stars={calculateMatchStars(
-                    match.team1?.elo || 1000,
-                    match.team2?.elo || 1000,
-                  )}
-                />
+              {section.matches.map(({ match, stars }) => (
+                <UpcomingMatch key={match.id} match={match} stars={stars} />
               ))}
             </ul>
           ) : (
             <div className="text-muted-foreground my-4 text-center">
-              No matches scheduled for today
+              {chips.length > 0
+                ? `No matches ${section.empty} match these filters`
+                : `No matches scheduled for ${section.empty}`}
             </div>
-          );
-        })()
-      )}
-
-      <h1 className="mt-8">Tomorrow</h1>
-      <hr />
-      {allMatchesLoading ? (
-        <div className="flex h-20 items-center justify-center">
-          <Spinner />
-        </div>
-      ) : (
-        (() => {
-          const filteredTomorrowMatches = filterMatches(tomorrowMatches);
-          return filteredTomorrowMatches.length > 0 ? (
-            <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {sortMatchesByDateAndStars(filteredTomorrowMatches).map(
-                (match) => (
-                  <UpcomingMatch
-                    key={match.id}
-                    match={match}
-                    stars={calculateMatchStars(
-                      match.team1?.elo || 1000,
-                      match.team2?.elo || 1000,
-                    )}
-                  />
-                ),
-              )}
-            </ul>
-          ) : (
-            <div className="text-muted-foreground my-4 text-center">
-              No matches scheduled for tomorrow
-            </div>
-          );
-        })()
-      )}
-
-      <h1 className="mt-8">This Week</h1>
-      <hr />
-      {allMatchesLoading ? (
-        <div className="flex h-20 items-center justify-center">
-          <Spinner />
-        </div>
-      ) : (
-        (() => {
-          const filteredWeekMatches = filterMatches(weekMatches);
-          return filteredWeekMatches.length > 0 ? (
-            <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {sortMatchesByDateAndStars(filteredWeekMatches).map((match) => (
-                <UpcomingMatch
-                  key={match.id}
-                  match={match}
-                  stars={calculateMatchStars(
-                    match.team1?.elo || 1000,
-                    match.team2?.elo || 1000,
-                  )}
-                />
-              ))}
-            </ul>
-          ) : (
-            <div className="text-muted-foreground my-4 text-center">
-              No matches scheduled for this week
-            </div>
-          );
-        })()
-      )}
-
-      <h1 className="mt-8">This Month</h1>
-      <hr />
-      {allMatchesLoading ? (
-        <div className="flex h-20 items-center justify-center">
-          <Spinner />
-        </div>
-      ) : (
-        (() => {
-          const filteredLaterMatches = filterMatches(laterMatches);
-          return filteredLaterMatches.length > 0 ? (
-            <ul className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {sortMatchesByDateAndStars(filteredLaterMatches).map((match) => (
-                <UpcomingMatch
-                  key={match.id}
-                  match={match}
-                  stars={calculateMatchStars(
-                    match.team1?.elo || 1000,
-                    match.team2?.elo || 1000,
-                  )}
-                />
-              ))}
-            </ul>
-          ) : (
-            <div className="text-muted-foreground my-4 text-center">
-              No matches scheduled for this month
-            </div>
-          );
-        })()
-      )}
+          )}
+        </section>
+      ))}
     </>
+  );
+}
+
+interface CompetitionMultiSelectProps {
+  id: string;
+  options: string[];
+  selected: string[];
+  onChange: (selected: string[]) => void;
+}
+
+function CompetitionMultiSelect({
+  id,
+  options,
+  selected,
+  onChange,
+}: CompetitionMultiSelectProps) {
+  const isSelected = (name: string) =>
+    selected.some((s) => s.toLowerCase() === name.toLowerCase());
+  const toggle = (name: string) =>
+    onChange(
+      isSelected(name)
+        ? selected.filter((s) => s.toLowerCase() !== name.toLowerCase())
+        : [...selected, name],
+    );
+
+  const label =
+    selected.length === 0
+      ? "All competitions"
+      : selected.length === 1
+        ? selected[0]
+        : `${selected.length} competitions`;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          id={id}
+          variant="outline"
+          className="w-full cursor-pointer justify-between font-normal"
+        >
+          <span className="truncate">{label}</span>
+          <ChevronDown className="text-muted-foreground size-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64 p-1">
+        {options.length === 0 ? (
+          <p className="text-muted-foreground p-2 text-sm">
+            No upcoming competitions
+          </p>
+        ) : (
+          <ul className="max-h-72 overflow-y-auto">
+            {options.map((name) => (
+              <li key={name}>
+                <label className="hover:bg-muted flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm">
+                  <Checkbox
+                    checked={isSelected(name)}
+                    onCheckedChange={() => toggle(name)}
+                  />
+                  {name}
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -759,59 +705,77 @@ function UpcomingMatch({ match, stars }: UpcomingMatchProps) {
   );
 }
 
+interface PastFilters {
+  season_id: string;
+  competition_name: string;
+  date_from: string;
+  date_to: string;
+  order: "asc" | "desc";
+}
+
+const PAST_FILTER_DEFAULTS: PastFilters = {
+  season_id: "",
+  competition_name: "",
+  date_from: "",
+  date_to: "",
+  order: "desc",
+};
+
+const PAST_FILTER_KEYS = Object.keys(PAST_FILTER_DEFAULTS) as Array<
+  keyof PastFilters
+>;
+
+function usePastFilters() {
+  const [searchParams, updateSearchParams] = useUrlSearchParams();
+
+  const filters: PastFilters = {
+    season_id: searchParams.get("season_id") ?? "",
+    competition_name: searchParams.get("competition_name") ?? "",
+    date_from: searchParams.get("date_from") ?? "",
+    date_to: searchParams.get("date_to") ?? "",
+    order: searchParams.get("order") === "asc" ? "asc" : "desc",
+  };
+
+  const setFilters = (changes: Partial<PastFilters>) => {
+    const next = { ...filters, ...changes };
+    updateSearchParams((params) => {
+      for (const key of PAST_FILTER_KEYS) {
+        if (next[key] && next[key] !== PAST_FILTER_DEFAULTS[key]) {
+          params.set(key, next[key]);
+        } else {
+          params.delete(key);
+        }
+      }
+    });
+  };
+
+  return [filters, setFilters] as const;
+}
+
 function Past() {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [page, setPage] = useState(1);
-  const [matches, setMatches] = useState<PublicMatch[]>([]);
-  const [hasMore, setHasMore] = useState(true);
-  const [filters, setFilters] = useState<MatchQueryParams>({
-    date_from: "",
-    date_to: "",
-    season_id: "",
-    competition_name: "",
-    sort: "date",
-    order: "desc",
+  const [filters, setFilters] = usePastFilters();
+
+  const {
+    data,
+    error,
+    isLoading,
+    isFetching,
+    isFetchingNextPage,
+    isPlaceholderData,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfinitePublicMatches({
+    page_size: 30,
     status: "completed",
+    sort: "date",
+    ...filters,
   });
 
-  // Apply filters to the query
-  const { data, isLoading, error } = usePublicMatches(
-    {
-      page,
-      page_size: 30,
-      status: "completed",
-      ...filters,
-    },
-    {
-      staleTime: 1000 * 60 * 5,
-      keepPreviousData: true,
-    },
+  const matches = data?.pages.flatMap((page) => page.results) ?? [];
+  const total = data?.pages[0]?.count ?? 0;
+  const hasActiveFilters = PAST_FILTER_KEYS.some(
+    (key) => key !== "order" && filters[key],
   );
-
-  // Update matches when data changes
-  useEffect(() => {
-    if (data?.results) {
-      setMatches((prevMatches) =>
-        page === 1 ? data.results : [...prevMatches, ...data.results],
-      );
-      setHasMore(data.results.length > 0 && data.results.length === 30);
-    }
-  }, [data, page]);
-
-  // Don't use a useEffect for filter changes - handle it directly in the change handler
-
-  const loadMoreMatches = () => {
-    if (!isLoading && hasMore) {
-      setPage((prevPage) => prevPage + 1);
-    }
-  };
-
-  const handleFilterChange = (newFilters: Partial<typeof filters>) => {
-    // Reset page and matches when filters change, and then update filters
-    setPage(1);
-    setMatches([]);
-    setFilters((prev) => ({ ...prev, ...newFilters }));
-  };
 
   if (error) {
     return (
@@ -826,54 +790,67 @@ function Past() {
 
   return (
     <>
-      <div className="mb-2 flex flex-col md:flex-row md:items-start md:justify-between">
-        <div className="w-full">
-          <h1 className="">Past Matches</h1>
-          <hr />
-        </div>
+      <div className="mb-2">
+        <h1>Past Matches</h1>
+        <hr />
       </div>
 
-      <div
-        className={`matches-filter mt-4 w-full cursor-pointer rounded-xl border-2 p-4 md:mt-0 md:w-auto ${isExpanded ? "max-h-[1000px]" : "max-h-16"} transition-all duration-300`}
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="font-semibold">Filter Matches</h2>
+      <MatchesFilter filters={filters} onFilterChange={setFilters} />
 
-          <Menu />
+      <div className="text-muted-foreground mt-4 flex h-6 items-center justify-between text-sm">
+        <span>
+          {isLoading ? "" : `${total} ${total === 1 ? "match" : "matches"}`}
+        </span>
+        {isFetching && !isFetchingNextPage && !isLoading && (
+          <Spinner className="h-4 w-4" />
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="flex h-24 items-center justify-center">
+          <Spinner />
         </div>
-        <div
-          className={`bg-background z-10 transition-all duration-200 ${isExpanded ? "opacity-100" : "pointer-events-none opacity-0"}`}
+      ) : matches.length === 0 ? (
+        <div className="text-muted-foreground my-10 flex flex-col items-center gap-3 text-center">
+          <p>No matches found for these filters.</p>
+          {hasActiveFilters && (
+            <Button
+              variant="outline"
+              className="cursor-pointer"
+              onClick={() => setFilters(PAST_FILTER_DEFAULTS)}
+            >
+              Clear filters
+            </Button>
+          )}
+        </div>
+      ) : (
+        <InfiniteScroll
+          dataLength={matches.length}
+          hasMore={!!hasNextPage}
+          next={() => {
+            if (!isFetching) fetchNextPage();
+          }}
+          loader={
+            <div className="flex h-10 justify-center">
+              <Spinner />
+            </div>
+          }
+          endMessage={
+            <div className="text-muted-foreground my-4 text-center">
+              No more matches to load
+            </div>
+          }
+          className="infinite-scroll-container"
         >
-          <MatchesFilter
-            filters={filters}
-            onFilterChange={handleFilterChange}
-          />
-        </div>
-      </div>
-
-      <InfiniteScroll
-        dataLength={matches.length}
-        hasMore={hasMore}
-        next={loadMoreMatches}
-        loader={
-          <div className="flex h-10 justify-center">
-            <Spinner />
-          </div>
-        }
-        endMessage={
-          <div className="text-muted-foreground my-4 text-center">
-            No more matches to load
-          </div>
-        }
-        className="infinite-scroll-container"
-      >
-        <ul className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {matches.map((match, i) => (
-            <Result key={match.id || i} match={match} />
-          ))}
-        </ul>
-      </InfiniteScroll>
+          <ul
+            className={`mt-2 grid grid-cols-1 gap-4 transition-opacity md:grid-cols-2 lg:grid-cols-3 ${isPlaceholderData ? "opacity-50" : ""}`}
+          >
+            {matches.map((match) => (
+              <Result key={match.id} match={match} />
+            ))}
+          </ul>
+        </InfiniteScroll>
+      )}
     </>
   );
 }
@@ -973,126 +950,203 @@ function Result(props: ResultProps) {
 }
 
 interface MatchesFilterProps {
-  filters: MatchQueryParams;
-  onFilterChange: (filters: Partial<MatchQueryParams>) => void;
+  filters: PastFilters;
+  onFilterChange: (filters: Partial<PastFilters>) => void;
 }
 
 function MatchesFilter({ filters, onFilterChange }: MatchesFilterProps) {
-  const { data: seasonsData, isLoading } = usePublicSeasons();
-  const seasons = seasonsData?.results || [];
+  const { data: seasonsData } = usePublicSeasons({ page_size: 100 });
+  const seasons = seasonsData?.results ?? [];
+  const { data: competitionsData } = usePublicCompetitions(
+    filters.season_id ? { season_id: filters.season_id } : {},
+  );
+  const competitions = (competitionsData?.results ?? []).map((c) => c.name);
+  // Keep a selected competition visible even if the season has none by that name
+  if (
+    filters.competition_name &&
+    !competitions.some(
+      (name) => name.toLowerCase() === filters.competition_name.toLowerCase(),
+    )
+  ) {
+    competitions.unshift(filters.competition_name);
+  }
 
-  if (isLoading) {
-    return (
-      <div className="matches-filter mt-4 w-full rounded-xl border-2 p-4 md:mt-0 md:w-auto">
-        <Spinner className="mx-auto my-4" />
-      </div>
-    );
+  const seasonName = seasons.find((s) => s.id === filters.season_id)?.name;
+  const chips: FilterChip[] = [];
+  if (filters.season_id) {
+    chips.push({
+      label: `Season: ${seasonName ?? "…"}`,
+      onRemove: () => onFilterChange({ season_id: "" }),
+    });
+  }
+  if (filters.competition_name) {
+    chips.push({
+      label: filters.competition_name,
+      onRemove: () => onFilterChange({ competition_name: "" }),
+    });
+  }
+  if (filters.date_from || filters.date_to) {
+    chips.push({
+      label: formatDateRange(filters.date_from, filters.date_to),
+      onRemove: () => onFilterChange({ date_from: "", date_to: "" }),
+    });
   }
 
   return (
-    <div className={`mt-4 flex flex-wrap space-x-2 space-y-2`}>
-      <div className="space-y-1">
-        <Label htmlFor="date-from">From Date</Label>
-        <Input
+    <FilterBar
+      chips={chips}
+      onClearAll={() =>
+        onFilterChange({
+          season_id: "",
+          competition_name: "",
+          date_from: "",
+          date_to: "",
+        })
+      }
+    >
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        <div className="col-span-2 space-y-1 md:col-span-1">
+          <Label htmlFor="season">Season</Label>
+          <Select
+            value={filters.season_id || ALL}
+            onValueChange={(value) =>
+              onFilterChange({ season_id: value === ALL ? "" : value })
+            }
+          >
+            <SelectTrigger id="season" className="w-full cursor-pointer">
+              <SelectValue placeholder="All seasons" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All seasons</SelectItem>
+              {seasons.map((season) => (
+                <SelectItem key={season.id} value={season.id}>
+                  {season.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="col-span-2 space-y-1 md:col-span-1">
+          <Label htmlFor="competition">Competition</Label>
+          <Select
+            value={filters.competition_name || ALL}
+            onValueChange={(value) =>
+              onFilterChange({ competition_name: value === ALL ? "" : value })
+            }
+          >
+            <SelectTrigger id="competition" className="w-full cursor-pointer">
+              <SelectValue placeholder="All competitions" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All competitions</SelectItem>
+              {competitions.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <DateFilterInput
           id="date-from"
-          type="date"
-          value={filters.date_from || ""}
-          onChange={(e) => onFilterChange({ date_from: e.target.value })}
-          className="w-full"
+          label="From"
+          value={filters.date_from}
+          max={filters.date_to || undefined}
+          onCommit={(date_from) => onFilterChange({ date_from })}
         />
-      </div>
-      <div className="space-y-1">
-        <Label htmlFor="date-to">To Date</Label>
-        <Input
+        <DateFilterInput
           id="date-to"
-          type="date"
-          value={filters.date_to || ""}
-          onChange={(e) => onFilterChange({ date_to: e.target.value })}
-          className="w-full"
+          label="To"
+          value={filters.date_to}
+          min={filters.date_from || undefined}
+          onCommit={(date_to) => onFilterChange({ date_to })}
         />
-      </div>
 
-      <div className="space-y-1">
-        <Label htmlFor="season">Season</Label>
-        <Select
-          value={filters.season_id || "all_seasons"}
-          onValueChange={(value) =>
-            onFilterChange({
-              season_id: value === "all_seasons" ? "" : value,
-            })
-          }
-        >
-          <SelectTrigger id="season">
-            <SelectValue placeholder="Select a season" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all_seasons">All Seasons</SelectItem>
-            {seasons.map((season) => (
-              <SelectItem key={season.id} value={season.id}>
-                {season.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="col-span-2 space-y-1 md:col-span-1">
+          <Label htmlFor="order">Sort</Label>
+          <Select
+            value={filters.order}
+            onValueChange={(value: "asc" | "desc") =>
+              onFilterChange({ order: value })
+            }
+          >
+            <SelectTrigger id="order" className="w-full cursor-pointer">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="desc">Newest first</SelectItem>
+              <SelectItem value="asc">Oldest first</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+    </FilterBar>
+  );
+}
 
-      <div className="space-y-1">
-        <Label htmlFor="competition">Competition</Label>
-        <Select
-          value={filters.competition_name || "all_competitions"}
-          onValueChange={(value) =>
-            onFilterChange({
-              competition_name: value === "all_competitions" ? "" : value,
-            })
-          }
-        >
-          <SelectTrigger id="competition">
-            <SelectValue placeholder="Select a competition" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all_competitions">All Competitions</SelectItem>
-            <SelectItem value="necc">NECC</SelectItem>
-            <SelectItem value="playfly">Playfly</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+// Radix Select can't use "" as an item value
+const ALL = "all";
 
-      <div className="space-y-1">
-        <Label htmlFor="order">Order</Label>
-        <Select
-          value={filters.order || "desc"}
-          onValueChange={(value: "asc" | "desc") =>
-            onFilterChange({ order: value })
-          }
-        >
-          <SelectTrigger id="order">
-            <SelectValue placeholder="Order" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="desc">Newest First</SelectItem>
-            <SelectItem value="asc">Oldest First</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-1">
-        <Label className="invisible">Reset</Label>
-        <Button
-          onClick={() =>
-            onFilterChange({
-              date_from: "",
-              date_to: "",
-              season_id: "",
-              competition_name: "",
-              sort: "date",
-              order: "desc",
-            })
-          }
-          variant="destructive"
-          className="cursor-pointer"
-        >
-          Reset Filters
-        </Button>
-      </div>
+interface DateFilterInputProps {
+  id: string;
+  label: string;
+  value: string;
+  min?: string;
+  max?: string;
+  onCommit: (value: string) => void;
+}
+
+// Native date inputs fire onChange while the year is still being typed
+// (0002, 0020, 0202, 2025), so only commit complete dates or on blur
+function DateFilterInput({
+  id,
+  label,
+  value,
+  min,
+  max,
+  onCommit,
+}: DateFilterInputProps) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+
+  const isComplete = (date: string) =>
+    date === "" || Number(date.slice(0, 4)) >= 2000;
+  const commit = (next: string) => {
+    if (next !== value) onCommit(next);
+  };
+
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        type="date"
+        value={draft}
+        min={min}
+        max={max}
+        onChange={(e) => {
+          const next = e.target.value;
+          setDraft(next);
+          if (isComplete(next)) commit(next);
+        }}
+        onBlur={() => (isComplete(draft) ? commit(draft) : setDraft(value))}
+        className="w-full"
+      />
     </div>
   );
+}
+
+function formatDateRange(from: string, to: string) {
+  // Parse as local dates so the label doesn't shift a day in US time zones
+  const format = (date: string) =>
+    new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  if (from && to) return `${format(from)} – ${format(to)}`;
+  if (from) return `From ${format(from)}`;
+  return `Until ${format(to)}`;
 }

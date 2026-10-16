@@ -143,16 +143,29 @@ export interface ImportMatchesRequest {
   participant_matches?: Record<string, string>; // Map of participant_id to team_id
   event_id?: string; // For importing matches as event matches
   import_type?: "league" | "event"; // Type of import
+  competition_id?: string; // Add to this existing competition (an update)
+  // Where the data came from, saved on the competition for later updates
+  source_id?: string;
+  source_id_type?: "season" | "stage";
 }
 
 export interface ImportMatchesResponse {
   message: string;
+  competition_id: string;
+  competition_name: string;
+  competition_reused: boolean; // Added to a competition that already existed
   matches_imported: number;
   matches_updated: number;
   matches_skipped: number;
   new_match_ids: string[];
   updated_match_ids: string[];
   skipped_match_ids: string[];
+  // Participant matcher picks the import couldn't apply
+  skipped_participant_matches?: Array<{
+    key: string;
+    name: string | null; // The platform team's name, when known
+    reason: string;
+  }>;
 }
 
 export interface Participant {
@@ -305,6 +318,41 @@ export const fetchAllMatches = async (): Promise<Match[]> => {
   return response.data;
 };
 
+export interface ResolvedTeamSummary {
+  id: string;
+  name: string;
+  school_name?: string | null;
+  picture?: string | null;
+  elo: number;
+}
+
+export interface ResolvedImportTeam {
+  key: string; // Platform team ID, or "name:<name>" when the platform gives none
+  name: string;
+  roster_size: number;
+  match: {
+    team: ResolvedTeamSummary;
+    method: "platform_id" | "name";
+  } | null;
+  ambiguous: boolean; // Several existing teams share this name
+  suggestions: Array<{
+    team: ResolvedTeamSummary;
+    roster_overlap: number;
+    name_score: number;
+  }>;
+}
+
+// Dry run of an import's team matching: which teams link to existing ones and
+// which would be created new
+export const resolveImportTeams = async (request: {
+  platform: ImportMatchesRequest["platform"];
+  season_id: string;
+  data: any;
+}): Promise<{ teams: ResolvedImportTeam[] }> => {
+  const response = await api.post(`/import-matches/resolve-teams/`, request);
+  return response.data;
+};
+
 // Participant matching API functions
 export const fetchParticipants = async (): Promise<{
   participants: Participant[];
@@ -339,6 +387,16 @@ export interface Competition {
   matches_count: number;
   teams_count: number;
   seasons: { id: string; name: string }[];
+  // Where it was last imported from; null if never recorded
+  source: CompetitionImportSource | null;
+}
+
+export interface CompetitionImportSource {
+  platform: "faceit" | "leaguespot" | "regentsleague";
+  id: string;
+  id_type: "season" | "stage" | null;
+  import_type: "league" | "event" | null;
+  event_id: string | null;
 }
 
 export interface CompetitionsResponse {
@@ -503,6 +561,7 @@ export const recalculateAllElos = async (
 export const updateMatches = async (
   options: {
     match_ids?: string[];
+    competition_id?: string;
     platform?: "faceit" | "leaguespot";
     status_filter?: "scheduled" | "in_progress" | "completed" | "";
     auto_detect?: boolean;
@@ -510,10 +569,91 @@ export const updateMatches = async (
 ): Promise<UpdateMatchesResponse> => {
   const response = await api.post(`/matches/update/`, {
     match_ids: options.match_ids || [],
+    competition_id: options.competition_id || undefined,
     platform: options.platform || "",
     status_filter: options.status_filter || "",
     auto_detect: options.auto_detect !== undefined ? options.auto_detect : true,
   });
+  return response.data;
+};
+
+// A match the background sync needs an admin for
+export interface SyncReviewMatch {
+  id: string;
+  team1: string;
+  team2: string;
+  date: string;
+  status: "scheduled" | "in_progress" | "completed" | "cancelled";
+  platform: string;
+  platform_status: string | null;
+  unknown_platform_status: boolean; // A platform state we don't map yet
+  sync_disabled: boolean; // The background sync gave up on it
+  sync_failures: number;
+  last_sync_error: string | null;
+  last_synced_at: string | null;
+  competition: string | null;
+}
+
+export type SyncTier =
+  | "live"
+  | "overdue"
+  | "imminent"
+  | "today"
+  | "upcoming"
+  | "straggler";
+
+// Health of the background match sync
+export interface SyncStatus {
+  now: string;
+  last_synced_at: string | null; // Most recent refresh attempt on any match
+  worker_behind: boolean; // Due matches waiting well past their interval
+  most_late_seconds: number;
+  worker_stalled: boolean; // Due matches, but nothing refreshed lately (or ever)
+  tiers: Record<SyncTier, { tracked: number; due: number }>;
+  platforms: Record<
+    string,
+    {
+      tracked: number;
+      due: number;
+      failing: number;
+      last_synced_at: string | null;
+    }
+  >;
+  failing: number; // Matches whose last refresh failed, still being retried
+  disabled: number; // Unfinished matches the sync has stopped refreshing
+  recent_errors: {
+    match_id: string;
+    team1: string;
+    team2: string;
+    platform: string;
+    error: string;
+    failures: number;
+    at: string | null;
+  }[];
+}
+
+export interface RetryMatchSyncResponse {
+  outcome: "updated" | "unchanged" | "failed" | "unsupported";
+  error: string | null;
+  status: SyncReviewMatch["status"];
+  platform_status: string | null;
+  still_stale: boolean; // Long past its date, so it'll be flagged again
+}
+
+export const fetchSyncReview = async (): Promise<SyncReviewMatch[]> => {
+  const response = await api.get(`/matches/sync-review/`);
+  return response.data.matches;
+};
+
+export const fetchSyncStatus = async (): Promise<SyncStatus> => {
+  const response = await api.get(`/matches/sync-status/`);
+  return response.data;
+};
+
+export const retryMatchSync = async (
+  matchId: string,
+): Promise<RetryMatchSyncResponse> => {
+  const response = await api.post(`/matches/${matchId}/sync/`);
   return response.data;
 };
 
@@ -841,6 +981,14 @@ export interface MatchQueryParams {
   event_id?: string;
 }
 
+export interface CompetitionQueryParams {
+  season_id?: string;
+}
+
+export interface PublicCompetition {
+  name: string;
+}
+
 export interface SeasonQueryParams {
   id?: string | string[];
   current?: boolean;
@@ -938,6 +1086,17 @@ export const fetchPublicSeasons = async (
   const queryString = convertToQueryString(params);
   const response = await api.get(
     `/public/seasons${queryString ? `?${queryString}` : ""}`,
+  );
+  return response.data;
+};
+
+// Competition names, deduplicated by name (re-imported competitions share one)
+export const fetchPublicCompetitions = async (
+  params: CompetitionQueryParams = {},
+): Promise<{ results: PublicCompetition[] }> => {
+  const queryString = convertToQueryString(params);
+  const response = await api.get(
+    `/public/competitions${queryString ? `?${queryString}` : ""}`,
   );
   return response.data;
 };
