@@ -1,9 +1,11 @@
 import Logo from "@/components/Logo";
+import { MatchResultBadge } from "@/components/MatchResultBadge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import type { PublicMatch } from "@/services/api";
 import { calculateMatchStars } from "@/services/elo";
+import { getMatchResult } from "@/services/matchResult";
 import { useInfinitePublicMatches, usePublicMatches } from "@/services/hooks";
 import { Star } from "lucide-react";
 import { useMemo } from "react";
@@ -172,15 +174,8 @@ function perspective(match: PublicMatch, teamId: string) {
     ourScore: isTeam1 ? match.score_team1 : match.score_team2,
     theirScore: isTeam1 ? match.score_team2 : match.score_team1,
     eloChange: isTeam1 ? match.elo?.team1_change : match.elo?.team2_change,
-    outcome: !match.winner ? "D" : match.winner.id === teamId ? "W" : "L",
-  } as const;
+  };
 }
-
-const OUTCOME_STYLES = {
-  W: "bg-green-500/15 text-green-500",
-  L: "bg-red-500/15 text-red-500",
-  D: "bg-muted text-muted-foreground",
-};
 
 function Form({ matches, teamId }: { matches: PublicMatch[]; teamId: string }) {
   const recent = matches.slice(0, 5);
@@ -188,17 +183,12 @@ function Form({ matches, teamId }: { matches: PublicMatch[]; teamId: string }) {
     <div className="text-muted-foreground mb-3 flex items-center gap-2 text-sm">
       <span>Last {recent.length}</span>
       {/* Oldest to newest so the streak reads left to right */}
-      {[...recent].reverse().map((match) => {
-        const { outcome } = perspective(match, teamId);
-        return (
-          <span
-            key={match.id}
-            className={`flex h-6 w-6 items-center justify-center rounded font-mono text-xs font-bold ${OUTCOME_STYLES[outcome]}`}
-          >
-            {outcome}
-          </span>
-        );
-      })}
+      {[...recent].reverse().map((match) => (
+        <MatchResultBadge
+          key={match.id}
+          result={getMatchResult(match, teamId)}
+        />
+      ))}
     </div>
   );
 }
@@ -212,7 +202,7 @@ function MatchRow({
   teamId: string;
   live?: boolean;
 }) {
-  const { opponent, ourScore, theirScore, eloChange, outcome } = perspective(
+  const { opponent, ourScore, theirScore, eloChange } = perspective(
     match,
     teamId,
   );
@@ -287,11 +277,7 @@ function MatchRow({
               <span className="text-muted-foreground mx-1">–</span>
               {theirScore}
             </span>
-            <span
-              className={`flex h-6 w-6 items-center justify-center rounded font-mono text-xs font-bold ${OUTCOME_STYLES[outcome]}`}
-            >
-              {outcome}
-            </span>
+            <MatchResultBadge result={getMatchResult(match, teamId)} />
           </div>
         ) : live ? (
           <span className="shrink-0 font-mono tabular-nums">

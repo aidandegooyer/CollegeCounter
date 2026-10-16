@@ -6,9 +6,21 @@ export const MATCH_RESULT_STYLES: Record<
   MatchResult,
   { label: string; badge: string; text: string }
 > = {
-  win: { label: "W", badge: "bg-green-600 text-white", text: "text-green-600" },
-  loss: { label: "L", badge: "bg-red-600 text-white", text: "text-red-600" },
-  tie: { label: "T", badge: "bg-gray-500 text-white", text: "text-gray-500" },
+  win: {
+    label: "W",
+    badge: "bg-green-500/15 text-green-500",
+    text: "text-green-500",
+  },
+  loss: {
+    label: "L",
+    badge: "bg-red-500/15 text-red-500",
+    text: "text-red-500",
+  },
+  tie: {
+    label: "T",
+    badge: "bg-muted text-muted-foreground",
+    text: "text-muted-foreground",
+  },
   unknown: {
     label: "?",
     badge: "bg-muted text-muted-foreground",
