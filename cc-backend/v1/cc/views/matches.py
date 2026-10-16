@@ -592,7 +592,7 @@ def update_event_match(request, match_id):
         "event_id": "uuid",  // Required for PUT, optional for PATCH
         "round": 1,  // Required for PUT, optional for PATCH
         "num_in_bracket": 1,  // Required for PUT, optional for PATCH
-        "date": "2025-01-01T15:00:00Z",
+        "date": "2025-01-01T15:00:00Z",  // Optional
         "status": "scheduled",  // Optional
         "url": "https://example.com",  // Optional
         "score_team1": 0,  // Optional
@@ -834,7 +834,7 @@ def update_match(request, match_id):
     {
         "team1_id": "uuid",  // Required for PUT, optional for PATCH
         "team2_id": "uuid",  // Required for PUT, optional for PATCH
-        "date": "2025-01-01T15:00:00Z",
+        "date": "2025-01-01T15:00:00Z",  // Optional
         "status": "completed",
         "url": "https://example.com",
         "score_team1": 2,
