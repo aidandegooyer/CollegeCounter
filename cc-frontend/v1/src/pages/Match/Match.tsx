@@ -12,6 +12,9 @@ import { usePublicMatches, usePublicTeams } from "@/services/hooks";
 import { Star } from "lucide-react";
 import { NavLink, useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
+import { CommonOpponents } from "@/components/h2h/CommonOpponents";
+import { HeadToHeadRecord } from "@/components/h2h/HeadToHeadRecord";
+import { RecentMatches } from "@/components/h2h/RecentMatches";
 import { Button } from "@/components/ui/button";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
@@ -182,11 +185,16 @@ export function Match() {
             </a>
           </div>
         )}
-        <div className="mt-4">
-          <div className="flex w-full items-center justify-center rounded-2xl border-2 p-2 lg:col-span-3">
-            <Stats match={match} />
+        {match.status === "completed" && (
+          <div className="mt-4">
+            <div className="flex w-full items-center justify-center rounded-2xl border-2 p-2 lg:col-span-3">
+              <Stats match={match} />
+            </div>
           </div>
-        </div>
+        )}
+        {(match.status === "scheduled" || match.status === "in_progress") && (
+          <MatchPreview match={match} />
+        )}
       </div>
     </div>
   );
@@ -271,6 +279,36 @@ function Scoreboard(match: PublicMatch, stars: number, matchDate: Date | null) {
           <CompetitionLabel competition={match.competition?.name} h={12} />
         </div>
       )}
+    </div>
+  );
+}
+
+// Head-to-head preview for upcoming / live matches. Each section fetches the
+// teams' match history itself (shared query keys, so it is only loaded once).
+function MatchPreview({ match }: { match: PublicMatch }) {
+  return (
+    <div className="mt-4 space-y-10 rounded-2xl border-2 p-4">
+      <HeadToHeadRecord
+        team1Id={match.team1.id}
+        team2Id={match.team2.id}
+        team1Name={match.team1.name}
+        team2Name={match.team2.name}
+      />
+
+      <section>
+        <h2 className="mb-4 text-2xl font-semibold">Last 10 Matches</h2>
+        <div className="grid gap-6 md:grid-cols-2">
+          <RecentMatches teamId={match.team1.id} title={match.team1.name} />
+          <RecentMatches teamId={match.team2.id} title={match.team2.name} />
+        </div>
+      </section>
+
+      <CommonOpponents
+        team1Id={match.team1.id}
+        team2Id={match.team2.id}
+        team1Name={match.team1.name}
+        team2Name={match.team2.name}
+      />
     </div>
   );
 }

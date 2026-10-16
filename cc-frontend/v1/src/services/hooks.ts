@@ -22,6 +22,7 @@ import {
   fetchAdminCustomEvent,
 } from "@/services/api";
 import type {
+  PublicMatch,
   TeamQueryParams,
   PlayerQueryParams,
   MatchQueryParams,
@@ -190,6 +191,24 @@ export function useTeamMatches(teamId: string | undefined, options = {}) {
     queryKey: ["public", "matches", "team", teamId],
     queryFn: () =>
       fetchPublicMatches({ team_id: teamId, sort: "date", order: "desc" }),
+    staleTime: DEFAULT_STALE_TIME,
+    enabled: !!teamId,
+    ...options,
+  });
+}
+
+// Completed matches for a team, newest first (backend caps page_size at 100)
+export function useTeamMatchHistory(teamId: string | undefined, options = {}) {
+  return useQuery({
+    queryKey: ["public", "matches", "team", teamId, "history"],
+    queryFn: () =>
+      fetchPublicMatches({
+        team_id: teamId,
+        status: "completed",
+        sort: "date",
+        order: "desc",
+        page_size: 100,
+      }),
     staleTime: DEFAULT_STALE_TIME,
     enabled: !!teamId,
     ...options,
@@ -367,4 +386,18 @@ export function useAdminCustomEvent(id: string, options = {}) {
     enabled: !!id,
     ...options,
   });
+}
+
+// Uses the given matches when provided, otherwise fetches the team's history.
+// Lets reusable match components work standalone or share a parent's fetch.
+export function useMatchHistoryOrFetch(
+  teamId: string,
+  matches: PublicMatch[] | undefined,
+) {
+  const query = useTeamMatchHistory(matches ? undefined : teamId);
+  return {
+    matches: matches ?? query.data?.results,
+    isLoading: !matches && query.isLoading,
+    error: matches ? null : query.error,
+  };
 }

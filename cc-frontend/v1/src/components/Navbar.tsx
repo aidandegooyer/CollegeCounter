@@ -99,6 +99,7 @@ export default Navbar;
 
 const MORE_LINKS = [
   { to: "/events", label: "Events" },
+  { to: "/head-to-head", label: "Head to Head" },
   { to: "/about", label: "About Us" },
 ];
 
