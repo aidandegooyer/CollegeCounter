@@ -145,14 +145,17 @@ class CreateMatchTests(MatchFixtures, TestCase):
                 self.assertEqual(self.post(data).status_code, expected)
         self.assertFalse(Match.objects.exists())
 
-    @unittest.expectedFailure
-    def test_date_is_optional(self):
-        # BUG: the docstring says date is optional, but Match.date is NOT NULL,
-        # so creating a match without one is a 500. The importers hit the same
-        # thing for matches with no scheduled/started/finished time.
-        data = self.base()
-        del data["date"]
-        self.assertEqual(self.post(data).status_code, 201)
+    def test_date_is_required(self):
+        # Match.date is NOT NULL, so a missing date is a 400, not a 500
+        for name in ("create_match", "create_event_match"):
+            with self.subTest(name=name):
+                data = self.base(
+                    event_id=str(self.event.id), round=1, num_in_bracket=1
+                )
+                del data["date"]
+                response = self.post(data, name=name)
+                self.assertEqual(response.status_code, 400, response.content)
+        self.assertFalse(Match.objects.exists())
 
     def test_unknown_event_deletes_the_new_match(self):
         response = self.post(self.base(event_id=str(uuid.uuid4())))
