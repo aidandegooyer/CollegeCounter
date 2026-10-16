@@ -252,7 +252,7 @@ def proxy_faceit_match_stats(request, match_id):
     match = Match.objects.filter(id=match_id).only("id", "platform", "status").first()
 
     if match is None:
-        logger.warning(
+        logger.info(
             "Rejected Faceit stats request for an unknown match: match_id=%s",
             match_id,
         )
@@ -320,8 +320,9 @@ def proxy_faceit_match_stats(request, match_id):
         # bad, not that the client is unauthenticated. Only 404 (no stats yet)
         # is meaningful to the client.
         if response.status_code == 404:
+            # Expected for matches Faceit has no stats for; not alert-worthy.
             client_status = status.HTTP_404_NOT_FOUND
-            log = logger.warning
+            log = logger.info
         elif response.status_code in (401, 403):
             client_status = status.HTTP_502_BAD_GATEWAY
             log = logger.error

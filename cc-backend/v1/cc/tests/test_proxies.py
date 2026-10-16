@@ -1,14 +1,16 @@
+import uuid
 from unittest.mock import patch
 
 import requests
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
+from cc.models import Match
 from cc.views import get_leaguespot_headers
 from cc.webhooks import SanityWebhookView
 
-from .helpers import fake_response
+from .helpers import Fixtures, fake_response
 
 
 class LeaguespotHeadersTests(SimpleTestCase):
@@ -217,3 +219,28 @@ class SanityWebhookTests(SimpleTestCase):
     def test_discord_failure_is_400(self):
         response, _ = self.post({"title": "x"}, post_error=requests.exceptions.ConnectionError())
         self.assertEqual(response.status_code, 400)
+
+
+@override_settings(FACEIT_API_KEY="key")
+class FaceitMatchStatsProxyTests(Fixtures, TestCase):
+    def setUp(self):
+        self.make_base()
+        self.match = Match.objects.create(
+            team1=self.alpha, team2=self.bravo, date="2025-10-01T18:00:00Z",
+            status="completed", platform="faceit",
+        )
+
+    def get(self, match_id, response):
+        with patch("cc.views.proxies.requests.get", return_value=response):
+            return APIClient().get(reverse("proxy_faceit_match_stats", args=[match_id]))
+
+    def test_404s_are_not_logged_as_warnings(self):
+        for match_id in (self.match.id, uuid.uuid4()):
+            with self.subTest(match_id=match_id), self.assertNoLogs("cc.views.proxies", "WARNING"):
+                response = self.get(match_id, fake_response(status_code=404))
+                self.assertEqual(response.status_code, 404)
+
+    def test_other_upstream_errors_still_warn(self):
+        with self.assertLogs("cc.views.proxies", "WARNING"):
+            response = self.get(self.match.id, fake_response(status_code=500))
+        self.assertEqual(response.status_code, 502)
