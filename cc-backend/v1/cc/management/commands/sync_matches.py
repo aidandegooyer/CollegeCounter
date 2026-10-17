@@ -6,6 +6,7 @@ import time
 from django.core.management.base import BaseCommand
 from django.db import connection
 
+from cc.images import StorageError, is_configured, mirror_pending
 from cc.views.match_sync import sync_due_matches
 
 logger = logging.getLogger(__name__)
@@ -13,6 +14,14 @@ logger = logging.getLogger(__name__)
 PASS_SECONDS = 30
 # Arbitrary constant identifying this job's Postgres advisory lock
 LOCK_ID = 7_210_431
+
+# The loop also copies pictures hosted elsewhere (new imports, pasted URLs)
+# into the image bucket, a few at a time, at most once an hour (cc.images).
+# The first copy of everything is the mirror_images command.
+PICTURE_SWEEP_SECONDS = 3600
+PICTURE_SWEEP_LIMIT = 25
+# A picture that couldn't be copied is tried again after a day
+PICTURE_RETRY_SECONDS = 86400
 
 
 class Command(BaseCommand):
@@ -31,6 +40,8 @@ class Command(BaseCommand):
             return
 
         self.stdout.write("Match sync started")
+        self.last_picture_sweep = None
+        self.picture_failures = {}  # URL -> when it last failed
         while True:
             started = time.monotonic()
             try:
@@ -44,6 +55,7 @@ class Command(BaseCommand):
                     connection.close()
                 except Exception:
                     logger.exception("Couldn't close the database connection")
+            self.maybe_mirror_pictures()
             time.sleep(max(0, PASS_SECONDS - (time.monotonic() - started)))
 
     def run_pass(self):
@@ -65,6 +77,36 @@ class Command(BaseCommand):
             message = ", ".join(f"{key}={count}" for key, count in sorted(activity.items()))
             failed = any(key.endswith(":failed") for key in activity)
             logger.log(logging.WARNING if failed else logging.INFO, "Match sync: %s", message)
+            self.stdout.write(message)
+
+    def maybe_mirror_pictures(self):
+        now = time.monotonic()
+        if not is_configured() or (
+            self.last_picture_sweep is not None
+            and now - self.last_picture_sweep < PICTURE_SWEEP_SECONDS
+        ):
+            return
+        self.last_picture_sweep = now
+        self.picture_failures = {
+            url: failed_at
+            for url, failed_at in self.picture_failures.items()
+            if now - failed_at < PICTURE_RETRY_SECONDS
+        }
+        try:
+            copied, failed = mirror_pending(
+                limit=PICTURE_SWEEP_LIMIT, skip=self.picture_failures
+            )
+        except StorageError:
+            logger.warning("Couldn't store pictures; trying again in an hour", exc_info=True)
+            return
+        except Exception:
+            # Never let pictures take the match sync down
+            logger.exception("Picture sweep failed")
+            return
+        self.picture_failures.update(dict.fromkeys(failed, now))
+        if copied or failed:
+            message = f"Pictures: copied {copied}, {len(failed)} couldn't be copied"
+            logger.info(message)
             self.stdout.write(message)
 
     # Two workers (e.g. during a deploy) would refresh every match twice

@@ -34,6 +34,7 @@ import { useInfinitePublicEvents } from "@/services/hooks";
 import type { PublicEvent } from "@/services/api";
 import { NavLink } from "react-router";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { pictureSrcSet } from "@/lib/images";
 
 export function Events() {
   useDocumentTitle("Events");
@@ -223,8 +224,12 @@ function Event({ event }: EventProps) {
                         <div className="h-18 w-18 hidden sm:block">
                           <img
                             src={event.picture}
+                            srcSet={pictureSrcSet(event.picture)}
+                            sizes="72px"
                             alt={event.name}
                             className="h-full w-full rounded-lg object-cover"
+                            loading="lazy"
+                            decoding="async"
                           />
                         </div>
                       )}

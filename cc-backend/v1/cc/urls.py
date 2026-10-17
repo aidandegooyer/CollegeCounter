@@ -2,6 +2,7 @@ from django.urls import path, include
 
 from . import views
 from . import admin_views
+from . import image_views
 from . import webhooks
 
 urlpatterns = [
@@ -77,6 +78,22 @@ urlpatterns = [
         name="import_team_from_faceit",
     ),
     path("players/<uuid:player_id>/", admin_views.update_player, name="update_player"),
+    # Picture uploads, resized and stored by cc/images.py
+    path(
+        "teams/<uuid:team_id>/picture/",
+        image_views.upload_team_picture,
+        name="upload_team_picture",
+    ),
+    path(
+        "players/<uuid:player_id>/picture/",
+        image_views.upload_player_picture,
+        name="upload_player_picture",
+    ),
+    path(
+        "custom-events/<uuid:custom_event_id>/picture/",
+        image_views.upload_event_picture,
+        name="upload_event_picture",
+    ),
     # Image proxy endpoint for CORS-free image access
     path("proxy/image/", admin_views.proxy_image, name="proxy_image"),
     # Custom events endpoints

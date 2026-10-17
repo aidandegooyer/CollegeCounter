@@ -64,11 +64,11 @@ Line references below are from `bec1ac2` (pre-split `views.py`).
 
 ## Security
 
-- [ ] **`cc-backend/v1/cc/admin_views.py:155`** — `proxy_image` SSRF: fetches any user-supplied URL server-side. Intended fix: allow only http/https and block private/loopback/link-local resolved IPs (header auth isn't possible: used as an `<img src>` in Graphic.tsx). **Not yet applied** (see note at top).
+- [ ] **`cc-backend/v1/cc/admin_views.py:155`** — `proxy_image` SSRF: fetches any user-supplied URL server-side. Intended fix: allow only http/https and block private/loopback/link-local resolved IPs (header auth isn't possible: used as an `<img src>` in Graphic.tsx). **Not yet applied** (see note at top). `fetch_image` in `cc/images.py` already does this check (including on redirects) and can be reused.
 - [ ] **`cc-backend/v1/cc/views.py:3236–3371, 3776`** — LeagueSpot and NWES proxy endpoints are unauthenticated. (Deprioritized 2026-07-09: keys are intentionally public/host-restricted per Aidan; only quota abuse remains as a concern.)
 - [ ] **`cc-backend/v1/cc/webhooks.py`** — Sanity webhook has no signature verification. Intended fix: optional shared secret via `SANITY_WEBHOOK_SECRET` env var, checked against `?secret=` or `X-Webhook-Secret` header; unset = old behavior. **Not yet applied** (see note at top).
 - [ ] **`cc-backend/v1/cc/middleware.py:31`** — `Bearer dev` grants owner access whenever `DEBUG=True`; a misconfigured env var in prod disables all auth.
-- [ ] **`cc-backend/v1/cc/image_views.py:38, 91`** — no file-type/magic-byte validation or size cap on uploads; content-type derived from client filename.
+- [x] **`cc-backend/v1/cc/image_views.py:38, 91`** — *(fixed 2026-10-16: uploads now go through `cc/images.py`, which decodes them with Pillow, caps them at 10 MB / 40M pixels and stores resized WebP; tests in `tests/test_images.py`)* no file-type/magic-byte validation or size cap on uploads; content-type derived from client filename.
 - [ ] **`cc-backend/v1/Dockerfile`** — container runs as root (no `USER` directive).
 - [ ] **`docker-compose.yml:13, 27, 31`** — Docker socket mounted into containers. It's `:ro`, but read-only on a socket file doesn't restrict the Docker API — still effective root on the host. Consider a socket proxy (e.g. tecnativa/docker-socket-proxy) limited to read endpoints.
 
@@ -110,8 +110,8 @@ Line references below are from `bec1ac2` (pre-split `views.py`).
 
 - [ ] **`update_regentsleague_match` flip isn't saved on its own** — when team1/team2 are swapped (`platform_sync.py`, `if flipped:`) `updated` isn't set, so a flip with unchanged scores/winner is never saved.
 - [ ] **`load_db.sh` piped mode** — `cat dump.sql | ./load_db.sh` runs `read` for the confirm prompt on the same stdin, eating the first byte of the SQL. Use file mode (`gunzip -k backup.sql.gz && ./load_db.sh backup.sql`).
-- [ ] **Off-site backups** — `db-backup` writes daily dumps to `./backups` on the same host as the DB; a disk/host loss takes both. Needs an off-site copy (rclone → Google Drive or Backblaze B2). Undecided.
-- [ ] **Backup alerting** — a failing `db-backup` only shows as `unhealthy` in `docker compose ps`; nothing notifies. Could post to `DISCORD_WEBHOOK_URL` on failure.
+- [ ] **Off-site backups** — `db-backup` writes daily dumps to `./backups` on the same host as the DB; a disk/host loss takes both. *(Code added 2026-10-16: each dump is copied to `BACKUP_S3_URI` (S3 or Spaces) with an upload-only key; see README "Backups". Check off once the bucket and key are set on the server.)*
+- [x] **Backup alerting** — *(fixed 2026-10-16: failed dumps and off-site copies post to `DISCORD_ALERTS_WEBHOOK_URL`, the alerts channel)* a failing `db-backup` only shows as `unhealthy` in `docker compose ps`; nothing notifies.
 - [ ] **Startup migrations** — a failed migration leaves the backend unable to start (no restart policy, so it stays down rather than looping); nothing takes a backup right before migrating. Run `docker compose run --rm db-backup once` before deploys with migrations.
 
 - [ ] **No `.dockerignore`** in `cc-backend/v1` or `cc-frontend/v1` — a local `docker build` copies `.venv` / `node_modules` into the image (the frontend's `COPY . ./` overwrites the `npm ci` install with the host's `node_modules`). Harmless in CI and on a clean server checkout.

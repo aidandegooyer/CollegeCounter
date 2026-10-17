@@ -292,7 +292,7 @@ function TeamEditForm({ team, setNotification }: TeamEditFormProps) {
         elo: formData.elo,
       };
 
-      // If there's a new image, upload it to Firebase and update all data in one call
+      // If there's a new image, upload it, then save the other fields
       if (fileToUpload) {
         await uploadTeamPicture(team.id, fileToUpload, updateData);
       } else {
@@ -500,7 +500,7 @@ function PlayerEditForm({
         visible: formData.visible,
       };
 
-      // If there's a new image, upload it to Firebase and update all data in one call
+      // If there's a new image, upload it, then save the other fields
       if (fileToUpload) {
         await uploadPlayerPicture(player.id, fileToUpload, updateData);
       } else {

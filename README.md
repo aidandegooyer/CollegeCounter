@@ -192,6 +192,25 @@ Create a `.env` file in the project root (for Docker) or set these variables in 
 - `DISCORD_WEBHOOK_URL` - Discord webhook for notifications
 - `GOOGLE_APPLICATION_CREDENTIALS` - Path to Firebase service account JSON
 
+#### Image storage (production)
+
+Team, player and event pictures are stored in an S3-compatible bucket (AWS S3 or DigitalOcean Spaces) behind a CDN, resized to 64/128/256/512px WebP. Without these, picture uploads return 503 and pictures stay at their original URLs.
+
+- `IMAGE_STORAGE_BUCKET` - Bucket name, e.g. `collegecounter-images`
+- `IMAGE_CDN_BASE_URL` - Public URL the bucket is served from, e.g. `https://img.collegecounter.org`
+- `IMAGE_STORAGE_REGION` - Bucket region (default `us-east-1`)
+- `IMAGE_STORAGE_ENDPOINT_URL` - Only for DigitalOcean Spaces, e.g. `https://nyc3.digitaloceanspaces.com`
+- `IMAGE_STORAGE_ACL` - `public-read` for DigitalOcean Spaces (its CDN only serves public files); leave empty for AWS
+- `IMAGE_AWS_ACCESS_KEY_ID`, `IMAGE_AWS_SECRET_ACCESS_KEY` - Key that can read and write the bucket
+
+#### Off-site backups (production)
+
+- `BACKUP_S3_URI` - Where each daily dump is copied, e.g. `s3://collegecounter-db-backups/`. Unset keeps dumps on the server only.
+- `BACKUP_AWS_ACCESS_KEY_ID`, `BACKUP_AWS_SECRET_ACCESS_KEY` - Key that can only upload (`s3:PutObject`) to that bucket
+- `BACKUP_AWS_REGION` - Bucket region (default `us-east-1`)
+- `BACKUP_S3_ENDPOINT_URL` - Only for DigitalOcean Spaces
+- `DISCORD_ALERTS_WEBHOOK_URL` - Also receives backup failures
+
 ### Example .env file
 
 ```env
@@ -299,6 +318,26 @@ docker-compose logs -f [service_name]
 # Rebuild specific service
 docker-compose up --build [service_name]
 ```
+
+### Backups
+
+The `db-backup` service dumps the database daily at 09:00 UTC to `./backups` (newest 14 kept) and, with `BACKUP_S3_URI` set, copies each dump off the server. The off-site key can only upload, so the server can't delete anything there, and with bucket versioning on, an overwrite keeps the old version. Retention is the bucket's lifecycle rule (90 days for current versions, 7 for overwritten ones). Failures post to `DISCORD_ALERTS_WEBHOOK_URL`, and the service shows `unhealthy` if no dump or off-site copy succeeded in 26 hours.
+
+```bash
+# Back up now (do this before deploys with migrations)
+docker compose run --rm db-backup once
+```
+
+To restore, use admin credentials on your own machine (the server's key can't list or download):
+
+```bash
+aws s3 ls s3://collegecounter-db-backups/
+aws s3 cp s3://collegecounter-db-backups/cc_2026-10-17T0900Z.sql.gz .
+gunzip -k cc_2026-10-17T0900Z.sql.gz
+./load_db.sh cc_2026-10-17T0900Z.sql   # file mode; piped mode eats the first byte
+```
+
+Add `--endpoint-url https://<region>.digitaloceanspaces.com` to the `aws` commands for Spaces.
 
 ## Project Structure
 
