@@ -2,6 +2,7 @@ import uuid
 from unittest.mock import patch
 
 import requests
+from django.core.cache import caches
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -9,9 +10,18 @@ from rest_framework.test import APIClient
 from cc import images
 from cc.models import Match
 from cc.views import get_leaguespot_headers
+from cc.views.proxies import FACEIT_NO_STATS_CACHE_SECONDS
 from cc.webhooks import SanityWebhookView
 
-from .helpers import Fixtures, admin_settings, dev_client, fake_response, token_client
+from .helpers import (
+    Fixtures,
+    admin_settings,
+    clear_caches,
+    dev_client,
+    fake_response,
+    real_caches,
+    token_client,
+)
 from .test_images import PUBLIC_ADDRESS, image_response, png
 
 
@@ -23,6 +33,7 @@ class LeaguespotHeadersTests(SimpleTestCase):
         self.assertIn("X-League-Id", headers)
 
 
+@admin_settings
 class LeaguespotSeasonProxyTests(SimpleTestCase):
     def get(self, response=None, error=None):
         with patch("cc.views.proxies.requests.get") as get:
@@ -30,7 +41,7 @@ class LeaguespotSeasonProxyTests(SimpleTestCase):
                 get.side_effect = error
             else:
                 get.return_value = response
-            result = APIClient().get(reverse("proxy_leaguespot_season", args=["s1"]))
+            result = dev_client().get(reverse("proxy_leaguespot_season", args=["s1"]))
         return result, get
 
     def test_success_returns_json(self):
@@ -59,6 +70,7 @@ class LeaguespotSeasonProxyTests(SimpleTestCase):
         self.assertEqual(response.status_code, 500)
 
 
+@admin_settings
 class LeaguespotSimpleProxyTests(SimpleTestCase):
     routes = [
         ("proxy_leaguespot_stage", "https://api.leaguespot.gg/api/v1/stages/x"),
@@ -79,7 +91,7 @@ class LeaguespotSimpleProxyTests(SimpleTestCase):
                 "cc.views.proxies.requests.get",
                 return_value=fake_response(json_data=[{"ok": True}]),
             ) as get:
-                response = APIClient().get(reverse(name, args=["x"]))
+                response = dev_client().get(reverse(name, args=["x"]))
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.json(), [{"ok": True}])
                 self.assertEqual(get.call_args.args[0], upstream)
@@ -91,8 +103,35 @@ class LeaguespotSimpleProxyTests(SimpleTestCase):
             with self.subTest(name=name), patch(
                 "cc.views.proxies.requests.get", return_value=upstream
             ):
-                response = APIClient().get(reverse(name, args=["x"]))
+                response = dev_client().get(reverse(name, args=["x"]))
                 self.assertEqual(response.status_code, 500)
+
+
+class LeaguespotProxyAuthTests(SimpleTestCase):
+    """Only the admin import page uses these, and they spend our Playfly key."""
+
+    names = [
+        "proxy_leaguespot_season",
+        "proxy_leaguespot_stage",
+        "proxy_leaguespot_round_matches",
+        "proxy_leaguespot_match",
+        "proxy_leaguespot_participants",
+    ]
+
+    def assert_refused(self, client, status_code):
+        for name in self.names:
+            with self.subTest(name=name), patch("cc.views.proxies.requests.get") as get:
+                response = client.get(reverse(name, args=["x"]))
+                self.assertEqual(response.status_code, status_code)
+                get.assert_not_called()
+
+    def test_requires_login(self):
+        self.assert_refused(APIClient(), 401)
+
+    def test_requires_admin(self):
+        client, patcher = token_client({"uid": "u1", "role": "base"})
+        self.addCleanup(patcher.stop)
+        self.assert_refused(client, 403)
 
 
 @override_settings(NWES_API_KEY="nwes-key")
@@ -135,6 +174,61 @@ class NwesProxyTests(SimpleTestCase):
     def test_unexpected_exception_is_500(self):
         response, _ = self.get(error=KeyError("boom"))
         self.assertEqual(response.status_code, 500)
+
+    def test_only_tournament_id_is_forwarded(self):
+        _, get = self.get(
+            fake_response(json_data={}), query="?tournament_id=59&action=delete"
+        )
+        self.assertEqual(
+            get.call_args.kwargs["params"],
+            {"tournament_id": "59", "api_key": "nwes-key"},
+        )
+
+    def test_missing_or_invalid_tournament_id_is_400(self):
+        for query in ("", "?tournament_id=", "?tournament_id=59%26x%3D1"):
+            with self.subTest(query=query):
+                response, get = self.get(query=query)
+                self.assertEqual(response.status_code, 400)
+                get.assert_not_called()
+
+    @override_settings(NWES_API_KEY="")
+    def test_missing_api_key_is_503(self):
+        with self.assertLogs("cc.views.proxies", "ERROR"):
+            response, get = self.get()
+        self.assertEqual(response.status_code, 503)
+        get.assert_not_called()
+
+
+@real_caches
+@override_settings(NWES_API_KEY="nwes-key")
+class NwesProxyCacheTests(SimpleTestCase):
+    def setUp(self):
+        clear_caches()
+
+    def get(self, tournament_id, response):
+        with patch("cc.views.proxies.requests.get", return_value=response) as get:
+            result = APIClient().get(
+                reverse("proxy_nwes"), {"tournament_id": tournament_id}
+            )
+        return result, get
+
+    def test_repeat_requests_are_served_from_cache(self):
+        self.get("59", fake_response(json_data={"teams": [1]}))
+        response, get = self.get("59", fake_response(json_data={"teams": [2]}))
+        self.assertEqual(response.json(), {"teams": [1]})
+        get.assert_not_called()
+
+    def test_tournaments_are_cached_separately(self):
+        self.get("59", fake_response(json_data={"teams": [1]}))
+        response, get = self.get("60", fake_response(json_data={"teams": [2]}))
+        self.assertEqual(response.json(), {"teams": [2]})
+        get.assert_called_once()
+
+    def test_errors_are_not_cached(self):
+        self.get("59", fake_response(status_code=500, text="down"))
+        response, get = self.get("59", fake_response(json_data={"teams": []}))
+        self.assertEqual(response.status_code, 200)
+        get.assert_called_once()
 
 
 @admin_settings
@@ -299,3 +393,48 @@ class FaceitMatchStatsProxyTests(Fixtures, TestCase):
         with self.assertLogs("cc.views.proxies", "WARNING"):
             response = self.get(self.match.id, fake_response(status_code=500))
         self.assertEqual(response.status_code, 502)
+
+
+@real_caches
+@override_settings(FACEIT_API_KEY="key")
+class FaceitMatchStatsCacheTests(Fixtures, TestCase):
+    def setUp(self):
+        clear_caches()
+        self.make_base()
+        self.match = Match.objects.create(
+            team1=self.alpha, team2=self.bravo, date="2025-10-01T18:00:00Z",
+            status="completed", platform="faceit",
+        )
+
+    def get(self, response):
+        with patch("cc.views.proxies.requests.get", return_value=response) as get:
+            result = APIClient().get(
+                reverse("proxy_faceit_match_stats", args=[self.match.id])
+            )
+        return result, get
+
+    def test_repeat_requests_are_served_from_cache(self):
+        self.get(fake_response(json_data={"rounds": [1]}))
+        response, get = self.get(fake_response(json_data={"rounds": [2]}))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"rounds": [1]})
+        get.assert_not_called()
+
+    def test_missing_stats_are_cached_briefly(self):
+        first, _ = self.get(fake_response(status_code=404))
+        response, get = self.get(fake_response(json_data={"rounds": []}))
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), first.json())
+        get.assert_not_called()
+
+    def test_missing_stats_are_cached_for_less_time_than_stats(self):
+        cache = caches["proxy"]
+        with patch.object(cache, "set", wraps=cache.set) as cache_set:
+            self.get(fake_response(status_code=404))
+        self.assertEqual(cache_set.call_args.args[2], FACEIT_NO_STATS_CACHE_SECONDS)
+
+    def test_other_errors_are_not_cached(self):
+        self.get(fake_response(status_code=500))
+        response, get = self.get(fake_response(json_data={"rounds": []}))
+        self.assertEqual(response.status_code, 200)
+        get.assert_called_once()
