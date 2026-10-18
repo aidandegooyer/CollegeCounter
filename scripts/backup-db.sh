@@ -10,9 +10,9 @@
 #
 # With BACKUP_S3_URI set (e.g. s3://collegecounter-db-backups/), each dump is
 # also copied off the server with the AWS CLI, which reads AWS_ACCESS_KEY_ID,
-# AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION and, for DigitalOcean Spaces,
-# AWS_ENDPOINT_URL. The key only needs to upload: off-site retention is the
-# bucket's lifecycle rule, so a compromised server can't delete the history.
+# AWS_SECRET_ACCESS_KEY and AWS_DEFAULT_REGION. The key only needs to upload:
+# off-site retention is the bucket's lifecycle rule, so a compromised server
+# can't delete the history.
 # Failures are posted to DISCORD_ALERTS_WEBHOOK_URL when it's set.
 set -eu
 umask 077   # dumps contain the whole database; owner-only

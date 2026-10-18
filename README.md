@@ -208,7 +208,6 @@ Team, player and event pictures are stored in an S3-compatible bucket (AWS S3 or
 - `BACKUP_S3_URI` - Where each daily dump is copied, e.g. `s3://collegecounter-db-backups/`. Unset keeps dumps on the server only.
 - `BACKUP_AWS_ACCESS_KEY_ID`, `BACKUP_AWS_SECRET_ACCESS_KEY` - Key that can only upload (`s3:PutObject`) to that bucket
 - `BACKUP_AWS_REGION` - Bucket region (default `us-east-1`)
-- `BACKUP_S3_ENDPOINT_URL` - Only for DigitalOcean Spaces
 - `DISCORD_ALERTS_WEBHOOK_URL` - Also receives backup failures
 
 ### Example .env file
