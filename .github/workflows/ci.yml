@@ -75,6 +75,36 @@ jobs:
           coverage report
           coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
 
+  api-version:
+    name: API version bump
+    # The backend tests check openapi.yaml matches the code; this checks that
+    # a PR changing it also bumps API_VERSION (v1/settings.py)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Require a new API version when the public API changes
+        env:
+          BASE: origin/${{ github.base_ref }}
+          SCHEMA: cc-backend/v1/openapi.yaml
+        run: |
+          if git diff --quiet "$BASE"...HEAD -- "$SCHEMA"; then
+            echo "Public API unchanged"
+            exit 0
+          fi
+          version() { sed -n 's/^  version: //p' | head -n 1; }
+          old=$(git show "$BASE:$SCHEMA" 2>/dev/null | version || true)
+          new=$(version < "$SCHEMA")
+          echo "API version: ${old:-none} -> $new"
+          if [ "$old" = "$new" ]; then
+            echo "::error file=cc-backend/v1/v1/settings.py::openapi.yaml changed, so bump API_VERSION (minor for additions, major for breaking changes) and regenerate openapi.yaml"
+            exit 1
+          fi
+
   frontend:
     name: Frontend build
     runs-on: ubuntu-latest

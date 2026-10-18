@@ -278,6 +278,26 @@ python manage.py runserver
 psql -h localhost -U ccdev -d cc
 ```
 
+### Public API docs
+
+The public API (`/v1/public/...`) is documented with OpenAPI. Swagger UI is at
+[api.collegecounter.org/v1/public/docs/](https://api.collegecounter.org/v1/public/docs/)
+(locally, `http://localhost:8000/v1/public/docs/`), and the raw schema at
+`/v1/public/schema/`. The admin API isn't documented.
+
+Each public view's parameters and response shape are described in
+`cc/public_schema.py`. The tests check real responses against it, and check
+that the committed `openapi.yaml` is what the code generates, so API changes
+show up in PR diffs. After changing a public endpoint, update
+`cc/public_schema.py`, bump `API_VERSION` in `v1/settings.py` (minor for
+additions, major for changes that break clients; CI fails a PR that changes
+`openapi.yaml` without a bump), and regenerate:
+
+```bash
+cd cc-backend/v1
+uv run python manage.py spectacular --validate --fail-on-warn --file openapi.yaml
+```
+
 ### Frontend
 
 ```bash
@@ -317,6 +337,15 @@ docker-compose logs -f [service_name]
 # Rebuild specific service
 docker-compose up --build [service_name]
 ```
+
+### Deploying
+
+On the droplet, `scripts/deploy-prod.sh` pulls `main` and rebuilds with the
+commit baked into the images. The site footer shows it (`build 8f03a25`), as
+do the API docs' version (`1.0.0+8f03a25`) and
+`https://api.collegecounter.org/v1/public/version`, so you can check what's
+running. A plain `docker compose up --build` works too, but shows `dev`
+instead of the commit.
 
 ### Backups
 

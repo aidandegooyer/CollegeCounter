@@ -1,8 +1,31 @@
+from django.conf import settings
 from django.urls import path
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from . import public_views
+from .throttles import PublicRateThrottle
 
 urlpatterns = [
+    # OpenAPI schema and Swagger UI for these endpoints (cc/public_schema.py)
+    path(
+        "schema/",
+        SpectacularAPIView.as_view(
+            throttle_classes=[PublicRateThrottle],
+            # Semver build metadata, e.g. 1.0.0+8f03a25, to match the footer
+            custom_settings={
+                "VERSION": f"{settings.API_VERSION}+{settings.BUILD_SHA}"
+            },
+        ),
+        name="public_schema",
+    ),
+    path(
+        "docs/",
+        SpectacularSwaggerView.as_view(
+            url_name="public_schema", throttle_classes=[PublicRateThrottle]
+        ),
+        name="public_docs",
+    ),
+    path("version", public_views.public_version, name="public_version"),
     # Search endpoint
     path("search", public_views.public_search, name="public_search"),
     # Team endpoints

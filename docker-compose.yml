@@ -38,6 +38,8 @@ services:
       args:
         REACT_APP_API_URL: ${REACT_APP_API_URL}
         VITE_CURRENT_SEASON_ID: ${VITE_CURRENT_SEASON_ID}
+        # Set by scripts/deploy-prod.sh; "dev" for a plain `docker compose build`
+        GIT_SHA: ${GIT_SHA:-dev}
     environment:
       VIRTUAL_HOST: collegecounter.org,www.collegecounter.org
       LETSENCRYPT_HOST: collegecounter.org,www.collegecounter.org
@@ -48,7 +50,11 @@ services:
       - "80"
 
   backend:
-    build: ./cc-backend/v1
+    build:
+      context: ./cc-backend/v1
+      args:
+        GIT_SHA: ${GIT_SHA:-dev}
+        BUILD_DATE: ${BUILD_DATE:-}
     environment:
       SECRET_KEY: ${DJANGO_SECRET_KEY}
       DJANGO_DEBUG: ${DJANGO_DEBUG}
@@ -86,7 +92,11 @@ services:
   # entrypoint so only the backend runs migrations. No VIRTUAL_HOST, so the
   # proxy doesn't route to it.
   match-sync:
-    build: ./cc-backend/v1
+    build:
+      context: ./cc-backend/v1
+      args:
+        GIT_SHA: ${GIT_SHA:-dev}
+        BUILD_DATE: ${BUILD_DATE:-}
     restart: always
     entrypoint: ["python", "manage.py", "sync_matches", "--loop"]
     environment:

@@ -27,6 +27,14 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn psycopg2-binary
 # app
 COPY . .
 
+# The commit and time this image was built from (scripts/deploy-prod.sh), for
+# /v1/public/version and the API docs. After the pip install so a new commit
+# doesn't reinstall dependencies.
+ARG GIT_SHA=dev
+ARG BUILD_DATE=
+ENV GIT_SHA=$GIT_SHA
+ENV BUILD_DATE=$BUILD_DATE
+
 # gunicorn config
 COPY gunicorn.conf.py .
 
