@@ -17,3 +17,6 @@ credentials
 /**/*.jks
 /**/*.json
 backups/
+
+# bug notes live in the Obsidian vault; BUGS.md is a local symlink to it
+BUGS.md
