@@ -45,9 +45,9 @@ function Rankings() {
 
   return (
     <div className="app-container mx-4 flex justify-center">
-      <div className="rankings w-full max-w-[1000px] justify-center">
+      <div className="rankings w-full max-w-[1000px] min-w-0 justify-center">
         <div className="flex justify-center">
-          <div className="my-4 flex h-12 w-[500px] rounded-xl border-2">
+          <div className="my-4 flex h-12 w-full max-w-[500px] rounded-xl border-2">
             <div
               onClick={() => setRankingType("team")}
               className={`group flex flex-1 items-center justify-center rounded-lg ${rankingType === "team" ? "bg-muted" : "cursor-pointer"}`}
@@ -98,7 +98,7 @@ function Rankings() {
         </div>
 
         <div className="mt-2 flex w-full">
-          <div className="flex-4 space-y-3">
+          <div className="min-w-0 flex-4 space-y-3">
             {rankingType === "player" ? (
               <PlayerRankingBody seasonFilter={seasonFilter} />
             ) : (

@@ -8,7 +8,7 @@ import {
 } from "react-router";
 import { useEffect, useState } from "react";
 import logo from "../assets/0.1x/C Logo@0.1x.png";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Menu, Search, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
 function Navbar() {
@@ -42,44 +42,21 @@ function Navbar() {
             College Counter
           </div>
         </NavLink>
-        <ul className="flex space-x-6">
-          <li>
-            <NavLink
-              to="/news"
-              className={`transition-colors hover:text-blue-200 ${
-                location.pathname === "/news"
-                  ? "text-foreground"
-                  : "text-muted-foreground"
-              }`}
-            >
-              News
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="/rankings"
-              className={`transition-colors hover:text-blue-200 ${
-                location.pathname === "/rankings"
-                  ? "text-foreground"
-                  : "text-muted-foreground"
-              }`}
-            >
-              Rankings
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="/matches"
-              className={`transition-colors hover:text-blue-200 ${
-                location.pathname === "/matches"
-                  ? "text-foreground"
-                  : "text-muted-foreground"
-              }`}
-            >
-              Matches
-            </NavLink>
-          </li>
-
+        <ul className="flex items-center space-x-6">
+          {PRIMARY_LINKS.map((link) => (
+            <li key={link.to} className="hidden sm:block">
+              <NavLink
+                to={link.to}
+                className={`transition-colors hover:text-blue-200 ${
+                  location.pathname === link.to
+                    ? "text-foreground"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {link.label}
+              </NavLink>
+            </li>
+          ))}
           <li>
             <MoreMenu />
           </li>
@@ -97,13 +74,20 @@ function Navbar() {
 
 export default Navbar;
 
+const PRIMARY_LINKS = [
+  { to: "/news", label: "News" },
+  { to: "/rankings", label: "Rankings" },
+  { to: "/matches", label: "Matches" },
+];
+
 const MORE_LINKS = [
   { to: "/events", label: "Events" },
   { to: "/head-to-head", label: "Head to Head" },
   { to: "/about", label: "About Us" },
 ];
 
-// Less-used pages, grouped to keep the navbar from crowding
+// Less-used pages, grouped to keep the navbar from crowding. On mobile the
+// primary links collapse into this menu too.
 function MoreMenu() {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
@@ -120,19 +104,42 @@ function MoreMenu() {
             : "text-muted-foreground"
         }`}
       >
-        More
-        <ChevronDown
-          className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
-        />
+        {isOpen ? (
+          <X className="size-6 sm:hidden" />
+        ) : (
+          <Menu className="size-6 sm:hidden" />
+        )}
+        <span className="sr-only sm:hidden">Menu</span>
+        <span className="hidden items-center gap-1 sm:flex">
+          More
+          <ChevronDown
+            className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          />
+        </span>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-40 p-1">
+      <PopoverContent align="end" className="w-48 p-1 sm:w-40">
         <ul>
+          {PRIMARY_LINKS.map((link) => (
+            <li key={link.to} className="sm:hidden">
+              <NavLink
+                to={link.to}
+                onClick={() => setIsOpen(false)}
+                className={`hover:bg-muted block rounded-sm px-2 py-2 transition-colors ${
+                  isActive(link.to)
+                    ? "text-foreground"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {link.label}
+              </NavLink>
+            </li>
+          ))}
           {MORE_LINKS.map((link) => (
             <li key={link.to}>
               <NavLink
                 to={link.to}
                 onClick={() => setIsOpen(false)}
-                className={`hover:bg-muted block rounded-sm px-2 py-1.5 text-sm transition-colors ${
+                className={`hover:bg-muted block rounded-sm px-2 py-2 transition-colors sm:py-1.5 sm:text-sm ${
                   isActive(link.to)
                     ? "text-foreground"
                     : "text-muted-foreground"
