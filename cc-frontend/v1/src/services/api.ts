@@ -1636,8 +1636,8 @@ export const proxyNWES = async (params: NWESProxyParams): Promise<any> => {
 
 /**
  * Fetch an external picture through the backend, so it can be drawn into an
- * exported image without CORS errors. Admin only, so it can't be loaded as a
- * plain <img src>: use the blob with URL.createObjectURL().
+ * exported image without CORS errors. It needs a signed-in user, so it can't
+ * be loaded as a plain <img src>: use the blob with URL.createObjectURL().
  *
  * @param url - The picture's original URL
  * @returns Promise with the picture

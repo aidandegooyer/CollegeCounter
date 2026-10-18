@@ -154,15 +154,16 @@ def update_player(request, player_id):
 
 
 @api_view(["GET"])
-@firebase_auth_required(min_role="admin")
+@firebase_auth_required(min_role="base")
 def proxy_image(request):
     """
     Proxy external images to avoid CORS issues in screenshot generation.
 
-    The graphic generator fetches these with its auth token and shows them
-    from blob URLs. Admins can still pass any URL, so it fetches with the same
-    checks as copying a picture into the bucket (public https hosts only,
-    bounded size and time) and only returns bytes that are an image.
+    Any signed-in user can make graphics. The graphic generator fetches these
+    with its auth token and shows them from blob URLs. Callers can still pass
+    any URL, so it fetches with the same checks as copying a picture into the
+    bucket (public https hosts only, bounded size and time) and only returns
+    bytes that are an image.
     """
     image_url = request.GET.get("url")
 

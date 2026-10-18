@@ -155,13 +155,12 @@ class ImageProxyTests(SimpleTestCase):
         self.assertEqual(response.status_code, 401)
         get.assert_not_called()
 
-    def test_requires_admin(self):
+    def test_read_only_users_can_use_it(self):
         client, patcher = token_client({"uid": "u1", "role": "base"})
         self.addCleanup(patcher.stop)
-        with patch.object(images.requests, "get") as get:
+        with patch.object(images.requests, "get", return_value=image_response(png())):
             response = self.proxy("https://example.com/a.png", client=client)
-        self.assertEqual(response.status_code, 403)
-        get.assert_not_called()
+        self.assertEqual(response.status_code, 200)
 
     def test_url_is_required(self):
         response = dev_client().get(reverse("proxy_image"))
