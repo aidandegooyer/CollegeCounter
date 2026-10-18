@@ -230,48 +230,83 @@ def proxy_nwes(request):
             timeout=30,
         )
 
-        # Log the response for debugging
-        logger.info(f"NWES API response status: {response.status_code}")
-
-        if response.status_code != 200:
-            logger.warning(f"NWES API returned {response.status_code}: {response.text}")
-            return Response(
-                {"error": f"NWES API returned status {response.status_code}"},
-                status=response.status_code,
-            )
-
-        # Check if response is empty
-        if not response.text.strip():
-            return Response(
-                {"error": "NWES API returned empty response"},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-        # Try to parse JSON and return it
-        try:
-            json_data = response.json()
-            caches["proxy"].set(cache_key, json_data, NWES_CACHE_SECONDS)
-            return Response(json_data)
-        except ValueError as json_error:
-            # If it's not JSON, return the text content
-            logger.warning(f"NWES response is not JSON: {json_error}")
-            return Response(
-                {"content": response.text},
-                status=status.HTTP_200_OK,
-            )
-
+    except requests.exceptions.Timeout:
+        logger.warning(
+            "NWES tournament request timed out: tournament_id=%s", tournament_id
+        )
+        return Response(
+            {"error": "NWES API request timed out"},
+            status=status.HTTP_504_GATEWAY_TIMEOUT,
+        )
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error proxying NWES API: {str(e)}")
-        return Response(
-            {"error": f"Failed to fetch NWES data: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        # Log only the exception type: its message includes the request URL,
+        # api_key and all
+        logger.error(
+            "NWES tournament request failed: tournament_id=%s (%s)",
+            tournament_id,
+            type(e).__name__,
         )
-    except Exception as e:
-        logger.error(f"Unexpected error in NWES proxy: {str(e)}")
         return Response(
-            {"error": f"Unexpected error: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            {"error": "Unable to reach the NWES API"},
+            status=status.HTTP_502_BAD_GATEWAY,
         )
+
+    if response.status_code != 200:
+        # As with Faceit, don't pass NWES's status through: a 401/403 means our
+        # API key is bad, not that the client is unauthenticated.
+        if response.status_code == 404:
+            client_status = status.HTTP_404_NOT_FOUND
+            log = logger.info
+        elif response.status_code in (401, 403):
+            client_status = status.HTTP_502_BAD_GATEWAY
+            log = logger.error
+        elif response.status_code == 429:
+            client_status = status.HTTP_503_SERVICE_UNAVAILABLE
+            log = logger.warning
+        else:
+            client_status = status.HTTP_502_BAD_GATEWAY
+            log = logger.warning
+        log(
+            "NWES returned status %s for tournament %s: %s",
+            response.status_code,
+            tournament_id,
+            response.text[:200],
+        )
+        error_response = Response(
+            {
+                "error": "NWES rejected the tournament request",
+                "upstream_status": response.status_code,
+            },
+            status=client_status,
+        )
+        retry_after = response.headers.get("Retry-After")
+        if response.status_code == 429 and retry_after:
+            error_response["Retry-After"] = retry_after
+        return error_response
+
+    if not response.text.strip():
+        logger.error("NWES returned an empty response for tournament %s", tournament_id)
+        return Response(
+            {"error": "NWES API returned empty response"},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    try:
+        json_data = response.json()
+    except ValueError:
+        # e.g. an HTML error page sent with a 200
+        logger.error(
+            "NWES returned invalid JSON for tournament %s: %s",
+            tournament_id,
+            response.text[:200],
+        )
+        return Response(
+            {"error": "NWES returned an invalid response"},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    caches["proxy"].set(cache_key, json_data, NWES_CACHE_SECONDS)
+    return Response(json_data)
 
 
 @api_view(["GET"])

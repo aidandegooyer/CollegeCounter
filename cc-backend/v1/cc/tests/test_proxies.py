@@ -154,26 +154,60 @@ class NwesProxyTests(SimpleTestCase):
             {"tournament_id": "59", "api_key": "nwes-key"},
         )
 
-    def test_upstream_error_status(self):
-        response, _ = self.get(fake_response(status_code=403, text="denied"))
-        self.assertEqual(response.status_code, 403)
+    def test_upstream_auth_errors_are_502_and_alert(self):
+        # Our key is bad; the client isn't unauthenticated
+        for upstream in (401, 403):
+            with self.subTest(upstream=upstream), self.assertLogs(
+                "cc.views.proxies", "ERROR"
+            ):
+                response, _ = self.get(fake_response(status_code=upstream))
+                self.assertEqual(response.status_code, 502)
+                self.assertEqual(response.json()["upstream_status"], upstream)
+
+    def test_unknown_tournament_is_404_without_a_warning(self):
+        with self.assertNoLogs("cc.views.proxies", "WARNING"):
+            response, _ = self.get(fake_response(status_code=404))
+        self.assertEqual(response.status_code, 404)
+
+    def test_upstream_rate_limit_is_503_with_retry_after(self):
+        upstream = fake_response(status_code=429, headers={"Retry-After": "30"})
+        with self.assertLogs("cc.views.proxies", "WARNING"):
+            response, _ = self.get(upstream)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response["Retry-After"], "30")
+
+    def test_other_upstream_errors_are_502(self):
+        with self.assertLogs("cc.views.proxies", "WARNING") as logs:
+            response, _ = self.get(fake_response(status_code=500, text="x" * 1000))
+        self.assertEqual(response.status_code, 502)
+        self.assertLess(len(logs.output[0]), 400)
 
     def test_empty_body_is_502(self):
-        response, _ = self.get(fake_response(text=""))
+        with self.assertLogs("cc.views.proxies", "ERROR"):
+            response, _ = self.get(fake_response(text=""))
         self.assertEqual(response.status_code, 502)
 
-    def test_non_json_body_is_returned_as_content(self):
-        response, _ = self.get(fake_response(text="plain text"))
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"content": "plain text"})
+    def test_non_json_body_is_502(self):
+        with self.assertLogs("cc.views.proxies", "ERROR"):
+            response, _ = self.get(fake_response(text="<html>error</html>"))
+        self.assertEqual(response.status_code, 502)
+        self.assertNotIn("<html>", response.content.decode())
 
-    def test_request_exception_is_500(self):
-        response, _ = self.get(error=requests.exceptions.Timeout("slow"))
-        self.assertEqual(response.status_code, 500)
+    def test_timeout_is_504(self):
+        with self.assertLogs("cc.views.proxies", "WARNING"):
+            response, _ = self.get(error=requests.exceptions.Timeout("slow"))
+        self.assertEqual(response.status_code, 504)
 
-    def test_unexpected_exception_is_500(self):
-        response, _ = self.get(error=KeyError("boom"))
-        self.assertEqual(response.status_code, 500)
+    def test_request_exception_is_502_without_leaking_the_url(self):
+        # requests puts the full URL, query string included, in the message
+        error = requests.exceptions.ConnectionError(
+            "Max retries exceeded with url: /api?tournament_id=59&api_key=nwes-key"
+        )
+        with self.assertLogs("cc.views.proxies", "ERROR") as logs:
+            response, _ = self.get(error=error)
+        self.assertEqual(response.status_code, 502)
+        self.assertNotIn("nwes-key", response.content.decode())
+        self.assertNotIn("nwes-key", "".join(logs.output))
 
     def test_only_tournament_id_is_forwarded(self):
         _, get = self.get(
@@ -225,7 +259,8 @@ class NwesProxyCacheTests(SimpleTestCase):
         get.assert_called_once()
 
     def test_errors_are_not_cached(self):
-        self.get("59", fake_response(status_code=500, text="down"))
+        with self.assertLogs("cc.views.proxies", "WARNING"):
+            self.get("59", fake_response(status_code=500, text="down"))
         response, get = self.get("59", fake_response(json_data={"teams": []}))
         self.assertEqual(response.status_code, 200)
         get.assert_called_once()
@@ -393,6 +428,50 @@ class FaceitMatchStatsProxyTests(Fixtures, TestCase):
         with self.assertLogs("cc.views.proxies", "WARNING"):
             response = self.get(self.match.id, fake_response(status_code=500))
         self.assertEqual(response.status_code, 502)
+
+    def refused(self, match_id):
+        """Request stats that should be refused before any call to Faceit."""
+        with patch("cc.views.proxies.requests.get") as get:
+            response = APIClient().get(
+                reverse("proxy_faceit_match_stats", args=[match_id])
+            )
+        get.assert_not_called()
+        return response
+
+    def test_unknown_match_is_404(self):
+        self.assertEqual(self.refused(uuid.uuid4()).status_code, 404)
+
+    def test_non_faceit_match_is_400(self):
+        Match.objects.filter(id=self.match.id).update(platform="playfly")
+        self.assertEqual(self.refused(self.match.id).status_code, 400)
+
+    def test_unfinished_match_is_409(self):
+        for match_status in ("scheduled", "in_progress", "cancelled"):
+            with self.subTest(status=match_status):
+                Match.objects.filter(id=self.match.id).update(status=match_status)
+                self.assertEqual(self.refused(self.match.id).status_code, 409)
+
+    @override_settings(FACEIT_API_KEY="")
+    def test_missing_api_key_is_503(self):
+        with self.assertLogs("cc.views.proxies", "ERROR"):
+            response = self.refused(self.match.id)
+        self.assertEqual(response.status_code, 503)
+
+    def test_only_the_match_id_reaches_faceit(self):
+        with patch(
+            "cc.views.proxies.requests.get",
+            return_value=fake_response(json_data={"rounds": []}),
+        ) as get:
+            APIClient().get(
+                reverse("proxy_faceit_match_stats", args=[self.match.id]),
+                {"url": "https://example.com"},
+            )
+        self.assertEqual(
+            get.call_args.args[0],
+            f"https://open.faceit.com/data/v4/matches/1-{self.match.id}/stats",
+        )
+        self.assertEqual(get.call_args.kwargs["headers"]["Authorization"], "Bearer key")
+        self.assertNotIn("params", get.call_args.kwargs)
 
 
 @real_caches
