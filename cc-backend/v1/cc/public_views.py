@@ -1,4 +1,4 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
@@ -19,6 +19,7 @@ from .models import (
     RankingItem,
     Competition,
 )
+from .throttles import PublicRateThrottle
 from .views.elo import match_elo_data
 
 # Maximum items per page
@@ -33,6 +34,7 @@ def safe_uuid(value):
 
 
 @api_view(["GET"])
+@throttle_classes([PublicRateThrottle])
 def public_search(request):
     """
     Public API endpoint to search across teams, players, and events.
@@ -161,6 +163,7 @@ def public_search(request):
 
 
 @api_view(["GET"])
+@throttle_classes([PublicRateThrottle])
 def public_teams(request):
     """
     Public API endpoint to fetch teams with various filters.
@@ -388,6 +391,7 @@ def public_teams(request):
 
 
 @api_view(["GET"])
+@throttle_classes([PublicRateThrottle])
 def public_players(request):
     """
     Public API endpoint to fetch players with various filters.
@@ -529,6 +533,7 @@ def public_players(request):
 
 
 @api_view(["GET"])
+@throttle_classes([PublicRateThrottle])
 def public_matches(request):
     """
     Public API endpoint to fetch matches with various filters.
@@ -830,6 +835,7 @@ def public_matches(request):
 
 
 @api_view(["GET"])
+@throttle_classes([PublicRateThrottle])
 def public_seasons(request):
     """
     Public API endpoint to fetch seasons.
@@ -919,6 +925,7 @@ def public_seasons(request):
 
 
 @api_view(["GET"])
+@throttle_classes([PublicRateThrottle])
 def public_competitions(request):
     """
     Public API endpoint to fetch competition names.
@@ -955,6 +962,7 @@ def public_competitions(request):
 
 
 @api_view(["GET"])
+@throttle_classes([PublicRateThrottle])
 def public_rankings(request):
     """
     Public API endpoint to fetch rankings with various filters.
@@ -1034,6 +1042,7 @@ def public_rankings(request):
 
 
 @api_view(["GET"])
+@throttle_classes([PublicRateThrottle])
 def public_ranking_items(request):
     """
     Public API endpoint to fetch ranking items for a specific ranking.
@@ -1127,6 +1136,7 @@ def public_ranking_items(request):
 
 
 @api_view(["GET"])
+@throttle_classes([PublicRateThrottle])
 def public_team_current_ranking(request):
     """
     Public API endpoint to fetch a team's current ranking by team ID.
@@ -1230,6 +1240,7 @@ def public_team_current_ranking(request):
 
 
 @api_view(["GET"])
+@throttle_classes([PublicRateThrottle])
 def public_events(request):
     """
     Public API endpoint to fetch events with various filters.
@@ -1416,6 +1427,7 @@ def public_events(request):
 
 
 @api_view(["GET"])
+@throttle_classes([PublicRateThrottle])
 def public_event_detail(request, event_id):
     """
     Public API endpoint to fetch a single event by ID.
@@ -1499,6 +1511,7 @@ def public_event_detail(request, event_id):
 
 
 @api_view(["GET"])
+@throttle_classes([PublicRateThrottle])
 def public_team_recent_form(request):
     """
     Public API endpoint to fetch a team's recent match form.
@@ -1564,6 +1577,7 @@ def public_team_recent_form(request):
 
 
 @api_view(["GET"])
+@throttle_classes([PublicRateThrottle])
 def public_team_ranking_history(request):
     """
     Public API endpoint to fetch a team's ranking history.

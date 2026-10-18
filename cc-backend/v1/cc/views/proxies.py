@@ -1,16 +1,32 @@
 """Proxies for third-party APIs that the frontend can't call directly (CORS)."""
 
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.response import Response
 from django.conf import settings
+from django.core.cache import caches
 from rest_framework import status
 
 import logging
+import re
 import requests
 
+from ..middleware import firebase_auth_required
 from ..models import Match
+from ..throttles import ProxyRateThrottle
 
 logger = logging.getLogger(__name__)
+
+# Loose on purpose: just keeps junk out of the request we send NWES
+NWES_TOURNAMENT_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
+# Same as the Match page's staleTime for this data
+NWES_CACHE_SECONDS = 60 * 5
+# Stats for a completed match don't change; the cache's MAX_ENTRIES bounds
+# memory, not this
+FACEIT_STATS_CACHE_SECONDS = 60 * 60 * 24
+# Faceit has no stats for some completed matches, and can take a little
+# while to publish them for others, so "none" is only cached briefly
+FACEIT_NO_STATS_CACHE_SECONDS = 60 * 15
+NO_FACEIT_STATS = "none"
 
 
 def get_leaguespot_headers():
@@ -36,6 +52,7 @@ def get_leaguespot_headers():
 
 
 @api_view(["GET"])
+@firebase_auth_required(min_role="admin")
 def proxy_leaguespot_season(request, season_id):
     """Proxy LeagueSpot season API to avoid CORS issues"""
     headers = get_leaguespot_headers()
@@ -88,6 +105,7 @@ def proxy_leaguespot_season(request, season_id):
 
 
 @api_view(["GET"])
+@firebase_auth_required(min_role="admin")
 def proxy_leaguespot_stage(request, stage_id):
     """Proxy LeagueSpot stage API to avoid CORS issues"""
     headers = get_leaguespot_headers()
@@ -109,6 +127,7 @@ def proxy_leaguespot_stage(request, stage_id):
 
 
 @api_view(["GET"])
+@firebase_auth_required(min_role="admin")
 def proxy_leaguespot_round_matches(request, round_id):
     """Proxy LeagueSpot round matches API to avoid CORS issues"""
     headers = get_leaguespot_headers()
@@ -130,6 +149,7 @@ def proxy_leaguespot_round_matches(request, round_id):
 
 
 @api_view(["GET"])
+@firebase_auth_required(min_role="admin")
 def proxy_leaguespot_match(request, match_id):
     """Proxy LeagueSpot match API to avoid CORS issues"""
     headers = get_leaguespot_headers()
@@ -151,6 +171,7 @@ def proxy_leaguespot_match(request, match_id):
 
 
 @api_view(["GET"])
+@firebase_auth_required(min_role="admin")
 def proxy_leaguespot_participants(request, match_id):
     """Proxy LeagueSpot match participants API to avoid CORS issues"""
     headers = get_leaguespot_headers()
@@ -171,36 +192,41 @@ def proxy_leaguespot_participants(request, match_id):
 
 
 @api_view(["GET"])
+@throttle_classes([ProxyRateThrottle])
 def proxy_nwes(request):
     """
-    Proxy NWES API to avoid CORS issues and keep API key secure.
+    Proxy NWES tournament stats for the Match page, keeping our API key secret.
 
-    The frontend can call this endpoint with query parameters like:
     /proxy/nwes/?tournament_id=59
 
-    The backend will append the API key and forward the request to NWES.
+    Only tournament_id is forwarded, so callers can't spend our key on other
+    NWES queries. Responses are cached for as long as the Match page keeps
+    them (its staleTime).
     """
-    try:
-        # Get the API key from settings
-        nwes_api_key = getattr(
-            settings,
-            "NWES_API_KEY",
-            "9cTmWJ2A4q53fw8wGRJcollegecounterB2iLc8be5gRHfPDQ2FY",
+    tournament_id = request.GET.get("tournament_id", "")
+    if not NWES_TOURNAMENT_ID.fullmatch(tournament_id):
+        return Response(
+            {"error": "A valid tournament_id is required"},
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
-        # Get all query parameters from the frontend request
-        query_params = request.GET.dict()
+    nwes_api_key = settings.NWES_API_KEY
+    if not nwes_api_key:
+        logger.error("NWES_API_KEY is not configured")
+        return Response(
+            {"error": "NWES integration is not configured"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
 
-        # Add the API key to the query parameters
-        query_params["api_key"] = nwes_api_key
+    cache_key = f"nwes:{tournament_id}"
+    cached = caches["proxy"].get(cache_key)
+    if cached is not None:
+        return Response(cached)
 
-        # Build the NWES API URL
-        nwes_api_url = "https://nwes.gg/api/api-tournament.php"
-
-        # Make the request to NWES
+    try:
         response = requests.get(
-            nwes_api_url,
-            params=query_params,
+            "https://nwes.gg/api/api-tournament.php",
+            params={"tournament_id": tournament_id, "api_key": nwes_api_key},
             timeout=30,
         )
 
@@ -224,6 +250,7 @@ def proxy_nwes(request):
         # Try to parse JSON and return it
         try:
             json_data = response.json()
+            caches["proxy"].set(cache_key, json_data, NWES_CACHE_SECONDS)
             return Response(json_data)
         except ValueError as json_error:
             # If it's not JSON, return the text content
@@ -248,6 +275,7 @@ def proxy_nwes(request):
 
 
 @api_view(["GET"])
+@throttle_classes([ProxyRateThrottle])
 def proxy_faceit_match_stats(request, match_id):
     match = Match.objects.filter(id=match_id).only("id", "platform", "status").first()
 
@@ -272,6 +300,19 @@ def proxy_faceit_match_stats(request, match_id):
             {"error": "Faceit stats are only available for completed matches"},
             status=status.HTTP_409_CONFLICT,
         )
+
+    cache_key = f"faceit-stats:{match_id}"
+    cached = caches["proxy"].get(cache_key)
+    if cached == NO_FACEIT_STATS:
+        return Response(
+            {
+                "error": "Faceit rejected the match statistics request",
+                "upstream_status": 404,
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    if cached is not None:
+        return Response(cached)
 
     faceit_api_key = getattr(settings, "FACEIT_API_KEY", "")
 
@@ -323,6 +364,9 @@ def proxy_faceit_match_stats(request, match_id):
             # Expected for matches Faceit has no stats for; not alert-worthy.
             client_status = status.HTTP_404_NOT_FOUND
             log = logger.info
+            caches["proxy"].set(
+                cache_key, NO_FACEIT_STATS, FACEIT_NO_STATS_CACHE_SECONDS
+            )
         elif response.status_code in (401, 403):
             client_status = status.HTTP_502_BAD_GATEWAY
             log = logger.error
@@ -362,4 +406,5 @@ def proxy_faceit_match_stats(request, match_id):
             status=status.HTTP_502_BAD_GATEWAY,
         )
 
+    caches["proxy"].set(cache_key, stats, FACEIT_STATS_CACHE_SECONDS)
     return Response(stats)

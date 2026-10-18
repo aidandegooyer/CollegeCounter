@@ -4,6 +4,7 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import requests
+from django.core.cache import caches
 from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -65,6 +66,24 @@ def past_season(name="Past Season"):
 
 
 admin_settings = override_settings(DEBUG=True)
+
+# Tests run with dummy caches (see CACHES in settings). This switches the
+# real in-memory ones back on, for testing throttling and cached responses.
+# Their contents outlive the override, so call clear_caches() in setUp.
+real_caches = override_settings(
+    CACHES={
+        name: {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": f"test-{name}",
+        }
+        for name in ("default", "proxy")
+    }
+)
+
+
+def clear_caches():
+    for cache in caches.all():
+        cache.clear()
 
 
 class Fixtures:

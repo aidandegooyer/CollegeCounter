@@ -146,6 +146,47 @@ WSGI_APPLICATION = "v1.wsgi.application"
 
 DATABASES = {"default": dj_database_url.config(default=os.getenv("DATABASE_URL"))}
 
+TESTING = sys.argv[1:2] == ["test"]
+
+# In memory, so each gunicorn worker has its own copy and it's emptied on
+# restart. Good enough for abuse limits and for saving repeat upstream calls.
+CACHES = {
+    # Throttle counts (cc/throttles.py)
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "throttle",
+        "OPTIONS": {"MAX_ENTRIES": 5000},
+    },
+    # Faceit/NWES responses (cc/views/proxies.py), so repeat page views
+    # don't spend our API quota
+    "proxy": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "proxy",
+        "OPTIONS": {"MAX_ENTRIES": 300},
+    },
+}
+if TESTING:
+    # Nothing carries over between tests. Tests of throttling or caching
+    # switch the real caches back on (cc/tests/helpers.py).
+    CACHES = {
+        name: {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}
+        for name in CACHES
+    }
+
+REST_FRAMEWORK = {
+    # Requests per client IP for cc/throttles.py. Each gunicorn worker counts
+    # on its own (see CACHES), so the real limit can be up to `workers` times
+    # higher. Kept generous: a campus can put many fans behind one IP.
+    "DEFAULT_THROTTLE_RATES": {
+        "public": "300/minute",
+        "proxy": "60/minute",
+    },
+    # nginx-proxy is the one hop in front of gunicorn, so the client IP is
+    # the last X-Forwarded-For entry. Without this, REMOTE_ADDR is the
+    # proxy's and every visitor would share one limit.
+    "NUM_PROXIES": 1,
+}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -202,7 +243,7 @@ LOGGING = {
             "level": "WARNING",
             "webhook_url": DISCORD_ALERTS_WEBHOOK_URL,
             # Say so at startup if production has no webhook (but not in tests)
-            "warn_if_disabled": not DEBUG and sys.argv[1:2] != ["test"],
+            "warn_if_disabled": not DEBUG and not TESTING,
         },
     },
     "loggers": {
