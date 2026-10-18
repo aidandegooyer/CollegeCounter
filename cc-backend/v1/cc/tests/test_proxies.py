@@ -6,11 +6,13 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
+from cc import images
 from cc.models import Match
 from cc.views import get_leaguespot_headers
 from cc.webhooks import SanityWebhookView
 
 from .helpers import Fixtures, fake_response
+from .test_images import PUBLIC_ADDRESS, image_response, png
 
 
 class LeaguespotHeadersTests(SimpleTestCase):
@@ -136,40 +138,80 @@ class NwesProxyTests(SimpleTestCase):
 
 
 class ImageProxyTests(SimpleTestCase):
+    def setUp(self):
+        patcher = patch.object(
+            images.socket, "getaddrinfo", return_value=PUBLIC_ADDRESS
+        )
+        self.getaddrinfo = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def proxy(self, url):
+        return APIClient().get(reverse("proxy_image"), {"url": url})
+
     def test_url_is_required(self):
         response = APIClient().get(reverse("proxy_image"))
         self.assertEqual(response.status_code, 400)
 
     def test_returns_image_with_cors_and_cache_headers(self):
-        upstream = fake_response(headers={"Content-Type": "image/png"}, content=b"PNG")
-        with patch("cc.admin_views.requests.get", return_value=upstream) as get:
-            response = APIClient().get(
-                reverse("proxy_image") + "?url=https://example.com/a.png"
-            )
+        picture = png()
+        with patch.object(
+            images.requests, "get", return_value=image_response(picture)
+        ) as get:
+            response = self.proxy("https://example.com/a.png")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, b"PNG")
+        self.assertEqual(response.content, picture)
         self.assertEqual(response["Content-Type"], "image/png")
         self.assertEqual(response["Access-Control-Allow-Origin"], "*")
         self.assertEqual(response["Cache-Control"], "public, max-age=3600")
         self.assertEqual(get.call_args.args[0], "https://example.com/a.png")
 
-    def test_defaults_content_type_to_jpeg(self):
-        with patch(
-            "cc.admin_views.requests.get", return_value=fake_response(content=b"x")
-        ):
-            response = APIClient().get(reverse("proxy_image") + "?url=https://e.com/a")
-        self.assertEqual(response["Content-Type"], "image/jpeg")
+    def test_content_type_comes_from_the_image_not_the_host(self):
+        upstream = image_response(png())
+        upstream.headers["Content-Type"] = "text/html"
+        with patch.object(images.requests, "get", return_value=upstream):
+            response = self.proxy("https://example.com/a")
+        self.assertEqual(response["Content-Type"], "image/png")
+
+    def test_refuses_what_isnt_an_image(self):
+        upstream = image_response(b"<script>alert(1)</script>")
+        with patch.object(images.requests, "get", return_value=upstream):
+            response = self.proxy("https://example.com/a.png")
+        self.assertEqual(response.status_code, 400)
+
+    def test_refuses_private_addresses(self):
+        for address in ("127.0.0.1", "10.0.0.5", "169.254.169.254", "::1"):
+            self.getaddrinfo.return_value = [(10, 1, 6, "", (address, 443))]
+            with patch.object(images.requests, "get") as get:
+                response = self.proxy("https://sneaky.example/a.png")
+            self.assertEqual(response.status_code, 400, address)
+            get.assert_not_called()
+
+    def test_refuses_a_redirect_to_a_private_address(self):
+        self.getaddrinfo.side_effect = lambda host, port: (
+            [(2, 1, 6, "", ("169.254.169.254", 443))]
+            if host == "internal.example"
+            else PUBLIC_ADDRESS
+        )
+        redirect = image_response(b"", 302, location="https://internal.example/meta")
+        with patch.object(images.requests, "get", return_value=redirect) as get:
+            response = self.proxy("https://example.com/a.png")
+        self.assertEqual(response.status_code, 400)
+        get.assert_called_once()
+
+    def test_only_https(self):
+        with patch.object(images.requests, "get") as get:
+            for url in ("http://example.com/a.png", "file:///etc/passwd"):
+                self.assertEqual(self.proxy(url).status_code, 400, url)
+        get.assert_not_called()
 
     def test_upstream_failure_is_502(self):
-        upstream = fake_response(status_code=404)
-        upstream.raise_for_status.side_effect = requests.exceptions.HTTPError("404")
-        with patch("cc.admin_views.requests.get", return_value=upstream):
-            response = APIClient().get(reverse("proxy_image") + "?url=https://e.com/a")
+        with patch.object(images.requests, "get", return_value=image_response(b"", 404)):
+            response = self.proxy("https://e.com/a")
         self.assertEqual(response.status_code, 502)
 
     def test_unexpected_error_is_500(self):
-        with patch("cc.admin_views.requests.get", side_effect=KeyError("x")):
-            response = APIClient().get(reverse("proxy_image") + "?url=https://e.com/a")
+        with patch.object(images.requests, "get", side_effect=KeyError("x")):
+            response = self.proxy("https://e.com/a")
         self.assertEqual(response.status_code, 500)
 
 

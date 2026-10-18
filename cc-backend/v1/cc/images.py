@@ -113,6 +113,23 @@ def _decode(data):
     return image, image_format
 
 
+def image_mime_type(data):
+    """The MIME type of picture bytes, or raise ImageError if they aren't one."""
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            mime_type = Image.MIME.get(image.format)
+    except (
+        UnidentifiedImageError,
+        OSError,
+        ValueError,
+        Image.DecompressionBombError,
+    ) as e:
+        raise ImageError("Not a supported image") from e
+    if not mime_type:
+        raise ImageError("Not a supported image")
+    return mime_type
+
+
 def _variants(image):
     """(width, WebP bytes) for each of WIDTHS."""
     for width in WIDTHS:

@@ -4,6 +4,7 @@ from rest_framework import status
 from django.http import HttpResponse
 from .models import Team, Player, Event, CustomEvent, Season
 from .middleware import firebase_auth_required
+from . import images
 import logging
 import requests
 from decimal import Decimal
@@ -155,7 +156,11 @@ def update_player(request, player_id):
 @api_view(["GET"])
 def proxy_image(request):
     """
-    Proxy external images to avoid CORS issues in screenshot generation
+    Proxy external images to avoid CORS issues in screenshot generation.
+
+    Unauthenticated, since it's used as an <img src>, so it fetches with the
+    same checks as copying a picture into the bucket (public https hosts
+    only, bounded size and time) and only returns bytes that are an image.
     """
     image_url = request.GET.get("url")
 
@@ -165,22 +170,9 @@ def proxy_image(request):
         )
 
     try:
-        # Set headers to match browser requests for better compatibility
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:144.0) Gecko/20100101 Firefox/144.0",
-            "Accept": "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate, br, zstd",
-            "Referer": request.META.get("HTTP_REFERER", "http://localhost:5173/"),
-        }
-
-        # Fetch the image
-        response = requests.get(image_url, headers=headers, timeout=10, stream=True)
-        response.raise_for_status()
-
-        # Create HTTP response with the image data
-        content_type = response.headers.get("Content-Type", "image/jpeg")
-        django_response = HttpResponse(response.content, content_type=content_type)
+        data = images.fetch_image(image_url)
+        content_type = images.image_mime_type(data)
+        django_response = HttpResponse(data, content_type=content_type)
 
         # Add CORS headers to allow frontend access
         django_response["Access-Control-Allow-Origin"] = "*"
@@ -192,8 +184,12 @@ def proxy_image(request):
 
         return django_response
 
+    # INFO, not WARNING: anyone can call this, and warnings post to Discord
+    except images.ImageError as e:
+        logger.info(f"Refused to proxy image {image_url}: {str(e)}")
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching image from {image_url}: {str(e)}")
+        logger.info(f"Error fetching image from {image_url}: {str(e)}")
         return Response(
             {"error": f"Failed to fetch image: {str(e)}"},
             status=status.HTTP_502_BAD_GATEWAY,
