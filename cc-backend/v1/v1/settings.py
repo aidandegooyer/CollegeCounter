@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "corsheaders",
+    "drf_spectacular",
     "cc",
 ]
 
@@ -185,6 +186,36 @@ REST_FRAMEWORK = {
     # the last X-Forwarded-For entry. Without this, REMOTE_ADDR is the
     # proxy's and every visitor would share one limit.
     "NUM_PROXIES": 1,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# Version of the public API's contract (semver). Bump it when openapi.yaml
+# changes: minor for additions, major for anything that breaks clients. CI
+# fails a PR that changes openapi.yaml without bumping this.
+API_VERSION = "1.0.0"
+# What's running: set at image build time by scripts/deploy-prod.sh. Shown in the
+# site footer, /v1/public/version and the served API docs.
+BUILD_SHA = os.getenv("GIT_SHA") or "dev"
+BUILD_DATE = os.getenv("BUILD_DATE") or None
+
+# OpenAPI schema of the public API (cc/public_schema.py)
+SPECTACULAR_SETTINGS = {
+    "TITLE": "College Counter API",
+    "DESCRIPTION": (
+        "Read-only data behind collegecounter.org: teams, players, matches, "
+        "rankings and events. No authentication. Requests are limited per IP; "
+        "a 429 response's Retry-After header says when to try again."
+    ),
+    # The committed openapi.yaml has the plain API version; the served schema
+    # adds the build (cc/urls_public.py)
+    "VERSION": API_VERSION,
+    "OAS_VERSION": "3.1.0",
+    "SERVERS": [{"url": "https://api.collegecounter.org"}],
+    "PREPROCESSING_HOOKS": ["cc.public_schema.public_endpoints_only"],
+    "SERVE_INCLUDE_SCHEMA": False,
+    # Pinned so the docs page doesn't change under us
+    "SWAGGER_UI_DIST": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14",
+    "SWAGGER_UI_FAVICON_HREF": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/favicon-32x32.png",
 }
 
 

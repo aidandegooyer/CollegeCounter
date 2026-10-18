@@ -1,11 +1,12 @@
 import uuid
 from unittest.mock import patch
 
-from django.test import TestCase
-from django.urls import reverse
+from django.test import SimpleTestCase, TestCase
+from django.urls import resolve, reverse
 from rest_framework.test import APIClient
 
-from cc.throttles import PublicRateThrottle
+from cc import urls_public
+from cc.throttles import ProxyRateThrottle, PublicRateThrottle
 
 from .helpers import admin_settings, clear_caches, dev_client, real_caches
 
@@ -58,3 +59,26 @@ class ThrottlingTests(TestCase):
         client = dev_client()
         for _ in range(4):
             self.assertEqual(self.get("list_seasons", client=client).status_code, 200)
+
+
+def view_throttles(view):
+    # as_view(throttle_classes=...) overrides the class's, as for the docs
+    return view.initkwargs.get("throttle_classes", view.cls.throttle_classes)
+
+
+class EveryPublicViewIsThrottledTests(SimpleTestCase):
+    """The tests above check one view; these catch one left off."""
+
+    def test_public_api(self):
+        for pattern in urls_public.urlpatterns:
+            with self.subTest(pattern.name):
+                self.assertIn(PublicRateThrottle, view_throttles(pattern.callback))
+
+    def test_proxies(self):
+        for name, args in (
+            ("proxy_nwes", ()),
+            ("proxy_faceit_match_stats", (uuid.uuid4(),)),
+        ):
+            with self.subTest(name):
+                view = resolve(reverse(name, args=args)).func
+                self.assertIn(ProxyRateThrottle, view_throttles(view))

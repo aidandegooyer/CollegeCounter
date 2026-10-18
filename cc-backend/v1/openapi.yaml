@@ -1,0 +1,1959 @@
+openapi: 3.1.0
+info:
+  title: College Counter API
+  version: 1.0.0
+  description: 'Read-only data behind collegecounter.org: teams, players, matches,
+    rankings and events. No authentication. Requests are limited per IP; a 429 response''s
+    Retry-After header says when to try again.'
+paths:
+  /v1/public/competitions:
+    get:
+      operationId: list_competitions
+      description: Deduplicated by name, ignoring case, and sorted by name. Filter
+        matches by competition with `competition_name`.
+      summary: List competition names
+      parameters:
+      - in: query
+        name: season_id
+        schema:
+          type: string
+          format: uuid
+        description: Competitions with matches in this season
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompetitionNames'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: See `error`
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Throttled'
+          description: Too many requests from this IP; see Retry-After
+  /v1/public/events:
+    get:
+      operationId: list_events
+      description: |-
+        Public API endpoint to fetch events with various filters.
+
+        Query Parameters:
+        - id: Filter by event ID (comma-separated for multiple)
+        - name: Filter by event name (partial match)
+        - season_id: Filter by season ID
+        - featured: Filter by featured status (true/false)
+        - public_only: Only show public events (default: true)
+        - page: Page number (default: 1)
+        - page_size: Items per page (default: 20, max: 100)
+        - sort: Sort field (default: start_date)
+        - order: Sort order (asc or desc, default: desc)
+
+        Returns a paginated list of events.
+      summary: List events
+      parameters:
+      - in: query
+        name: featured
+        schema:
+          type: string
+          enum:
+          - 'false'
+          - 'true'
+        description: Featured status
+      - in: query
+        name: id
+        schema:
+          type: string
+        description: Event ID, or several comma-separated
+      - in: query
+        name: name
+        schema:
+          type: string
+        description: Name contains
+      - in: query
+        name: order
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+        description: Default desc
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Default 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Default 20, at most 100
+      - in: query
+        name: public_only
+        schema:
+          type: string
+          enum:
+          - 'false'
+          - 'true'
+        description: 'Default true: hide non-public events'
+      - in: query
+        name: season_id
+        schema:
+          type: string
+          format: uuid
+        description: Events in this season
+      - in: query
+        name: sort
+        schema:
+          type: string
+          enum:
+          - end_date
+          - name
+          - start_date
+        description: Default start_date
+      - in: query
+        name: trophycase
+        schema:
+          type: string
+          enum:
+          - 'false'
+          - 'true'
+        description: Trophy case status
+      - in: query
+        name: winner_id
+        schema:
+          type: string
+          format: uuid
+        description: Events this team won
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEventList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: See `error`
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Throttled'
+          description: Too many requests from this IP; see Retry-After
+  /v1/public/events/{event_id}:
+    get:
+      operationId: get_event
+      description: Public API endpoint to fetch a single event by ID.
+      summary: Get an event
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicEvent'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: See `error`
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Throttled'
+          description: Too many requests from this IP; see Retry-After
+  /v1/public/matches:
+    get:
+      operationId: list_matches
+      description: |-
+        Public API endpoint to fetch matches with various filters.
+
+        Query Parameters:
+        - id: Filter by match ID (comma-separated for multiple)
+        - team_id: Filter by team ID (matches where team is team1 or team2)
+        - team_id_1: Filter by first team ID (requires team_id_2, matches between these two teams)
+        - team_id_2: Filter by second team ID (requires team_id_1, matches between these two teams)
+        - status: Filter by status (scheduled, in_progress, completed, cancelled)
+        - platform: Filter by platform (faceit, playfly)
+        - date_from: Filter by date (matches after this date, format: YYYY-MM-DD)
+        - date_to: Filter by date (matches before this date, format: YYYY-MM-DD)
+        - season_id: Filter by season ID
+        - competition_id: Filter by competition ID
+        - event_id: Filter by event ID (matches that are part of a specific event)
+        - page: Page number (default: 1)
+        - page_size: Items per page (default: 20, max: 100)
+        - sort: Sort field (default: -date for most recent first)
+        - order: Sort order (asc or desc, default: asc)
+
+        Returns a paginated list of matches.
+      summary: List matches
+      parameters:
+      - in: query
+        name: competition_id
+        schema:
+          type: string
+          format: uuid
+        description: Matches in this competition
+      - in: query
+        name: competition_name
+        schema:
+          type: string
+        description: Exact competition name, ignoring case (see /competitions)
+      - in: query
+        name: date_from
+        schema:
+          type: string
+        description: 'On or after: YYYY-MM-DD or ISO datetime'
+      - in: query
+        name: date_to
+        schema:
+          type: string
+        description: On or before (a bare date includes that day)
+      - in: query
+        name: event_id
+        schema:
+          type: string
+          format: uuid
+        description: Matches in this event
+      - in: query
+        name: id
+        schema:
+          type: string
+        description: Match ID, or several comma-separated
+      - in: query
+        name: order
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+        description: Default desc
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Default 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Default 20, at most 100
+      - in: query
+        name: platform
+        schema:
+          type: string
+          enum:
+          - faceit
+          - playfly
+        description: Platform
+      - in: query
+        name: season_id
+        schema:
+          type: string
+          format: uuid
+        description: Matches in this season
+      - in: query
+        name: sort
+        schema:
+          type: string
+          enum:
+          - date
+          - status
+        description: Default date
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - cancelled
+          - completed
+          - in_progress
+          - scheduled
+        description: Match status
+      - in: query
+        name: team_id
+        schema:
+          type: string
+          format: uuid
+        description: Matches this team played in
+      - in: query
+        name: team_id_1
+        schema:
+          type: string
+          format: uuid
+        description: 'With team_id_2: matches between the two teams'
+      - in: query
+        name: team_id_2
+        schema:
+          type: string
+          format: uuid
+        description: 'With team_id_1: matches between the two teams'
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMatchList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: See `error`
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Throttled'
+          description: Too many requests from this IP; see Retry-After
+  /v1/public/players:
+    get:
+      operationId: list_players
+      description: |-
+        Public API endpoint to fetch players with various filters.
+
+        Query Parameters:
+        - id: Filter by player ID (comma-separated for multiple)
+        - name: Filter by player name (partial match)
+        - team_id: Filter by team ID
+        - steam_id: Filter by Steam ID
+        - faceit_id: Filter by Faceit ID
+        - visible: Filter by visibility (true/false)
+        - benched: Filter by bench status (true/false)
+        - page: Page number (default: 1)
+        - page_size: Items per page (default: 20, max: 100)
+        - sort: Sort field (default: name)
+        - order: Sort order (asc or desc, default: asc)
+        - season_id: Filter players that participated in a specific season
+
+        Returns a paginated list of players.
+      summary: List players
+      parameters:
+      - in: query
+        name: benched
+        schema:
+          type: string
+          enum:
+          - 'false'
+          - 'true'
+        description: Bench status
+      - in: query
+        name: faceit_id
+        schema:
+          type: string
+        description: Exact Faceit ID
+      - in: query
+        name: id
+        schema:
+          type: string
+        description: Player ID, or several comma-separated
+      - in: query
+        name: name
+        schema:
+          type: string
+        description: Name contains
+      - in: query
+        name: order
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+        description: Default asc
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Default 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Default 20, at most 100
+      - in: query
+        name: season_id
+        schema:
+          type: string
+          format: uuid
+        description: Players in this season
+      - in: query
+        name: sort
+        schema:
+          type: string
+          enum:
+          - elo
+          - name
+          - skill_level
+        description: Default name
+      - in: query
+        name: steam_id
+        schema:
+          type: string
+        description: Exact Steam ID
+      - in: query
+        name: team_id
+        schema:
+          type: string
+          format: uuid
+        description: Players on this team
+      - in: query
+        name: visible
+        schema:
+          type: string
+          enum:
+          - 'false'
+          - 'true'
+        description: 'Default: visible players only'
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPlayerList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: See `error`
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Throttled'
+          description: Too many requests from this IP; see Retry-After
+  /v1/public/ranking-items:
+    get:
+      operationId: list_ranking_items
+      description: |-
+        Public API endpoint to fetch ranking items for a specific ranking.
+
+        Query Parameters:
+        - ranking_id: Filter by ranking ID (required)
+        - page: Page number (default: 1)
+        - page_size: Items per page (default: 20, max: 100)
+        - sort: Sort field (default: rank)
+        - order: Sort order (asc or desc, default: asc)
+
+        Returns a paginated list of ranking items.
+      summary: List the teams in a ranking
+      parameters:
+      - in: query
+        name: order
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+        description: Default asc
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Default 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Default 20, at most 100
+      - in: query
+        name: ranking_id
+        schema:
+          type: string
+          format: uuid
+        description: The ranking
+        required: true
+      - in: query
+        name: sort
+        schema:
+          type: string
+          enum:
+          - elo
+          - rank
+        description: Default rank
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRankingItemList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: See `error`
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Throttled'
+          description: Too many requests from this IP; see Retry-After
+  /v1/public/rankings:
+    get:
+      operationId: list_rankings
+      description: |-
+        Public API endpoint to fetch rankings with various filters.
+
+        Query Parameters:
+        - season_id: Filter by season ID (required for filtering)
+        - page: Page number (default: 1)
+        - page_size: Items per page (default: 20, max: 100)
+        - sort: Sort field (default: -date for most recent first)
+        - order: Sort order (asc or desc, default: desc)
+
+        Returns a paginated list of rankings.
+      summary: List ranking snapshots
+      parameters:
+      - in: query
+        name: order
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+        description: Default desc
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Default 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Default 20, at most 100
+      - in: query
+        name: season_id
+        schema:
+          type: string
+          format: uuid
+        description: Rankings in this season
+      - in: query
+        name: sort
+        schema:
+          type: string
+          enum:
+          - date
+        description: Default date
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRankingList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: See `error`
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Throttled'
+          description: Too many requests from this IP; see Retry-After
+  /v1/public/search:
+    get:
+      operationId: search
+      description: |-
+        Public API endpoint to search across teams, players, and events.
+
+        Query Parameters:
+        - q: Search query (required)
+        - limit: Max results per section (default: 6, max: 20)
+      summary: Search teams, players and events
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        description: Results per section, 1-20 (default 6)
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: Search text; an empty query returns no results
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResults'
+          description: ''
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Throttled'
+          description: Too many requests from this IP; see Retry-After
+  /v1/public/seasons:
+    get:
+      operationId: list_seasons
+      description: |-
+        Public API endpoint to fetch seasons.
+
+        Query Parameters:
+        - id: Filter by season ID (comma-separated for multiple)
+        - current: Filter for current season (true/false)
+        - page: Page number (default: 1)
+        - page_size: Items per page (default: 20, max: 100)
+        - sort: Sort field (default: -start_date for most recent first)
+        - order: Sort order (asc or desc, default: desc)
+
+        Returns a paginated list of seasons.
+      summary: List seasons
+      parameters:
+      - in: query
+        name: current
+        schema:
+          type: string
+          enum:
+          - 'false'
+          - 'true'
+        description: 'true: only the current season'
+      - in: query
+        name: id
+        schema:
+          type: string
+        description: Season ID, or several comma-separated
+      - in: query
+        name: order
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+        description: Default desc
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Default 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Default 20, at most 100
+      - in: query
+        name: sort
+        schema:
+          type: string
+          enum:
+          - end_date
+          - name
+          - start_date
+        description: Default start_date
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSeasonList'
+          description: ''
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Throttled'
+          description: Too many requests from this IP; see Retry-After
+  /v1/public/team-current-ranking:
+    get:
+      operationId: get_team_current_ranking
+      description: The team's place in the season's latest ranking.
+      summary: Get a team's current ranking
+      parameters:
+      - in: query
+        name: season_id
+        schema:
+          type: string
+          format: uuid
+        description: 'Default: the current season'
+      - in: query
+        name: team_id
+        schema:
+          type: string
+          format: uuid
+        description: The team
+        required: true
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamRankingItem'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: See `error`
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: See `error`
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Throttled'
+          description: Too many requests from this IP; see Retry-After
+  /v1/public/team_ranking_history:
+    get:
+      operationId: get_team_ranking_history
+      description: |-
+        Public API endpoint to fetch a team's ranking history.
+
+        Query Parameters:
+        - team_id: Team ID (required)
+        - season_id: Season ID (optional)
+
+        Returns a list of ranking items for the team.
+      summary: Get a team's ranking history
+      parameters:
+      - in: query
+        name: season_id
+        schema:
+          type: string
+          format: uuid
+        description: Only rankings in this season
+      - in: query
+        name: team_id
+        schema:
+          type: string
+          format: uuid
+        description: The team
+        required: true
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamRankingHistory'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: See `error`
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Throttled'
+          description: Too many requests from this IP; see Retry-After
+  /v1/public/team_recent_form:
+    get:
+      operationId: get_team_recent_form
+      description: |-
+        Public API endpoint to fetch a team's recent match form.
+
+        Query Parameters:
+        - team_id: Team ID (required)
+        - limit: Number of recent matches to fetch (default: 5, max: 20)
+
+        Returns a list of recent matches with results.
+      summary: Get a team's recent results
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        description: Completed matches, at most 5 (default 3)
+      - in: query
+        name: team_id
+        schema:
+          type: string
+          format: uuid
+        description: The team
+        required: true
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamRecentForm'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: See `error`
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Throttled'
+          description: Too many requests from this IP; see Retry-After
+  /v1/public/teams:
+    get:
+      operationId: list_teams
+      description: |-
+        Public API endpoint to fetch teams with various filters.
+
+        Query Parameters:
+        - id: Filter by team ID (comma-separated for multiple)
+        - name: Filter by team name (partial match)
+        - school_name: Filter by school name (partial match)
+        - season_id: Filter by season ID
+        - competition_id: Filter by competition ID
+        - event_id: Filter teams that have matches in a specific event
+        - page: Page number (default: 1)
+        - page_size: Items per page (default: 20, max: 100)
+        - sort: Sort field (default: name)
+        - order: Sort order (asc or desc, default: asc)
+        - season_id: Filter teams that participated in a specific season
+
+        Returns a paginated list of teams with their current ranking information.
+        Each team includes current_ranking with rank and elo from the latest ranking snapshot.
+      summary: List teams
+      parameters:
+      - in: query
+        name: competition_id
+        schema:
+          type: string
+          format: uuid
+        description: Teams in this competition
+      - in: query
+        name: event_id
+        schema:
+          type: string
+          format: uuid
+        description: Teams with a match in this event
+      - in: query
+        name: id
+        schema:
+          type: string
+        description: Team ID, or several comma-separated
+      - in: query
+        name: name
+        schema:
+          type: string
+        description: Name contains
+      - in: query
+        name: order
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+        description: Default asc
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Default 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Default 20, at most 100
+      - in: query
+        name: school_name
+        schema:
+          type: string
+        description: School name contains
+      - in: query
+        name: season_id
+        schema:
+          type: string
+          format: uuid
+        description: Teams in this season
+      - in: query
+        name: sort
+        schema:
+          type: string
+          enum:
+          - elo
+          - name
+          - school_name
+        description: Default name
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTeamList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: See `error`
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Throttled'
+          description: Too many requests from this IP; see Retry-After
+  /v1/public/version:
+    get:
+      operationId: get_version
+      description: The public API version and the build that's running.
+      summary: Get the API version and running build
+      tags:
+      - public
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Version'
+          description: ''
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Throttled'
+          description: Too many requests from this IP; see Retry-After
+components:
+  schemas:
+    CompetitionName:
+      type: object
+      properties:
+        name:
+          type: string
+      required:
+      - name
+    CompetitionNames:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompetitionName'
+      required:
+      - results
+    CompetitionRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - name
+    CustomEventDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        bracket_link:
+          type:
+          - string
+          - 'null'
+          format: uri
+        stream_link:
+          type:
+          - string
+          - 'null'
+          format: uri
+        secondary_stream_link:
+          type:
+          - string
+          - 'null'
+          format: uri
+        discord_link:
+          type:
+          - string
+          - 'null'
+          format: uri
+        registration_link:
+          type:
+          - string
+          - 'null'
+          format: uri
+        rules_document:
+          type:
+          - string
+          - 'null'
+          format: uri
+        prize_pool:
+          type:
+          - string
+          - 'null'
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        prize_currency:
+          type: string
+        max_teams:
+          type:
+          - integer
+          - 'null'
+        entry_fee:
+          type:
+          - string
+          - 'null'
+          format: decimal
+          pattern: ^-?\d{0,6}(?:\.\d{0,2})?$
+        format:
+          type:
+          - string
+          - 'null'
+        game_mode:
+          type:
+          - string
+          - 'null'
+        division:
+          type:
+          - string
+          - 'null'
+          description: honors or open
+        is_featured:
+          type: boolean
+        is_trophycase:
+          type: boolean
+        is_public:
+          type: boolean
+        registration_open:
+          type: boolean
+        registration_deadline:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        twitter_hashtag:
+          type:
+          - string
+          - 'null'
+        metadata:
+          type: object
+          additionalProperties: {}
+      required:
+      - bracket_link
+      - discord_link
+      - division
+      - entry_fee
+      - format
+      - game_mode
+      - id
+      - is_featured
+      - is_public
+      - is_trophycase
+      - max_teams
+      - metadata
+      - prize_currency
+      - prize_pool
+      - registration_deadline
+      - registration_link
+      - registration_open
+      - rules_document
+      - secondary_stream_link
+      - stream_link
+      - twitter_hashtag
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+      - error
+    EventRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - name
+    MatchElo:
+      type: object
+      properties:
+        applied:
+          type: boolean
+        team1_before:
+          type:
+          - integer
+          - 'null'
+        team2_before:
+          type:
+          - integer
+          - 'null'
+        team1_change:
+          type:
+          - integer
+          - 'null'
+        team2_change:
+          type:
+          - integer
+          - 'null'
+      required:
+      - applied
+      - team1_before
+      - team1_change
+      - team2_before
+      - team2_change
+    MatchEventMatch:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        event:
+          $ref: '#/components/schemas/EventRef'
+        round:
+          type: integer
+        num_in_bracket:
+          type: integer
+        is_bye:
+          type: boolean
+        extra_info:
+          type: object
+          additionalProperties: {}
+          description: Round name, bracket position, etc.
+      required:
+      - event
+      - extra_info
+      - id
+      - is_bye
+      - num_in_bracket
+      - round
+    MatchTeam:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        picture:
+          type:
+          - string
+          - 'null'
+          format: uri
+        elo:
+          type: integer
+          description: The team's current Elo
+        faceit_id:
+          type:
+          - string
+          - 'null'
+          description: The team's Faceit ID in this competition
+      required:
+      - elo
+      - faceit_id
+      - id
+      - name
+      - picture
+    PaginatedEventList:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Results across all pages
+        total_pages:
+          type: integer
+        current_page:
+          type: integer
+        page_size:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicEvent'
+      required:
+      - count
+      - current_page
+      - page_size
+      - results
+      - total_pages
+    PaginatedMatchList:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Results across all pages
+        total_pages:
+          type: integer
+        current_page:
+          type: integer
+        page_size:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicMatch'
+      required:
+      - count
+      - current_page
+      - page_size
+      - results
+      - total_pages
+    PaginatedPlayerList:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Results across all pages
+        total_pages:
+          type: integer
+        current_page:
+          type: integer
+        page_size:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicPlayer'
+      required:
+      - count
+      - current_page
+      - page_size
+      - results
+      - total_pages
+    PaginatedRankingItemList:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Results across all pages
+        total_pages:
+          type: integer
+        current_page:
+          type: integer
+        page_size:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicRankingItem'
+      required:
+      - count
+      - current_page
+      - page_size
+      - results
+      - total_pages
+    PaginatedRankingList:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Results across all pages
+        total_pages:
+          type: integer
+        current_page:
+          type: integer
+        page_size:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicRanking'
+      required:
+      - count
+      - current_page
+      - page_size
+      - results
+      - total_pages
+    PaginatedSeasonList:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Results across all pages
+        total_pages:
+          type: integer
+        current_page:
+          type: integer
+        page_size:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicSeason'
+      required:
+      - count
+      - current_page
+      - page_size
+      - results
+      - total_pages
+    PaginatedTeamList:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Results across all pages
+        total_pages:
+          type: integer
+        current_page:
+          type: integer
+        page_size:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicTeam'
+      required:
+      - count
+      - current_page
+      - page_size
+      - results
+      - total_pages
+    PlayerWithPicture:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        picture:
+          type:
+          - string
+          - 'null'
+          format: uri
+      required:
+      - id
+      - name
+      - picture
+    PublicEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        start_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+        description:
+          type:
+          - string
+          - 'null'
+        picture:
+          type:
+          - string
+          - 'null'
+          format: uri
+        winner:
+          oneOf:
+          - $ref: '#/components/schemas/RankedTeam'
+          - type: 'null'
+        season:
+          oneOf:
+          - $ref: '#/components/schemas/SeasonRef'
+          - type: 'null'
+        custom_details:
+          allOf:
+          - $ref: '#/components/schemas/CustomEventDetails'
+          description: Only for events created on College Counter
+      required:
+      - description
+      - end_date
+      - id
+      - name
+      - picture
+      - season
+      - start_date
+      - winner
+    PublicMatch:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        team1:
+          $ref: '#/components/schemas/MatchTeam'
+        team2:
+          $ref: '#/components/schemas/MatchTeam'
+        date:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        url:
+          type:
+          - string
+          - 'null'
+          format: uri
+        winner:
+          oneOf:
+          - $ref: '#/components/schemas/TeamRef'
+          - type: 'null'
+        score_team1:
+          type: integer
+        score_team2:
+          type: integer
+        elo:
+          $ref: '#/components/schemas/MatchElo'
+        platform:
+          type: string
+          description: faceit, playfly, ...
+        season:
+          oneOf:
+          - $ref: '#/components/schemas/SeasonRef'
+          - type: 'null'
+        competition:
+          oneOf:
+          - $ref: '#/components/schemas/CompetitionRef'
+          - type: 'null'
+        event_match:
+          oneOf:
+          - $ref: '#/components/schemas/MatchEventMatch'
+          - type: 'null'
+      required:
+      - competition
+      - date
+      - elo
+      - event_match
+      - id
+      - platform
+      - score_team1
+      - score_team2
+      - season
+      - status
+      - team1
+      - team2
+      - url
+      - winner
+    PublicPlayer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        picture:
+          type:
+          - string
+          - 'null'
+          format: uri
+        skill_level:
+          type: integer
+        steam_id:
+          type:
+          - string
+          - 'null'
+        faceit_id:
+          type:
+          - string
+          - 'null'
+        elo:
+          type: integer
+        team:
+          oneOf:
+          - $ref: '#/components/schemas/TeamWithPicture'
+          - type: 'null'
+        benched:
+          type: boolean
+        visible:
+          type: boolean
+      required:
+      - benched
+      - elo
+      - faceit_id
+      - id
+      - name
+      - picture
+      - skill_level
+      - steam_id
+      - team
+      - visible
+    PublicRanking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date-time
+        season:
+          oneOf:
+          - $ref: '#/components/schemas/SeasonRef'
+          - type: 'null'
+      required:
+      - date
+      - id
+      - season
+    PublicRankingItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rank:
+          type: integer
+        elo:
+          type: integer
+        team:
+          $ref: '#/components/schemas/RankedTeam'
+        ranking:
+          $ref: '#/components/schemas/RankingRef'
+      required:
+      - elo
+      - id
+      - rank
+      - ranking
+      - team
+    PublicSeason:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        start_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+        is_current:
+          type: boolean
+      required:
+      - end_date
+      - id
+      - is_current
+      - name
+      - start_date
+    PublicTeam:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        picture:
+          type:
+          - string
+          - 'null'
+          format: uri
+        school_name:
+          type:
+          - string
+          - 'null'
+        elo:
+          type: integer
+        captain:
+          oneOf:
+          - $ref: '#/components/schemas/PlayerWithPicture'
+          - type: 'null'
+        current_competitions:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompetitionRef'
+        current_ranking:
+          oneOf:
+          - $ref: '#/components/schemas/TeamCurrentRanking'
+          - type: 'null'
+          description: In the current season's latest ranking
+      required:
+      - captain
+      - current_competitions
+      - current_ranking
+      - elo
+      - id
+      - name
+      - picture
+      - school_name
+    RankedTeam:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        picture:
+          type:
+          - string
+          - 'null'
+          format: uri
+        school_name:
+          type:
+          - string
+          - 'null'
+      required:
+      - id
+      - name
+      - picture
+      - school_name
+    RankingHistoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rank:
+          type: integer
+        elo:
+          type: integer
+        ranking_date:
+          type: string
+          format: date-time
+        season:
+          oneOf:
+          - $ref: '#/components/schemas/SeasonRef'
+          - type: 'null'
+      required:
+      - elo
+      - id
+      - rank
+      - ranking_date
+      - season
+    RankingRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date-time
+      required:
+      - date
+      - id
+    RecentResult:
+      type: object
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultEnum'
+        opponent:
+          $ref: '#/components/schemas/TeamWithPicture'
+      required:
+      - opponent
+      - result
+    ResultEnum:
+      enum:
+      - win
+      - loss
+      - draw
+      type: string
+      description: |-
+        * `win` - win
+        * `loss` - loss
+        * `draw` - draw
+    SearchEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        start_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+        picture:
+          type:
+          - string
+          - 'null'
+          format: uri
+        season:
+          oneOf:
+          - $ref: '#/components/schemas/SeasonRef'
+          - type: 'null'
+        winner:
+          oneOf:
+          - $ref: '#/components/schemas/TeamRef'
+          - type: 'null'
+      required:
+      - end_date
+      - id
+      - name
+      - picture
+      - season
+      - start_date
+      - winner
+    SearchPlayer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        picture:
+          type:
+          - string
+          - 'null'
+          format: uri
+        elo:
+          type: integer
+        team:
+          oneOf:
+          - $ref: '#/components/schemas/TeamRef'
+          - type: 'null'
+      required:
+      - elo
+      - id
+      - name
+      - picture
+      - team
+    SearchResults:
+      type: object
+      properties:
+        query:
+          type: string
+        limit:
+          type: integer
+        total_results:
+          type: integer
+        teams:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchTeam'
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchPlayer'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchEvent'
+      required:
+      - events
+      - limit
+      - players
+      - query
+      - teams
+      - total_results
+    SearchTeam:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        school_name:
+          type:
+          - string
+          - 'null'
+        picture:
+          type:
+          - string
+          - 'null'
+          format: uri
+        elo:
+          type: integer
+      required:
+      - elo
+      - id
+      - name
+      - picture
+      - school_name
+    SeasonRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - name
+    StatusEnum:
+      enum:
+      - scheduled
+      - in_progress
+      - completed
+      - cancelled
+      type: string
+      description: |-
+        * `scheduled` - scheduled
+        * `in_progress` - in_progress
+        * `completed` - completed
+        * `cancelled` - cancelled
+    TeamCurrentRanking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rank:
+          type: integer
+        elo:
+          type: integer
+        ranking:
+          $ref: '#/components/schemas/RankingRef'
+        season:
+          $ref: '#/components/schemas/SeasonRef'
+      required:
+      - elo
+      - id
+      - rank
+      - ranking
+      - season
+    TeamRankingHistory:
+      type: object
+      properties:
+        team_id:
+          type: string
+          format: uuid
+        ranking_history:
+          type: array
+          items:
+            $ref: '#/components/schemas/RankingHistoryItem'
+          description: Newest first
+      required:
+      - ranking_history
+      - team_id
+    TeamRankingItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rank:
+          type: integer
+        elo:
+          type: integer
+        team:
+          $ref: '#/components/schemas/RankedTeam'
+        ranking:
+          $ref: '#/components/schemas/RankingRef'
+        season:
+          oneOf:
+          - $ref: '#/components/schemas/SeasonRef'
+          - type: 'null'
+      required:
+      - elo
+      - id
+      - rank
+      - ranking
+      - season
+      - team
+    TeamRecentForm:
+      type: object
+      properties:
+        team_id:
+          type: string
+          format: uuid
+        recent_form:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecentResult'
+          description: Newest first
+      required:
+      - recent_form
+      - team_id
+    TeamRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - name
+    TeamWithPicture:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        picture:
+          type:
+          - string
+          - 'null'
+          format: uri
+      required:
+      - id
+      - name
+      - picture
+    Throttled:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    Version:
+      type: object
+      properties:
+        api:
+          type: string
+          description: Semver version of this API's contract
+        build:
+          type: string
+          description: Git commit the server was built from, or dev
+        built_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required:
+      - api
+      - build
+      - built_at
+servers:
+- url: https://api.collegecounter.org

@@ -1,4 +1,5 @@
 .python-version
+.claude
 .DS_Store
 deploy_instructions.txt
 deploy.sh

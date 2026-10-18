@@ -1,6 +1,7 @@
 from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.response import Response
 from rest_framework import status
+from django.conf import settings
 from django.db.models import Q
 from django.core.paginator import Paginator
 from django.utils.dateparse import parse_datetime
@@ -19,6 +20,7 @@ from .models import (
     RankingItem,
     Competition,
 )
+from . import public_schema
 from .throttles import PublicRateThrottle
 from .views.elo import match_elo_data
 
@@ -33,6 +35,21 @@ def safe_uuid(value):
     return uuid.UUID(value)
 
 
+@public_schema.version_schema
+@api_view(["GET"])
+@throttle_classes([PublicRateThrottle])
+def public_version(request):
+    """The public API version and the build that's running."""
+    return Response(
+        {
+            "api": settings.API_VERSION,
+            "build": settings.BUILD_SHA,
+            "built_at": settings.BUILD_DATE,
+        }
+    )
+
+
+@public_schema.search_schema
 @api_view(["GET"])
 @throttle_classes([PublicRateThrottle])
 def public_search(request):
@@ -62,7 +79,6 @@ def public_search(request):
                 "teams": [],
                 "players": [],
                 "events": [],
-                "matches": [],
             }
         )
 
@@ -162,6 +178,7 @@ def public_search(request):
     )
 
 
+@public_schema.teams_schema
 @api_view(["GET"])
 @throttle_classes([PublicRateThrottle])
 def public_teams(request):
@@ -390,6 +407,7 @@ def public_teams(request):
     return Response(result)
 
 
+@public_schema.players_schema
 @api_view(["GET"])
 @throttle_classes([PublicRateThrottle])
 def public_players(request):
@@ -532,6 +550,7 @@ def public_players(request):
     return Response(result)
 
 
+@public_schema.matches_schema
 @api_view(["GET"])
 @throttle_classes([PublicRateThrottle])
 def public_matches(request):
@@ -834,6 +853,7 @@ def public_matches(request):
     return Response(result)
 
 
+@public_schema.seasons_schema
 @api_view(["GET"])
 @throttle_classes([PublicRateThrottle])
 def public_seasons(request):
@@ -924,6 +944,7 @@ def public_seasons(request):
     return Response(result)
 
 
+@public_schema.competitions_schema
 @api_view(["GET"])
 @throttle_classes([PublicRateThrottle])
 def public_competitions(request):
@@ -961,6 +982,7 @@ def public_competitions(request):
     )
 
 
+@public_schema.rankings_schema
 @api_view(["GET"])
 @throttle_classes([PublicRateThrottle])
 def public_rankings(request):
@@ -1041,6 +1063,7 @@ def public_rankings(request):
     return Response(result)
 
 
+@public_schema.ranking_items_schema
 @api_view(["GET"])
 @throttle_classes([PublicRateThrottle])
 def public_ranking_items(request):
@@ -1135,6 +1158,7 @@ def public_ranking_items(request):
     return Response(result)
 
 
+@public_schema.team_current_ranking_schema
 @api_view(["GET"])
 @throttle_classes([PublicRateThrottle])
 def public_team_current_ranking(request):
@@ -1239,6 +1263,7 @@ def public_team_current_ranking(request):
     return Response(result)
 
 
+@public_schema.events_schema
 @api_view(["GET"])
 @throttle_classes([PublicRateThrottle])
 def public_events(request):
@@ -1426,6 +1451,7 @@ def public_events(request):
     )
 
 
+@public_schema.event_detail_schema
 @api_view(["GET"])
 @throttle_classes([PublicRateThrottle])
 def public_event_detail(request, event_id):
@@ -1510,6 +1536,7 @@ def public_event_detail(request, event_id):
         return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
+@public_schema.team_recent_form_schema
 @api_view(["GET"])
 @throttle_classes([PublicRateThrottle])
 def public_team_recent_form(request):
@@ -1576,6 +1603,7 @@ def public_team_recent_form(request):
     return Response({"team_id": team_id, "recent_form": results})
 
 
+@public_schema.team_ranking_history_schema
 @api_view(["GET"])
 @throttle_classes([PublicRateThrottle])
 def public_team_ranking_history(request):
