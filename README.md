@@ -344,7 +344,8 @@ On the droplet, `scripts/deploy-prod.sh` pulls `main` and rebuilds with the
 commit baked into the images. The site footer shows it (`build 8f03a25`), as
 do the API docs' version (`1.0.0+8f03a25`) and
 `https://api.collegecounter.org/v1/public/version`, so you can check what's
-running. A plain `docker compose up --build` works too, but shows `dev`
+running. The script waits for that endpoint to report the new commit and
+fails, printing the backend's logs, if it doesn't within ~2 minutes. A plain `docker compose up --build` works too, but shows `dev`
 instead of the commit.
 
 ### Backups
