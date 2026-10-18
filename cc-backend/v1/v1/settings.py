@@ -83,6 +83,21 @@ FIREBASE_ADMIN_CREDENTIAL = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 FIREBASE_STORAGE_BUCKET = "college-counter-9057f.firebasestorage.app"
 
+# Team/player/event pictures (cc/images.py): an S3-compatible bucket (AWS S3,
+# or DigitalOcean Spaces with IMAGE_STORAGE_ENDPOINT_URL) served by a CDN at
+# IMAGE_CDN_BASE_URL. Uploads are refused and external pictures aren't copied
+# while the bucket or CDN URL is unset (dev, CI).
+IMAGE_STORAGE_BUCKET = os.getenv("IMAGE_STORAGE_BUCKET", "")
+IMAGE_CDN_BASE_URL = os.getenv("IMAGE_CDN_BASE_URL", "").rstrip("/")
+IMAGE_STORAGE_REGION = os.getenv("IMAGE_STORAGE_REGION", "us-east-1")
+IMAGE_STORAGE_ENDPOINT_URL = os.getenv("IMAGE_STORAGE_ENDPOINT_URL") or None
+# "public-read" for Spaces, whose CDN only serves public files. Empty for AWS:
+# CloudFront reads the private bucket, and new S3 buckets refuse ACLs.
+IMAGE_STORAGE_ACL = os.getenv("IMAGE_STORAGE_ACL", "")
+# Unset falls back to boto3's usual credential chain
+IMAGE_AWS_ACCESS_KEY_ID = os.getenv("IMAGE_AWS_ACCESS_KEY_ID") or None
+IMAGE_AWS_SECRET_ACCESS_KEY = os.getenv("IMAGE_AWS_SECRET_ACCESS_KEY") or None
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

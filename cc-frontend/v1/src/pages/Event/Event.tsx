@@ -29,6 +29,7 @@ import { CountdownTimer } from "@/components/CountdownTimer";
 import Logo from "@/components/Logo";
 import { calculateEloChanges } from "@/services/elo";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { pictureSrcSet } from "@/lib/images";
 
 export function Event() {
   const { id } = useParams<{ id: string }>();
@@ -156,6 +157,8 @@ export function Event() {
                     <div className="h-18 w-18">
                       <img
                         src={event.picture}
+                        srcSet={pictureSrcSet(event.picture)}
+                        sizes="72px"
                         alt={event.name}
                         className="h-full w-full rounded-lg object-cover"
                       />

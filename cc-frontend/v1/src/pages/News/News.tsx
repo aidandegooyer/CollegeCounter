@@ -6,6 +6,7 @@ import { useState, useEffect, type ReactNode } from "react";
 import { Link } from "react-router";
 import AuthorName from "./AuthorName";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { sanityImageProps } from "@/lib/images";
 
 interface SanityPost {
   _id: string;
@@ -163,11 +164,12 @@ function SectionLabel({ children }: { children: ReactNode }) {
   );
 }
 
-// Post images are 1000x450; shown whole, never cropped
-function StoryImage({ post }: { post: SanityPost }) {
+// Post images are 1000x450; shown whole, never cropped. `sizes` is the
+// displayed width, so the browser fetches no bigger a copy than it needs
+function StoryImage({ post, sizes }: { post: SanityPost; sizes: string }) {
   return (
     <img
-      src={post.imageUrl || logo}
+      {...sanityImageProps(post.imageUrl || logo, sizes)}
       className="aspect-[1000/450] w-full rounded-xl object-contain"
       alt={post.title}
     />
@@ -217,7 +219,7 @@ function TitleLink({
 function LeadStory({ post }: { post: SanityPost }) {
   return (
     <article className={`${CARD} flex-1`}>
-      <StoryImage post={post} />
+      <StoryImage post={post} sizes="(min-width: 1024px) 800px, 100vw" />
       <div className="flex flex-1 flex-col p-4 pt-2">
         <h3 className="text-2xl font-semibold">
           <TitleLink post={post}>{post.title}</TitleLink>
@@ -252,7 +254,10 @@ function SidebarStory({ post }: { post: SanityPost }) {
 function GridStory({ post }: { post: SanityPost }) {
   return (
     <article className={CARD}>
-      <StoryImage post={post} />
+      <StoryImage
+        post={post}
+        sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
+      />
       <div className="flex flex-1 flex-col p-4 pt-2">
         <h3 className="font-semibold">
           <TitleLink post={post}>{post.title}</TitleLink>

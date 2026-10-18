@@ -7,6 +7,7 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { useNavigate } from "react-router";
 import cc_news from "@/assets/cc news.png";
 import AuthorName from "@/pages/News/AuthorName";
+import { sanityImageProps } from "@/lib/images";
 
 interface PortableTextBlock {
   _type: "block";
@@ -127,7 +128,10 @@ function FeaturedNews({ post }: { post: SanityPost }) {
       onClick={handleClick}
     >
       <img
-        src={post.imageUrl || cc_news}
+        {...sanityImageProps(
+          post.imageUrl || cc_news,
+          "(min-width: 1024px) 50vw, 100vw",
+        )}
         className="max-h-64 w-full rounded-xl object-cover"
         alt={post.title}
       />

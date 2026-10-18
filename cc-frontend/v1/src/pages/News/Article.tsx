@@ -8,6 +8,10 @@ import { PortableText } from "@portabletext/react";
 import AuthorName from "./AuthorName";
 import type { PortableTextComponents } from "@portabletext/react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { sanityImageProps } from "@/lib/images";
+
+// Images fill the article's max-w-4xl (896px) column
+const ARTICLE_IMAGE_SIZES = "(min-width: 896px) 896px, 100vw";
 
 interface SanityImage {
   _type: "image";
@@ -143,7 +147,7 @@ function Article() {
         {post.imageUrl && (
           <div className="relative h-[400px] w-full">
             <img
-              src={post.imageUrl}
+              {...sanityImageProps(post.imageUrl, ARTICLE_IMAGE_SIZES)}
               alt={post.title}
               className="h-full w-full object-cover"
             />
@@ -266,8 +270,9 @@ const portableTextComponents: PortableTextComponents = {
       return (
         <div>
           <img
-            src={imageUrl}
+            {...sanityImageProps(imageUrl, ARTICLE_IMAGE_SIZES)}
             alt={value.alt || "Article Image"}
+            loading="lazy"
             className="mt-6 w-full rounded-lg"
           />
           <div className="border-primary bg-muted/30 text-foreground mb-6 mt-2 border-t-4 py-2 pl-4">

@@ -61,6 +61,14 @@ services:
       DISCORD_ALERTS_WEBHOOK_URL: ${DISCORD_ALERTS_WEBHOOK_URL}
       SERVICE_NAME: backend
       GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}
+      # Picture storage (cc/images.py); see README "Image storage"
+      IMAGE_STORAGE_BUCKET: ${IMAGE_STORAGE_BUCKET:-}
+      IMAGE_CDN_BASE_URL: ${IMAGE_CDN_BASE_URL:-}
+      IMAGE_STORAGE_REGION: ${IMAGE_STORAGE_REGION:-us-east-1}
+      IMAGE_STORAGE_ENDPOINT_URL: ${IMAGE_STORAGE_ENDPOINT_URL:-}
+      IMAGE_STORAGE_ACL: ${IMAGE_STORAGE_ACL:-}
+      IMAGE_AWS_ACCESS_KEY_ID: ${IMAGE_AWS_ACCESS_KEY_ID:-}
+      IMAGE_AWS_SECRET_ACCESS_KEY: ${IMAGE_AWS_SECRET_ACCESS_KEY:-}
       VIRTUAL_HOST: api.collegecounter.org
       LETSENCRYPT_HOST: api.collegecounter.org
       LETSENCRYPT_EMAIL: collegiatecounter@gmail.com
@@ -73,7 +81,8 @@ services:
         condition: service_healthy
 
   # Refreshes matches from Faceit / LeagueSpot / Regents League in the
-  # background (cc/views/match_sync.py). Same image as the backend; skips its
+  # background (cc/views/match_sync.py), and hourly copies pictures hosted
+  # elsewhere into the image bucket. Same image as the backend; skips its
   # entrypoint so only the backend runs migrations. No VIRTUAL_HOST, so the
   # proxy doesn't route to it.
   match-sync:
@@ -87,6 +96,13 @@ services:
       PLAYFLY_API_KEY: ${PLAYFLY_API_KEY}
       FACEIT_API_KEY: ${FACEIT_API_KEY}
       DATABASE_URL: ${DATABASE_URL}
+      IMAGE_STORAGE_BUCKET: ${IMAGE_STORAGE_BUCKET:-}
+      IMAGE_CDN_BASE_URL: ${IMAGE_CDN_BASE_URL:-}
+      IMAGE_STORAGE_REGION: ${IMAGE_STORAGE_REGION:-us-east-1}
+      IMAGE_STORAGE_ENDPOINT_URL: ${IMAGE_STORAGE_ENDPOINT_URL:-}
+      IMAGE_STORAGE_ACL: ${IMAGE_STORAGE_ACL:-}
+      IMAGE_AWS_ACCESS_KEY_ID: ${IMAGE_AWS_ACCESS_KEY_ID:-}
+      IMAGE_AWS_SECRET_ACCESS_KEY: ${IMAGE_AWS_SECRET_ACCESS_KEY:-}
     depends_on:
       db:
         condition: service_healthy
@@ -108,11 +124,15 @@ services:
       timeout: 5s
       retries: 12
 
-  # Daily pg_dump to ./backups (newest 14 kept). One-off backup:
+  # Daily pg_dump to ./backups (newest 14 kept), each also copied to
+  # BACKUP_S3_URI when it's set (see scripts/backup-db.sh). One-off backup:
   #   docker compose run --rm db-backup once
-  # Shows "unhealthy" in `docker compose ps` if no dump in the last 26h.
+  # Shows "unhealthy" in `docker compose ps` if no dump, or no off-site copy,
+  # in the last 26h. Failures also post to DISCORD_ALERTS_WEBHOOK_URL.
   db-backup:
-    image: postgres:15
+    build:
+      context: ./scripts
+      dockerfile: db-backup.Dockerfile
     restart: always
     entrypoint: ["/backup-db.sh"]
     environment:
@@ -122,11 +142,16 @@ services:
       PGDATABASE: ${POSTGRES_DB}
       KEEP_BACKUPS: 14
       BACKUP_HOUR_UTC: 9
+      BACKUP_S3_URI: ${BACKUP_S3_URI:-}
+      AWS_ACCESS_KEY_ID: ${BACKUP_AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${BACKUP_AWS_REGION:-us-east-1}
+      DISCORD_ALERTS_WEBHOOK_URL: ${DISCORD_ALERTS_WEBHOOK_URL:-}
     volumes:
       - ./scripts/backup-db.sh:/backup-db.sh:ro
       - ./backups:/backups
     healthcheck:
-      test: ["CMD-SHELL", "find /backups -name 'cc_*.sql.gz' -mmin -1560 | grep -q ."]
+      test: ["CMD-SHELL", "find /backups -name 'cc_*.sql.gz' -mmin -1560 | grep -q . && { [ -z \"$$BACKUP_S3_URI\" ] || find /backups -name .offsite_ok -mmin -1560 | grep -q .; }"]
       interval: 1h
       start_period: 5m
     depends_on:

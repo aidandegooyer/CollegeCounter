@@ -1,6 +1,5 @@
 import { api } from "./api-config";
 import type { Team, Player } from "./api";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // Team creation from Faceit
 export interface ImportTeamFromFaceitRequest {
@@ -44,41 +43,31 @@ export const updateTeam = async (
   return response.data.team;
 };
 
+// The backend resizes the picture, stores it on the image CDN and saves its
+// URL on the team/player/event (cc-backend/v1/cc/images.py)
+const uploadPicture = async (path: string, pictureFile: File): Promise<string> => {
+  const form = new FormData();
+  form.append("picture", pictureFile);
+  const response = await api.post(path, form);
+  return response.data.picture_url;
+};
+
+// Why a picture upload failed: the backend's reason ("Image storage isn't
+// configured", "Not a supported image", ...), or else axios's, e.g. for a 413
+// from the proxy
+export const pictureUploadError = (error: unknown): string => {
+  const err = error as
+    | { response?: { data?: { error?: string } }; message?: string }
+    | undefined;
+  return err?.response?.data?.error || err?.message || "unknown error";
+};
+
 export const uploadTeamPicture = async (
   teamId: string,
-  pictureFile: File,
-  additionalData?: {
-    name?: string;
-    school_name?: string;
-    elo?: number;
-  }
+  pictureFile: File
 ): Promise<{picture_url: string}> => {
-  try {
-    // Upload to Firebase Storage
-    const storage = getStorage();
-    const fileExtension = pictureFile.name.split('.').pop() || 'jpg';
-    const fileName = `teams/${teamId}_${Date.now()}.${fileExtension}`;
-    const storageRef = ref(storage, fileName);
-    
-    // Upload the file
-    await uploadBytes(storageRef, pictureFile);
-    
-    // Get the download URL
-    const downloadURL = await getDownloadURL(storageRef);
-    
-    // Send the URL and any additional data to the backend
-    const updateData = {
-      picture: downloadURL,
-      ...additionalData
-    };
-    
-    await api.put(`/teams/${teamId}/`, updateData);
-    
-    return { picture_url: downloadURL };
-  } catch (error) {
-    console.error('Error uploading team picture:', error);
-    throw error;
-  }
+  const picture_url = await uploadPicture(`/teams/${teamId}/picture/`, pictureFile);
+  return { picture_url };
 };
 
 // Player update and image upload functions
@@ -101,42 +90,19 @@ export const updatePlayer = async (
 
 export const uploadPlayerPicture = async (
   playerId: string,
-  pictureFile: File,
-  additionalData?: {
-    name?: string;
-    steam_id?: string;
-    faceit_id?: string;
-    elo?: number;
-    skill_level?: number;
-    team_id?: string | null;
-    benched?: boolean;
-    visible?: boolean;
-  }
+  pictureFile: File
 ): Promise<{picture_url: string}> => {
-  try {
-    // Upload to Firebase Storage
-    const storage = getStorage();
-    const fileExtension = pictureFile.name.split('.').pop() || 'jpg';
-    const fileName = `players/${playerId}_${Date.now()}.${fileExtension}`;
-    const storageRef = ref(storage, fileName);
-    
-    // Upload the file
-    await uploadBytes(storageRef, pictureFile);
-    
-    // Get the download URL
-    const downloadURL = await getDownloadURL(storageRef);
-    
-    // Send the URL and any additional data to the backend
-    const updateData = {
-      picture: downloadURL,
-      ...additionalData
-    };
-    
-    await api.put(`/players/${playerId}/`, updateData);
-    
-    return { picture_url: downloadURL };
-  } catch (error) {
-    console.error('Error uploading player picture:', error);
-    throw error;
-  }
+  const picture_url = await uploadPicture(`/players/${playerId}/picture/`, pictureFile);
+  return { picture_url };
+};
+
+export const uploadEventPicture = async (
+  customEventId: string,
+  pictureFile: File
+): Promise<{picture_url: string}> => {
+  const picture_url = await uploadPicture(
+    `/custom-events/${customEventId}/picture/`,
+    pictureFile
+  );
+  return { picture_url };
 };

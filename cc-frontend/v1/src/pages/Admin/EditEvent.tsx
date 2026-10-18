@@ -44,6 +44,11 @@ import SearchSelect, {
 } from "@/components/SearchSelect";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { AlertCircle, Check, Plus, Trash2 } from "lucide-react";
+import imageCompression from "browser-image-compression";
+import {
+  pictureUploadError,
+  uploadEventPicture,
+} from "@/services/api-team-player-edit";
 
 // Helper functions for timezone conversion
 const dateToLocalInput = (isoString: string | null | undefined): string => {
@@ -415,6 +420,7 @@ function EventEditForm({
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
   const [eventTeams, setEventTeams] = useState<PublicTeam[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(false);
 
@@ -482,6 +488,39 @@ function EventEditForm({
           ? parseFloat(value) || 0
           : value,
     }));
+  };
+
+  // Uploads right away (the backend saves it on the event) and fills in the
+  // URL field, so saving the form keeps it
+  const handlePictureFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const file = input.files?.[0];
+    if (!file) return;
+    setUploadingPicture(true);
+    try {
+      // Same limits as team/player pictures (EditTeamPlayer.tsx)
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 0.5,
+        maxWidthOrHeight: 512,
+        useWebWorker: true,
+        preserveExif: false,
+      });
+      const { picture_url } = await uploadEventPicture(
+        customEvent.id,
+        new File([compressed], file.name, { type: compressed.type }),
+      );
+      setFormData((prev) => ({ ...prev, picture: picture_url }));
+      setNotification({ type: "success", message: "Picture uploaded" });
+    } catch (error) {
+      console.error("Error uploading event picture:", error);
+      setNotification({
+        type: "error",
+        message: `Failed to upload picture (${pictureUploadError(error)})`,
+      });
+    } finally {
+      setUploadingPicture(false);
+      input.value = "";
+    }
   };
 
   const handleSelectChange = (value: string, name: string) => {
@@ -638,6 +677,16 @@ function EventEditForm({
               onChange={handleInputChange}
               placeholder="https://..."
             />
+            <div className="flex items-center gap-2">
+              <Input
+                id="picture_file"
+                type="file"
+                accept="image/*"
+                onChange={handlePictureFile}
+                disabled={uploadingPicture}
+              />
+              {uploadingPicture && <Spinner className="h-4 w-4" />}
+            </div>
           </div>
         </div>
 
