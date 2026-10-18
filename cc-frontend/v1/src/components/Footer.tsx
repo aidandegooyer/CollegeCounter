@@ -23,8 +23,10 @@ function Footer() {
               </span>
             </NavLink>
             <p className="text-muted-foreground text-sm">
-              Created by aidanxi, sensh1, and Kimmer-, with thanks to our
-              community volunteers.
+              Created by aidanxi, sensh1, and Kimmer-
+            </p>
+            <p className="text-muted-foreground/70 -mt-2 text-xs italic">
+              Thank you to our community volunteers for their contributions ♥
             </p>
           </div>
 
