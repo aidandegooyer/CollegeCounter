@@ -6,6 +6,7 @@ import {
   updatePlayer,
   uploadPlayerPicture,
   importTeamFromFaceit,
+  pictureUploadError,
 } from "@/services/api-team-player-edit";
 import type { Team, Player } from "@/services/api";
 import { Button } from "@/components/ui/button";
@@ -292,12 +293,21 @@ function TeamEditForm({ team, setNotification }: TeamEditFormProps) {
         elo: formData.elo,
       };
 
-      // If there's a new image, upload it, then save the other fields
+      await updateTeam(team.id, updateData);
+
+      // Uploaded after the other fields, so a picture the backend can't take
+      // (or can't store yet) doesn't lose them
       if (fileToUpload) {
-        await uploadTeamPicture(team.id, fileToUpload, updateData);
-      } else {
-        // If no new image, just update the team data
-        await updateTeam(team.id, updateData);
+        try {
+          await uploadTeamPicture(team.id, fileToUpload);
+        } catch (error) {
+          console.error("Error uploading team picture:", error);
+          setNotification({
+            type: "error",
+            message: `Team saved, but the picture wasn't (${pictureUploadError(error)})`,
+          });
+          return;
+        }
       }
 
       // Show success notification
@@ -500,12 +510,23 @@ function PlayerEditForm({
         visible: formData.visible,
       };
 
-      // If there's a new image, upload it, then save the other fields
+      await updatePlayer(player.id, updateData);
+
+      // Uploaded after the other fields, so a picture the backend can't take
+      // (or can't store yet) doesn't lose them
       if (fileToUpload) {
-        await uploadPlayerPicture(player.id, fileToUpload, updateData);
-      } else {
-        // If no new image, just update the player data
-        await updatePlayer(player.id, updateData);
+        try {
+          await uploadPlayerPicture(player.id, fileToUpload);
+        } catch (error) {
+          console.error("Error uploading player picture:", error);
+          if (setNotification) {
+            setNotification({
+              type: "error",
+              message: `Player saved, but the picture wasn't (${pictureUploadError(error)})`,
+            });
+          }
+          return;
+        }
       }
 
       // Show success notification

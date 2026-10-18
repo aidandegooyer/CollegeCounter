@@ -20,6 +20,9 @@ LOCK_ID = 7_210_431
 # The first copy of everything is the mirror_images command.
 PICTURE_SWEEP_SECONDS = 3600
 PICTURE_SWEEP_LIMIT = 25
+# The sweep runs between match passes, so it starts no new copy after this
+# long and live matches wait at most about one more download
+PICTURE_SWEEP_BUDGET_SECONDS = 20
 # A picture that couldn't be copied is tried again after a day
 PICTURE_RETRY_SECONDS = 86400
 
@@ -94,7 +97,9 @@ class Command(BaseCommand):
         }
         try:
             copied, failed = mirror_pending(
-                limit=PICTURE_SWEEP_LIMIT, skip=self.picture_failures
+                limit=PICTURE_SWEEP_LIMIT,
+                skip=self.picture_failures,
+                time_budget=PICTURE_SWEEP_BUDGET_SECONDS,
             )
         except StorageError:
             logger.warning("Couldn't store pictures; trying again in an hour", exc_info=True)
@@ -108,6 +113,8 @@ class Command(BaseCommand):
             message = f"Pictures: copied {copied}, {len(failed)} couldn't be copied"
             logger.info(message)
             self.stdout.write(message)
+        for url, reason in failed.items():
+            self.stdout.write(f"  couldn't copy {url}: {reason}")
 
     # Two workers (e.g. during a deploy) would refresh every match twice
     def acquire_lock(self):

@@ -35,8 +35,8 @@ class Command(BaseCommand):
         except StorageError as e:
             raise CommandError(f"Image storage failed: {e}") from e
 
-        for url in failed:
-            self.stdout.write(f"  couldn't copy {url}")
+        for url, reason in failed.items():
+            self.stdout.write(f"  couldn't copy {url}: {reason}")
         self.stdout.write(f"Pictures copied: {copied}, couldn't be copied: {len(failed)}")
 
     def dry_run(self, limit):

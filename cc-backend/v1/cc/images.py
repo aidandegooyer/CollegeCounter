@@ -22,6 +22,7 @@ import io
 import ipaddress
 import logging
 import socket
+import time
 from urllib.parse import urljoin, urlsplit
 
 import boto3
@@ -41,6 +42,9 @@ MAX_PIXELS = 40_000_000
 CACHE_CONTROL = "public, max-age=31536000, immutable"
 WEBP_QUALITY = 82
 FETCH_TIMEOUT = 10
+# FETCH_TIMEOUT is per connect or read, so a host sending a trickle of bytes
+# could hold a download open far longer without this
+FETCH_DEADLINE = 30
 MAX_REDIRECTS = 3
 # Same as proxy_image: some image hosts turn away requests without one
 FETCH_HEADERS = {
@@ -168,9 +172,11 @@ def _check_public_host(hostname):
 
 def fetch_image(url):
     """
-    Download an external picture, at most MAX_BYTES, from a public https host.
-    Raises ImageError for a URL we won't fetch, requests' errors otherwise.
+    Download an external picture, at most MAX_BYTES within FETCH_DEADLINE
+    seconds, from a public https host. Raises ImageError for a URL we won't
+    fetch, requests' errors otherwise.
     """
+    deadline = time.monotonic() + FETCH_DEADLINE
     for _ in range(MAX_REDIRECTS + 1):
         parts = urlsplit(url)
         if parts.scheme != "https" or not parts.hostname:
@@ -195,6 +201,8 @@ def fetch_image(url):
                 total += len(chunk)
                 if total > MAX_BYTES:
                     raise ImageError(f"Picture is over {MAX_BYTES // (1024 * 1024)} MB")
+                if time.monotonic() > deadline:
+                    raise ImageError(f"Download took over {FETCH_DEADLINE}s")
                 chunks.append(chunk)
             return b"".join(chunks)
     raise ImageError("Too many redirects")
@@ -203,17 +211,13 @@ def fetch_image(url):
 def mirror_picture(kind, obj):
     """
     Copy obj.picture into the bucket and point the row at the copy. Returns
-    True if it was copied. A picture that can't be fetched or decoded is left
-    as it is and logged at INFO, since it's one dead or odd link, not
-    something to act on. Storage failures raise one of StorageError.
+    False if an admin changed the picture meanwhile (the row is left alone).
+    Raises ImageError or requests' errors for a picture that can't be fetched
+    or decoded, and one of StorageError for storage failures.
     """
     url = obj.picture
-    try:
-        data = fetch_image(url)
-        new_url = store_picture(kind, obj.pk, data, source_url=url)
-    except (requests.RequestException, ImageError) as e:
-        logger.info("Couldn't copy %s picture %s: %s", kind, url, e)
-        return False
+    data = fetch_image(url)
+    new_url = store_picture(kind, obj.pk, data, source_url=url)
     # Leave it if an admin changed the picture while this one was copying
     return bool(
         type(obj).objects.filter(pk=obj.pk, picture=url).update(picture=new_url)
@@ -230,28 +234,38 @@ def pending_pictures():
         yield from ((kind, row) for row in rows.only("pk", "picture").order_by("pk"))
 
 
-def mirror_pending(limit=None, skip=()):
+def mirror_pending(limit=None, skip=(), time_budget=None):
     """
     Copy up to `limit` external pictures into the bucket, passing over any
-    URL in `skip`. Returns (number copied, URLs that failed). Storage
-    failures stop the sweep and raise one of StorageError.
+    URL in `skip`, and starting no new copy after `time_budget` seconds.
+    Returns (number copied, {URL that failed: why}). Storage failures stop
+    the sweep and raise one of StorageError.
+
+    A picture that can't be fetched or decoded is left as it is and logged
+    at INFO, since it's one dead or odd link, not something to act on; the
+    callers print the reasons.
     """
-    copied, failed = 0, []
+    deadline = None if time_budget is None else time.monotonic() + time_budget
+    copied, failed = 0, {}
     for kind, row in pending_pictures():
         if limit is not None and copied + len(failed) >= limit:
+            break
+        if deadline is not None and time.monotonic() >= deadline:
             break
         if row.picture in skip:
             continue
         try:
-            ok = mirror_picture(kind, row)
+            if mirror_picture(kind, row):
+                copied += 1
+            else:
+                failed[row.picture] = "the picture was changed while copying"
         except StorageError:
             raise
-        except Exception:
+        except (requests.RequestException, ImageError) as e:
+            logger.info("Couldn't copy %s picture %s: %s", kind, row.picture, e)
+            failed[row.picture] = str(e)
+        except Exception as e:
             # A bug with one picture shouldn't stop the rest
             logger.exception("Couldn't copy %s picture %s", kind, row.picture)
-            ok = False
-        if ok:
-            copied += 1
-        else:
-            failed.append(row.picture)
+            failed[row.picture] = f"unexpected error: {e!r}"
     return copied, failed

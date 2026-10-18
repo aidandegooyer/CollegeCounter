@@ -45,7 +45,10 @@ import SearchSelect, {
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { AlertCircle, Check, Plus, Trash2 } from "lucide-react";
 import imageCompression from "browser-image-compression";
-import { uploadEventPicture } from "@/services/api-team-player-edit";
+import {
+  pictureUploadError,
+  uploadEventPicture,
+} from "@/services/api-team-player-edit";
 
 // Helper functions for timezone conversion
 const dateToLocalInput = (isoString: string | null | undefined): string => {
@@ -510,7 +513,10 @@ function EventEditForm({
       setNotification({ type: "success", message: "Picture uploaded" });
     } catch (error) {
       console.error("Error uploading event picture:", error);
-      setNotification({ type: "error", message: "Failed to upload picture" });
+      setNotification({
+        type: "error",
+        message: `Failed to upload picture (${pictureUploadError(error)})`,
+      });
     } finally {
       setUploadingPicture(false);
       input.value = "";

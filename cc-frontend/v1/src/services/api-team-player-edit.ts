@@ -52,20 +52,21 @@ const uploadPicture = async (path: string, pictureFile: File): Promise<string> =
   return response.data.picture_url;
 };
 
+// Why a picture upload failed: the backend's reason ("Image storage isn't
+// configured", "Not a supported image", ...), or else axios's, e.g. for a 413
+// from the proxy
+export const pictureUploadError = (error: unknown): string => {
+  const err = error as
+    | { response?: { data?: { error?: string } }; message?: string }
+    | undefined;
+  return err?.response?.data?.error || err?.message || "unknown error";
+};
+
 export const uploadTeamPicture = async (
   teamId: string,
-  pictureFile: File,
-  additionalData?: {
-    name?: string;
-    school_name?: string;
-    elo?: number;
-  }
+  pictureFile: File
 ): Promise<{picture_url: string}> => {
-  // Picture first, so a rejected picture doesn't leave the rest half-saved
   const picture_url = await uploadPicture(`/teams/${teamId}/picture/`, pictureFile);
-  if (additionalData) {
-    await api.put(`/teams/${teamId}/`, additionalData);
-  }
   return { picture_url };
 };
 
@@ -89,22 +90,9 @@ export const updatePlayer = async (
 
 export const uploadPlayerPicture = async (
   playerId: string,
-  pictureFile: File,
-  additionalData?: {
-    name?: string;
-    steam_id?: string;
-    faceit_id?: string;
-    elo?: number;
-    skill_level?: number;
-    team_id?: string | null;
-    benched?: boolean;
-    visible?: boolean;
-  }
+  pictureFile: File
 ): Promise<{picture_url: string}> => {
   const picture_url = await uploadPicture(`/players/${playerId}/picture/`, pictureFile);
-  if (additionalData) {
-    await api.put(`/players/${playerId}/`, additionalData);
-  }
   return { picture_url };
 };
 

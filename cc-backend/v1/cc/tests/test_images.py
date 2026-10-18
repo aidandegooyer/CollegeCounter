@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 
-from cc import images
+from cc import image_views, images
 from cc.management.commands import sync_matches
 from cc.models import CustomEvent, Event, Player, Team
 
@@ -207,6 +207,15 @@ class FetchImageTests(SimpleTestCase):
         ):
             images.fetch_image(FACEIT_URL)
 
+    def test_gives_up_on_a_slow_download(self):
+        with (
+            # Already past the deadline when the first chunk arrives
+            patch.object(images, "FETCH_DEADLINE", -1),
+            patch.object(images.requests, "get", return_value=image_response(b"x")),
+            self.assertRaisesMessage(images.ImageError, "Download took over"),
+        ):
+            images.fetch_image(FACEIT_URL)
+
 
 @storage_settings
 class MirrorTests(FakeS3Mixin, TestCase):
@@ -230,7 +239,7 @@ class MirrorTests(FakeS3Mixin, TestCase):
         with patch.object(images, "fetch_image", return_value=png()) as fetch:
             copied, failed = images.mirror_pending()
 
-        self.assertEqual((copied, failed), (2, []))
+        self.assertEqual((copied, failed), (2, {}))
         self.assertEqual(
             sorted(call.args[0] for call in fetch.call_args_list),
             sorted([FACEIT_URL, "https://i.ibb.co/x/cup.png"]),
@@ -251,7 +260,9 @@ class MirrorTests(FakeS3Mixin, TestCase):
             self.assertLogs(images.logger, "INFO") as logs,
         ):
             copied, failed = images.mirror_pending()
-        self.assertEqual((copied, failed), (0, [FACEIT_URL]))
+        self.assertEqual(
+            (copied, failed), (0, {FACEIT_URL: "404 Client Error: Not Found"})
+        )
         self.assertIn("404 Client Error", logs.output[0])
         self.assertEqual(logs.records[0].levelname, "INFO")
         team.refresh_from_db()
@@ -282,8 +293,28 @@ class MirrorTests(FakeS3Mixin, TestCase):
             Team.objects.create(name=f"T{n}", picture=url)
         with patch.object(images, "fetch_image", return_value=png()) as fetch:
             copied, failed = images.mirror_pending(limit=1, skip={urls[0], urls[1]})
-        self.assertEqual((copied, failed), (1, []))
+        self.assertEqual((copied, failed), (1, {}))
         fetch.assert_called_once_with(urls[2])
+
+    def test_starts_no_copy_past_the_time_budget(self):
+        for n in range(3):
+            Team.objects.create(name=f"T{n}", picture=f"{FACEIT_URL}?{n}")
+        with (
+            patch.object(images, "fetch_image", return_value=png()) as fetch,
+            # Start, first picture at 0s, second at 100s
+            patch.object(images, "time") as clock,
+        ):
+            clock.monotonic.side_effect = [0, 0, 100]
+            copied, failed = images.mirror_pending(time_budget=20)
+        self.assertEqual((copied, failed), (1, {}))
+        fetch.assert_called_once()
+
+    def test_reports_a_picture_changed_while_copying(self):
+        team = Team.objects.create(name="Alpha", picture=FACEIT_URL)
+        with patch.object(images, "mirror_picture", return_value=False):
+            copied, failed = images.mirror_pending()
+        self.assertEqual(copied, 0)
+        self.assertIn("changed while copying", failed[team.picture])
 
     def test_storage_failure_stops_the_sweep(self):
         Team.objects.create(name="Alpha", picture=FACEIT_URL)
@@ -348,7 +379,7 @@ class MirrorCommandTests(FakeS3Mixin, TestCase):
 
         with patch.object(images, "fetch_image", side_effect=fetch):
             output = self.call()
-        self.assertIn("couldn't copy https://gone.example/a.png", output)
+        self.assertIn("couldn't copy https://gone.example/a.png: no route", output)
         self.assertIn("Pictures copied: 1, couldn't be copied: 1", output)
 
     @storage_settings
@@ -425,15 +456,22 @@ class UploadPictureTests(FakeS3Mixin, TestCase):
         response = self.upload("upload_team_picture", self.team.id, b"not an image")
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error"], "Not a supported image")
-        with patch.object(images, "MAX_BYTES", 10):
-            response = self.upload("upload_team_picture", self.team.id, png())
-        self.assertEqual(response.status_code, 400)
         missing = self.upload(
             "upload_team_picture", "00000000-0000-0000-0000-000000000000", png()
         )
         self.assertEqual(missing.status_code, 404)
         self.team.refresh_from_db()
         self.assertEqual(self.team.picture, FACEIT_URL)
+
+    def test_refuses_an_oversized_upload_before_reading_it(self):
+        with (
+            patch.object(image_views, "MAX_BYTES", 10),
+            patch.object(image_views, "store_picture") as store,
+        ):
+            response = self.upload("upload_team_picture", self.team.id, png())
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Picture is over", response.json()["error"])
+        store.assert_not_called()
 
     @override_settings(IMAGE_STORAGE_BUCKET="")
     def test_unconfigured(self):
@@ -472,16 +510,24 @@ class PictureSweepTests(SimpleTestCase):
         return mirror_pending
 
     def test_hourly_and_retries_failures_after_a_day(self):
-        first = self.sweep_at(1000, return_value=(2, ["https://bad.example/a.png"]))
+        first = self.sweep_at(
+            1000, return_value=(2, {"https://bad.example/a.png": "404 Not Found"})
+        )
         first.assert_called_once()
-        self.assertIn("Pictures: copied 2, 1 couldn't be copied", self.out.getvalue())
+        self.assertEqual(
+            first.call_args.kwargs["time_budget"],
+            sync_matches.PICTURE_SWEEP_BUDGET_SECONDS,
+        )
+        output = self.out.getvalue()
+        self.assertIn("Pictures: copied 2, 1 couldn't be copied", output)
+        self.assertIn("couldn't copy https://bad.example/a.png: 404 Not Found", output)
 
-        self.sweep_at(1000 + 60, return_value=(0, [])).assert_not_called()
+        self.sweep_at(1000 + 60, return_value=(0, {})).assert_not_called()
 
-        next_hour = self.sweep_at(1000 + 3600, return_value=(0, []))
+        next_hour = self.sweep_at(1000 + 3600, return_value=(0, {}))
         self.assertIn("https://bad.example/a.png", next_hour.call_args.kwargs["skip"])
 
-        next_day = self.sweep_at(1000 + 86400, return_value=(0, []))
+        next_day = self.sweep_at(1000 + 86400, return_value=(0, {}))
         self.assertNotIn("https://bad.example/a.png", next_day.call_args.kwargs["skip"])
 
     def test_failures_dont_escape(self):
@@ -495,4 +541,4 @@ class PictureSweepTests(SimpleTestCase):
 
     @override_settings(IMAGE_STORAGE_BUCKET="")
     def test_off_without_storage(self):
-        self.sweep_at(0, return_value=(0, [])).assert_not_called()
+        self.sweep_at(0, return_value=(0, {})).assert_not_called()
