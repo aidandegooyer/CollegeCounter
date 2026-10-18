@@ -154,13 +154,15 @@ def update_player(request, player_id):
 
 
 @api_view(["GET"])
+@firebase_auth_required(min_role="admin")
 def proxy_image(request):
     """
     Proxy external images to avoid CORS issues in screenshot generation.
 
-    Unauthenticated, since it's used as an <img src>, so it fetches with the
-    same checks as copying a picture into the bucket (public https hosts
-    only, bounded size and time) and only returns bytes that are an image.
+    The graphic generator fetches these with its auth token and shows them
+    from blob URLs. Admins can still pass any URL, so it fetches with the same
+    checks as copying a picture into the bucket (public https hosts only,
+    bounded size and time) and only returns bytes that are an image.
     """
     image_url = request.GET.get("url")
 
@@ -173,18 +175,11 @@ def proxy_image(request):
         data = images.fetch_image(image_url)
         content_type = images.image_mime_type(data)
         django_response = HttpResponse(data, content_type=content_type)
-
-        # Add CORS headers to allow frontend access
-        django_response["Access-Control-Allow-Origin"] = "*"
-        django_response["Access-Control-Allow-Methods"] = "GET"
-        django_response["Access-Control-Allow-Headers"] = "*"
-
-        # Cache headers for better performance
-        django_response["Cache-Control"] = "public, max-age=3600"
-
+        # Browser cache only: it's an authenticated response
+        django_response["Cache-Control"] = "private, max-age=3600"
         return django_response
 
-    # INFO, not WARNING: anyone can call this, and warnings post to Discord
+    # INFO, not WARNING: a dead picture link isn't worth a Discord alert
     except images.ImageError as e:
         logger.info(f"Refused to proxy image {image_url}: {str(e)}")
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

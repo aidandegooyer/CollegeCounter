@@ -11,7 +11,7 @@ from cc.models import Match
 from cc.views import get_leaguespot_headers
 from cc.webhooks import SanityWebhookView
 
-from .helpers import Fixtures, fake_response
+from .helpers import Fixtures, admin_settings, dev_client, fake_response, token_client
 from .test_images import PUBLIC_ADDRESS, image_response, png
 
 
@@ -137,6 +137,7 @@ class NwesProxyTests(SimpleTestCase):
         self.assertEqual(response.status_code, 500)
 
 
+@admin_settings
 class ImageProxyTests(SimpleTestCase):
     def setUp(self):
         patcher = patch.object(
@@ -145,14 +146,28 @@ class ImageProxyTests(SimpleTestCase):
         self.getaddrinfo = patcher.start()
         self.addCleanup(patcher.stop)
 
-    def proxy(self, url):
-        return APIClient().get(reverse("proxy_image"), {"url": url})
+    def proxy(self, url, client=None):
+        return (client or dev_client()).get(reverse("proxy_image"), {"url": url})
+
+    def test_requires_login(self):
+        with patch.object(images.requests, "get") as get:
+            response = self.proxy("https://example.com/a.png", client=APIClient())
+        self.assertEqual(response.status_code, 401)
+        get.assert_not_called()
+
+    def test_requires_admin(self):
+        client, patcher = token_client({"uid": "u1", "role": "base"})
+        self.addCleanup(patcher.stop)
+        with patch.object(images.requests, "get") as get:
+            response = self.proxy("https://example.com/a.png", client=client)
+        self.assertEqual(response.status_code, 403)
+        get.assert_not_called()
 
     def test_url_is_required(self):
-        response = APIClient().get(reverse("proxy_image"))
+        response = dev_client().get(reverse("proxy_image"))
         self.assertEqual(response.status_code, 400)
 
-    def test_returns_image_with_cors_and_cache_headers(self):
+    def test_returns_image_with_private_cache_header(self):
         picture = png()
         with patch.object(
             images.requests, "get", return_value=image_response(picture)
@@ -161,8 +176,7 @@ class ImageProxyTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, picture)
         self.assertEqual(response["Content-Type"], "image/png")
-        self.assertEqual(response["Access-Control-Allow-Origin"], "*")
-        self.assertEqual(response["Cache-Control"], "public, max-age=3600")
+        self.assertEqual(response["Cache-Control"], "private, max-age=3600")
         self.assertEqual(get.call_args.args[0], "https://example.com/a.png")
 
     def test_content_type_comes_from_the_image_not_the_host(self):

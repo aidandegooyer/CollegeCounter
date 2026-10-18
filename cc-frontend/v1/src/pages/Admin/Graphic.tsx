@@ -20,9 +20,17 @@ import { Upload, Download, Palette } from "lucide-react";
 import Logo from "@/components/Logo";
 import { domToPng } from "modern-screenshot";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
+import { fetchProxiedImage } from "@/services/api";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "https://api.collegecounter.org/v1";
+// Data, blob and same-site pictures can be drawn into the export directly
+function needsProxy(url: string) {
+  return !(
+    url.startsWith("data:") ||
+    url.startsWith("blob:") ||
+    url.startsWith("/") ||
+    url.includes(window.location.host)
+  );
+}
 
 function Graphic() {
   const [backgroundImage, setBackgroundImage] = useState<string>("");
@@ -41,24 +49,11 @@ function Graphic() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Helper function to proxy external images through backend
-  const getProxiedImageUrl = (originalUrl: string) => {
-    if (!originalUrl) return "";
-
-    // If it's already a data URL or blob, return as-is
-    if (originalUrl.startsWith("data:") || originalUrl.startsWith("blob:")) {
-      return originalUrl;
-    }
-
-    // If it's a local URL, return as-is
-    if (
-      originalUrl.startsWith("/") ||
-      originalUrl.includes(window.location.host)
-    ) {
-      return originalUrl;
-    }
-    return `${API_BASE_URL}/proxy/image/?url=${encodeURIComponent(originalUrl)}`;
-  };
+  // Blob URLs of external pictures fetched through the backend proxy, keyed
+  // by original URL
+  const [proxiedPictures, setProxiedPictures] = useState<
+    Record<string, string>
+  >({});
 
   // Get available seasons
   const { data: seasonsData } = usePublicSeasons({
@@ -148,6 +143,48 @@ function Graphic() {
     }
     return [];
   })();
+
+  // External pictures go through the backend proxy so the PNG export can draw
+  // them. The proxy needs the auth token, which an <img src> can't send, so
+  // fetch each one and show it from a blob URL.
+  const externalPictures = topTeams
+    .map((team) => team.picture)
+    .filter((picture): picture is string => !!picture && needsProxy(picture));
+  const externalPicturesKey = externalPictures.join("\n");
+
+  useEffect(() => {
+    let cancelled = false;
+    const objectUrls: string[] = [];
+    Promise.all(
+      externalPictures.map(async (picture) => {
+        try {
+          const objectUrl = URL.createObjectURL(
+            await fetchProxiedImage(picture),
+          );
+          objectUrls.push(objectUrl);
+          return [picture, objectUrl] as const;
+        } catch (error) {
+          console.error("Error proxying picture:", picture, error);
+          return null;
+        }
+      }),
+    ).then((entries) => {
+      if (!cancelled) {
+        setProxiedPictures(
+          Object.fromEntries(entries.filter((entry) => entry !== null)),
+        );
+      }
+    });
+    return () => {
+      cancelled = true;
+      objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
+    };
+    // externalPicturesKey stands in for externalPictures, a new array each render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalPicturesKey]);
+
+  const pictureSrc = (picture: string) =>
+    needsProxy(picture) ? proxiedPictures[picture] : picture;
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -467,9 +504,9 @@ function Graphic() {
                           <span className="w-8 text-center text-2xl font-bold">
                             {index + 1}
                           </span>
-                          {team.picture && (
+                          {team.picture && pictureSrc(team.picture) && (
                             <img
-                              src={getProxiedImageUrl(team.picture)}
+                              src={pictureSrc(team.picture)}
                               alt={team.name}
                               className="h-12 w-12 rounded object-cover"
                               crossOrigin="anonymous"
