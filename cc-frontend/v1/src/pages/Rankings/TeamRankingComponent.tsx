@@ -5,6 +5,7 @@ import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import Logo from "@/components/Logo";
 import { NavLink } from "react-router";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import RankChange from "@/components/RankChange";
 
 interface TeamRankingComponentProps {
   team: PublicTeam;
@@ -95,48 +96,7 @@ function TeamRankingComponent(props: TeamRankingComponentProps) {
           <div>
             <div className="flex items-center space-x-1">
               {props.rankChange !== undefined && (
-                <span
-                  className={
-                    "flex items-center font-mono text-lg " +
-                    (props.rankChange > 0
-                      ? "text-green-500"
-                      : props.rankChange < 0
-                        ? "text-red-500"
-                        : "text-muted-foreground")
-                  }
-                >
-                  {props.rankChange > 0 && (
-                    <svg
-                      className="mr-1 inline-block h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 15l7-7 7 7"
-                      />
-                    </svg>
-                  )}
-                  {props.rankChange < 0 && (
-                    <svg
-                      className="mr-1 inline-block h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  )}
-                  {props.rankChange === 0 ? "-" : Math.abs(props.rankChange)}
-                </span>
+                <RankChange change={props.rankChange} />
               )}
             </div>
           </div>
