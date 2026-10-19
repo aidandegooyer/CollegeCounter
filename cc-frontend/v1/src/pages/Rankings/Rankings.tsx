@@ -1,6 +1,5 @@
 import { Label } from "@/components/ui/label";
 import { useState, useEffect, useMemo } from "react";
-import { keepPreviousData } from "@tanstack/react-query";
 import TeamRankingComponent from "./TeamRankingComponent";
 import InfiniteScroll from "react-infinite-scroll-component";
 import PlayerRankingComponent from "./PlayerRankingComponent";
@@ -226,7 +225,6 @@ function TeamRankingBody({
     error: currentError,
   } = usePublicTeams(currentRankingsParams, {
     staleTime: 1000 * 60 * 5,
-    placeholderData: keepPreviousData,
     enabled: isCurrentRankings,
   });
 
@@ -237,7 +235,6 @@ function TeamRankingBody({
     error: historicalError,
   } = usePublicRankingItems(historicalRankingsParams, {
     staleTime: 1000 * 60 * 5,
-    placeholderData: keepPreviousData,
     enabled: !isCurrentRankings && !!rankingWeekFilter,
   });
 
@@ -363,7 +360,6 @@ function PlayerRankingBody({ seasonFilter }: RankingBodyProps) {
 
   const { data, isLoading, error } = usePublicPlayers(queryParams, {
     staleTime: 1000 * 60 * 5,
-    placeholderData: keepPreviousData,
   });
 
   // Reset pagination when filters change

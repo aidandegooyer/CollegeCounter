@@ -1,6 +1,3 @@
-// This file converts raw FACEIT, LeagueSpot and Regents League responses,
-// which we don't have schemas for, so `any` is allowed here
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { isAxiosError } from "axios";
 import { useState, useEffect } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
@@ -77,14 +74,19 @@ function SelectPlatform({
   );
 }
 
+// Raw FACEIT, LeagueSpot and Regents League responses, which we don't have
+// schemas for
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RawPayload = any;
+
 // Function to convert LeagueSpot data to our schema format
-function convertLeagueSpotDataToSchema(leagueSpotData: any): any {
+function convertLeagueSpotDataToSchema(leagueSpotData: RawPayload): RawPayload {
   if (!leagueSpotData || !leagueSpotData.matches) {
     return { items: [] };
   }
 
   const convertedMatches = leagueSpotData.matches
-    .map((match: any, index: number) => {
+    .map((match: RawPayload, index: number) => {
       // Extract team information from participants
       const teams = match.participants || [];
       const team1 = teams[0] || {};
@@ -149,7 +151,7 @@ function convertLeagueSpotDataToSchema(leagueSpotData: any): any {
         _leaguespot_original: match,
       };
     })
-    .filter((match: any) => {
+    .filter((match: RawPayload) => {
       // Skip matches with unknown teams (TBD matches to be imported later)
       const team1Name = match.teams.faction1.name.toLowerCase();
       const team2Name = match.teams.faction2.name.toLowerCase();
@@ -202,13 +204,13 @@ function getMatchStatus(currentState: number): string {
 }
 
 // Helper function to convert LeagueSpot users to Faceit roster format
-function convertPlayersToFaceitFormat(users: any[]): any[] {
+function convertPlayersToFaceitFormat(users: RawPayload[]): RawPayload[] {
   return users
-    .filter((user: any) => {
+    .filter((user: RawPayload) => {
       // Skip coaches (teamRoleId: "6f4da22c-7fe5-4c78-8876-eec2c87d1096")
       return user.teamRoleId !== "6f4da22c-7fe5-4c78-8876-eec2c87d1096";
     })
-    .map((user: any) => {
+    .map((user: RawPayload) => {
       // Determine if player is captain (teamRoleId: "5a1675f0-2fa9-482b-b187-434901734a42")
       const isCaptain =
         user.teamRoleId === "5a1675f0-2fa9-482b-b187-434901734a42";
@@ -246,7 +248,7 @@ function convertPlayersToFaceitFormat(users: any[]): any[] {
 async function fetchPlayflyMatchesViaLeagueSpot(
   idValue: string,
   idType: "season" | "stage" = "season",
-): Promise<any> {
+): Promise<RawPayload> {
   if (!idValue || idValue.trim() === "") {
     throw new Error(
       `${idType === "season" ? "Season" : "Stage"} ID is required`,
@@ -296,7 +298,7 @@ async function fetchPlayflyMatchesViaLeagueSpot(
     console.log(`Found ${rounds.length} rounds in stage`);
 
     // Step 3: Get all matches from all rounds
-    let allMatches: any[] = [];
+    let allMatches: RawPayload[] = [];
 
     for (const round of rounds) {
       try {
@@ -304,7 +306,7 @@ async function fetchPlayflyMatchesViaLeagueSpot(
         const roundMatches = await fetchLeagueSpotRoundMatches(round.id);
 
         // Attach round metadata to each match for later processing
-        const matchesWithRoundInfo = roundMatches.map((match: any) => ({
+        const matchesWithRoundInfo = roundMatches.map((match: RawPayload) => ({
           ...match,
           _round_info: {
             id: round.id,
@@ -804,7 +806,7 @@ function ImportPreview({
   previewData,
   isLoading,
 }: {
-  previewData: any;
+  previewData: RawPayload;
   isLoading: boolean;
 }) {
   if (isLoading) {
@@ -834,7 +836,7 @@ function ImportPreview({
       <div className="w-full max-w-2xl">
         <p>Found {matches.length} matches to import</p>
         <div className="mt-4 max-h-80 overflow-y-auto rounded border p-4">
-          {matches.map((match: any, index: number) => {
+          {matches.map((match: RawPayload, index: number) => {
             const team1Key = Object.keys(match.teams)[0];
             const team2Key = Object.keys(match.teams)[1];
             const team1 = match.teams[team1Key];
@@ -1103,7 +1105,7 @@ function ParticipantMatcher({
   setConfirmedMerges,
   setReady,
 }: {
-  previewData: any;
+  previewData: RawPayload;
   platform: string;
   selectedSeason: string;
   isLoading: boolean;
@@ -1400,9 +1402,9 @@ async function fetchImportData(
   const data = await fetchFaceitMatches(sourceId);
   // Skip matches whose teams aren't decided yet
   if (data && data.items) {
-    data.items = data.items.filter((match: any) => {
-      const teamNames = Object.values(match.teams || {}).map((team: any) =>
-        (team.name || "").toLowerCase(),
+    data.items = data.items.filter((match: RawPayload) => {
+      const teamNames = Object.values(match.teams || {}).map(
+        (team: RawPayload) => (team.name || "").toLowerCase(),
       );
       return !teamNames.some((name) =>
         ["unknown team 1", "unknown team 2", "tbd", "bye"].includes(name),
@@ -1428,7 +1430,7 @@ function NewImport() {
   const [competitionName, setCompetitionName] = useState("");
   const [championshipId, setChampionshipId] = useState(""); // Faceit/Leaguespot ID
   const [leagueSpotIdType, setLeagueSpotIdType] = useState("season"); // "season" or "stage"
-  const [previewData, setPreviewData] = useState<any>(null);
+  const [previewData, setPreviewData] = useState<RawPayload>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [importStatus, setImportStatus] = useState<{
     success?: boolean;
@@ -2119,7 +2121,10 @@ function UpdateCompetition() {
       .catch((err) => {
         console.error("Failed to load competitions:", err);
         setLoadError(
-          apiErrorMessage(err, "Failed to load competitions, seasons or events."),
+          apiErrorMessage(
+            err,
+            "Failed to load competitions, seasons or events.",
+          ),
         );
       });
   };
@@ -2180,7 +2185,10 @@ function UpdateCompetition() {
       } catch (err) {
         console.error("Failed to fetch preview data:", err);
         setError(
-          apiErrorMessage(err, "Failed to fetch matches. Check the platform and ID."),
+          apiErrorMessage(
+            err,
+            "Failed to fetch matches. Check the platform and ID.",
+          ),
         );
         setIsLoading(false);
         return;

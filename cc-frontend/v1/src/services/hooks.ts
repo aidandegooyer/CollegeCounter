@@ -42,11 +42,13 @@ import type {
 const DEFAULT_STALE_TIME = 1000 * 60 * 5;
 
 // Options callers may override. Typed so a misspelled or removed option (such
-// as v4's keepPreviousData) is a compile error instead of silently ignored
+// as v4's keepPreviousData) is a compile error instead of silently ignored.
+// A hook that needs an id ANDs `enabled` with that check, so a caller can turn
+// the query off but can't force it on without its required inputs
 type QueryOptions<Fetch extends (...args: never[]) => Promise<unknown>> = Pick<
   UseQueryOptions<Awaited<ReturnType<Fetch>>>,
-  "enabled" | "staleTime" | "refetchInterval" | "retry" | "placeholderData"
->;
+  "staleTime" | "refetchInterval" | "retry" | "placeholderData"
+> & { enabled?: boolean };
 
 export function usePublicTeams(
   params: TeamQueryParams = {},
@@ -168,8 +170,8 @@ export function usePublicRankingItems(
     queryKey: ["public", "ranking-items", params],
     queryFn: () => fetchPublicRankingItems(params),
     staleTime: DEFAULT_STALE_TIME,
-    enabled: !!params.ranking_id, // Only fetch if ranking_id is provided
     ...options,
+    enabled: !!params.ranking_id && options.enabled !== false, // Only fetch if ranking_id is provided
   });
 }
 // end of full-featured API hooks
@@ -196,8 +198,8 @@ export function useTeamDetails(
     queryFn: () => fetchPublicTeams({ id: teamId }),
     staleTime: DEFAULT_STALE_TIME,
     select: (data) => data.results[0] || null,
-    enabled: !!teamId,
     ...options,
+    enabled: !!teamId && options.enabled !== false,
   });
 }
 
@@ -210,8 +212,8 @@ export function usePlayerDetails(
     queryFn: () => fetchPublicPlayers({ id: playerId }),
     staleTime: DEFAULT_STALE_TIME,
     select: (data) => data.results[0] || null,
-    enabled: !!playerId,
     ...options,
+    enabled: !!playerId && options.enabled !== false,
   });
 }
 
@@ -224,8 +226,8 @@ export function useTeamMatches(
     queryFn: () =>
       fetchPublicMatches({ team_id: teamId, sort: "date", order: "desc" }),
     staleTime: DEFAULT_STALE_TIME,
-    enabled: !!teamId,
     ...options,
+    enabled: !!teamId && options.enabled !== false,
   });
 }
 
@@ -245,8 +247,8 @@ export function useTeamMatchHistory(
         page_size: 100,
       }),
     staleTime: DEFAULT_STALE_TIME,
-    enabled: !!teamId,
     ...options,
+    enabled: !!teamId && options.enabled !== false,
   });
 }
 
@@ -258,8 +260,8 @@ export function useTeamPlayers(
     queryKey: ["public", "players", "team", teamId],
     queryFn: () => fetchPublicPlayers({ team_id: teamId, visible: true }),
     staleTime: DEFAULT_STALE_TIME,
-    enabled: !!teamId,
     ...options,
+    enabled: !!teamId && options.enabled !== false,
   });
 }
 
@@ -358,8 +360,8 @@ export function useTeamRankingHistory(
     queryFn: () =>
       fetchPublicTeamRankingHistory({ team_id: teamId!, season_id: seasonId }),
     staleTime: DEFAULT_STALE_TIME,
-    enabled: !!teamId && !!seasonId,
     ...options,
+    enabled: !!teamId && !!seasonId && options.enabled !== false,
   });
 }
 
@@ -402,8 +404,8 @@ export function usePublicEvent(
     queryKey: ["public", "events", id],
     queryFn: () => fetchPublicEvent(id),
     staleTime: DEFAULT_STALE_TIME,
-    enabled: !!id,
     ...options,
+    enabled: !!id && options.enabled !== false,
   });
 }
 
@@ -415,8 +417,8 @@ export function usePublicSearch(
     queryKey: ["public", "search", params],
     queryFn: () => fetchPublicSearch(params),
     staleTime: DEFAULT_STALE_TIME,
-    enabled: !!params.q?.trim(),
     ...options,
+    enabled: !!params.q?.trim() && options.enabled !== false,
   });
 }
 
@@ -470,8 +472,8 @@ export function useAdminCustomEvent(
     queryKey: ["admin", "custom-events", id],
     queryFn: () => fetchAdminCustomEvent(id),
     staleTime: DEFAULT_STALE_TIME,
-    enabled: !!id,
     ...options,
+    enabled: !!id && options.enabled !== false,
   });
 }
 
