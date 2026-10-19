@@ -1,5 +1,8 @@
 import Logo from "@/components/Logo";
-import { PlayerStatsTable } from "@/components/PlayerStatsTable";
+import {
+  PlayerStatsTable,
+  type PlayerStats,
+} from "@/components/PlayerStatsTable";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -157,32 +160,39 @@ function MatchPreview({ match }: { match: PublicMatch }) {
   );
 }
 
-function Stats({ match }: { match: PublicMatch }) {
-  if (match.platform?.toLowerCase() === "faceit") {
-    return <FaceITStats match={match} />;
-  }
+// The parts of an NWES tournament response the stats view reads
+interface NWESMatch {
+  pug_id?: string | number;
+  id?: string | number;
+  match_id?: string | number;
+  map: string;
+  team1_name: string;
+  team1_score: number;
+  team1_stats: PlayerStats[];
+  team2_name: string;
+  team2_score: number;
+  team2_stats: PlayerStats[];
+}
 
-  const externalMatchIds = match.event_match?.extra_info?.external_match_ids as
-    string[] | undefined;
+interface NWESTournament {
+  matches?: NWESMatch[];
+}
+
+function Stats({ match }: { match: PublicMatch }) {
+  const isFaceit = match.platform?.toLowerCase() === "faceit";
+
+  const externalMatchIds = match.event_match?.extra_info?.external_match_ids;
 
   const hasExternalIds = externalMatchIds && externalMatchIds.length > 0;
   const isMatchCompleted = match.status === "completed";
-
-  // Check early if match is not completed or doesn't have external IDs
-  if (!isMatchCompleted || !hasExternalIds) {
-    return (
-      <div className="text-md flex min-w-48 flex-col items-center justify-center px-4 py-1">
-        <div className="text-lg font-semibold">Stats are Unavailable</div>
-      </div>
-    );
-  }
 
   // Extract unique tournament IDs from the external match IDs
   const tournamentIds = externalMatchIds
     ? [...new Set(externalMatchIds.map((id) => id.split(":")[0]))]
     : [];
 
-  // Use React Query to fetch tournament data
+  // Called before any early return: the match can change status between
+  // renders, and hooks must run in the same order every time
   const {
     data: tournamentData,
     isLoading,
@@ -198,7 +208,7 @@ function Stats({ match }: { match: PublicMatch }) {
       const results = await Promise.all(
         tournamentIds.map(async (tournamentId) => {
           try {
-            const data = await proxyNWES({
+            const data = await proxyNWES<NWESTournament>({
               tournament_id: tournamentId,
             });
             return {
@@ -215,8 +225,21 @@ function Stats({ match }: { match: PublicMatch }) {
       return results.filter((r) => r !== null);
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
-    enabled: tournamentIds.length > 0,
+    enabled: !isFaceit && isMatchCompleted && tournamentIds.length > 0,
   });
+
+  if (isFaceit) {
+    return <FaceITStats match={match} />;
+  }
+
+  // Check early if match is not completed or doesn't have external IDs
+  if (!isMatchCompleted || !hasExternalIds) {
+    return (
+      <div className="text-md flex min-w-48 flex-col items-center justify-center px-4 py-1">
+        <div className="text-lg font-semibold">Stats are Unavailable</div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -247,20 +270,20 @@ function Stats({ match }: { match: PublicMatch }) {
     matchId: string;
     tournamentId: string;
     nwesMatchId: string;
-    matchData: any;
+    matchData: NWESMatch;
   }> = [];
 
   if (tournamentData && externalMatchIds) {
     externalMatchIds.forEach((externalId) => {
       const [tournamentId, nwesMatchId] = externalId.split(":");
       const tournament = tournamentData.find(
-        (t: any) => t?.tournamentId === tournamentId,
+        (t) => t.tournamentId === tournamentId,
       );
 
       if (tournament?.data?.matches && Array.isArray(tournament.data.matches)) {
         // Find match by pug_id (which is the match identifier in NWES)
         const matchData = tournament.data.matches.find(
-          (m: any) =>
+          (m) =>
             m.pug_id?.toString() === nwesMatchId ||
             m.id?.toString() === nwesMatchId ||
             m.match_id?.toString() === nwesMatchId,

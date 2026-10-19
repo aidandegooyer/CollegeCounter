@@ -37,17 +37,13 @@ function DatabaseViewer() {
         // For now, we're using mock data
         switch (activeTab) {
           case "teams":
-            const teamsData = await fetchAllTeams();
-            setTeams(teamsData);
-
+            setTeams(await fetchAllTeams());
             break;
           case "players":
-            const playersData = await fetchAllPlayers();
-            setPlayers(playersData);
+            setPlayers(await fetchAllPlayers());
             break;
           case "matches":
-            const matchesData = await fetchAllMatches();
-            setMatches(matchesData);
+            setMatches(await fetchAllMatches());
             break;
         }
       } catch (err) {

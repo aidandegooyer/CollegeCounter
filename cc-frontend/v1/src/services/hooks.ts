@@ -2,6 +2,7 @@ import {
   keepPreviousData,
   useInfiniteQuery,
   useQuery,
+  type UseQueryOptions,
 } from "@tanstack/react-query";
 import {
   fetchPublicTeams,
@@ -40,7 +41,17 @@ import type {
 
 const DEFAULT_STALE_TIME = 1000 * 60 * 5;
 
-export function usePublicTeams(params: TeamQueryParams = {}, options = {}) {
+// Options callers may override. Typed so a misspelled or removed option (such
+// as v4's keepPreviousData) is a compile error instead of silently ignored
+type QueryOptions<Fetch extends (...args: never[]) => Promise<unknown>> = Pick<
+  UseQueryOptions<Awaited<ReturnType<Fetch>>>,
+  "enabled" | "staleTime" | "refetchInterval" | "retry" | "placeholderData"
+>;
+
+export function usePublicTeams(
+  params: TeamQueryParams = {},
+  options: QueryOptions<typeof fetchPublicTeams> = {},
+) {
   return useQuery({
     queryKey: ["public", "teams", params],
     queryFn: () => fetchPublicTeams(params),
@@ -49,7 +60,10 @@ export function usePublicTeams(params: TeamQueryParams = {}, options = {}) {
   });
 }
 
-export function usePublicPlayers(params: PlayerQueryParams = {}, options = {}) {
+export function usePublicPlayers(
+  params: PlayerQueryParams = {},
+  options: QueryOptions<typeof fetchPublicPlayers> = {},
+) {
   return useQuery({
     queryKey: ["public", "players", params],
     queryFn: () => fetchPublicPlayers(params),
@@ -58,7 +72,10 @@ export function usePublicPlayers(params: PlayerQueryParams = {}, options = {}) {
   });
 }
 
-export function usePublicMatches(params: MatchQueryParams = {}, options = {}) {
+export function usePublicMatches(
+  params: MatchQueryParams = {},
+  options: QueryOptions<typeof fetchPublicMatches> = {},
+) {
   return useQuery({
     queryKey: ["public", "matches", params],
     queryFn: () => fetchPublicMatches(params),
@@ -109,7 +126,7 @@ export function useAllPublicMatches(
 
 export function usePublicCompetitions(
   params: CompetitionQueryParams = {},
-  options = {},
+  options: QueryOptions<typeof fetchPublicCompetitions> = {},
 ) {
   return useQuery({
     queryKey: ["public", "competitions", params],
@@ -119,7 +136,10 @@ export function usePublicCompetitions(
   });
 }
 
-export function usePublicSeasons(params: SeasonQueryParams = {}, options = {}) {
+export function usePublicSeasons(
+  params: SeasonQueryParams = {},
+  options: QueryOptions<typeof fetchPublicSeasons> = {},
+) {
   return useQuery({
     queryKey: ["public", "seasons", params],
     queryFn: () => fetchPublicSeasons(params),
@@ -130,7 +150,7 @@ export function usePublicSeasons(params: SeasonQueryParams = {}, options = {}) {
 
 export function usePublicRankings(
   params: RankingQueryParams = {},
-  options = {},
+  options: QueryOptions<typeof fetchPublicRankings> = {},
 ) {
   return useQuery({
     queryKey: ["public", "rankings", params],
@@ -142,7 +162,7 @@ export function usePublicRankings(
 
 export function usePublicRankingItems(
   params: RankingItemQueryParams,
-  options = {},
+  options: QueryOptions<typeof fetchPublicRankingItems> = {},
 ) {
   return useQuery({
     queryKey: ["public", "ranking-items", params],
@@ -155,7 +175,9 @@ export function usePublicRankingItems(
 // end of full-featured API hooks
 
 // hooks for common queries
-export function useCurrentSeason(options = {}) {
+export function useCurrentSeason(
+  options: QueryOptions<typeof fetchPublicSeasons> = {},
+) {
   return useQuery({
     queryKey: ["public", "seasons", "current"],
     queryFn: () => fetchPublicSeasons({ current: true, page_size: 1 }),
@@ -165,7 +187,10 @@ export function useCurrentSeason(options = {}) {
   });
 }
 
-export function useTeamDetails(teamId: string | undefined, options = {}) {
+export function useTeamDetails(
+  teamId: string | undefined,
+  options: QueryOptions<typeof fetchPublicTeams> = {},
+) {
   return useQuery({
     queryKey: ["public", "teams", teamId],
     queryFn: () => fetchPublicTeams({ id: teamId }),
@@ -176,7 +201,10 @@ export function useTeamDetails(teamId: string | undefined, options = {}) {
   });
 }
 
-export function usePlayerDetails(playerId: string | undefined, options = {}) {
+export function usePlayerDetails(
+  playerId: string | undefined,
+  options: QueryOptions<typeof fetchPublicPlayers> = {},
+) {
   return useQuery({
     queryKey: ["public", "players", playerId],
     queryFn: () => fetchPublicPlayers({ id: playerId }),
@@ -187,7 +215,10 @@ export function usePlayerDetails(playerId: string | undefined, options = {}) {
   });
 }
 
-export function useTeamMatches(teamId: string | undefined, options = {}) {
+export function useTeamMatches(
+  teamId: string | undefined,
+  options: QueryOptions<typeof fetchPublicMatches> = {},
+) {
   return useQuery({
     queryKey: ["public", "matches", "team", teamId],
     queryFn: () =>
@@ -199,7 +230,10 @@ export function useTeamMatches(teamId: string | undefined, options = {}) {
 }
 
 // Completed matches for a team, newest first (backend caps page_size at 100)
-export function useTeamMatchHistory(teamId: string | undefined, options = {}) {
+export function useTeamMatchHistory(
+  teamId: string | undefined,
+  options: QueryOptions<typeof fetchPublicMatches> = {},
+) {
   return useQuery({
     queryKey: ["public", "matches", "team", teamId, "history"],
     queryFn: () =>
@@ -216,7 +250,10 @@ export function useTeamMatchHistory(teamId: string | undefined, options = {}) {
   });
 }
 
-export function useTeamPlayers(teamId: string | undefined, options = {}) {
+export function useTeamPlayers(
+  teamId: string | undefined,
+  options: QueryOptions<typeof fetchPublicPlayers> = {},
+) {
   return useQuery({
     queryKey: ["public", "players", "team", teamId],
     queryFn: () => fetchPublicPlayers({ team_id: teamId, visible: true }),
@@ -226,7 +263,10 @@ export function useTeamPlayers(teamId: string | undefined, options = {}) {
   });
 }
 
-export function useRecentMatches(limit = 5, options = {}) {
+export function useRecentMatches(
+  limit = 5,
+  options: QueryOptions<typeof fetchPublicMatches> = {},
+) {
   return useQuery({
     queryKey: ["public", "matches", "recent", limit],
     queryFn: () =>
@@ -241,7 +281,10 @@ export function useRecentMatches(limit = 5, options = {}) {
   });
 }
 
-export function useUpcomingMatches(limit = 5, options = {}) {
+export function useUpcomingMatches(
+  limit = 5,
+  options: QueryOptions<typeof fetchPublicMatches> = {},
+) {
   return useQuery({
     queryKey: ["public", "matches", "upcoming", limit],
     queryFn: () =>
@@ -257,7 +300,9 @@ export function useUpcomingMatches(limit = 5, options = {}) {
 }
 
 // Admin Hooks
-export function useAdminTeams(options = {}) {
+export function useAdminTeams(
+  options: QueryOptions<typeof fetchAdminTeams> = {},
+) {
   return useQuery({
     queryKey: ["admin", "teams"],
     queryFn: () => fetchAdminTeams(),
@@ -266,7 +311,9 @@ export function useAdminTeams(options = {}) {
   });
 }
 
-export function useAdminPlayers(options = {}) {
+export function useAdminPlayers(
+  options: QueryOptions<typeof fetchAdminPlayers> = {},
+) {
   return useQuery({
     queryKey: ["admin", "players"],
     queryFn: () => fetchAdminPlayers(),
@@ -275,7 +322,9 @@ export function useAdminPlayers(options = {}) {
   });
 }
 
-export function useAdminMatches(options = {}) {
+export function useAdminMatches(
+  options: QueryOptions<typeof fetchAdminMatches> = {},
+) {
   return useQuery({
     queryKey: ["admin", "matches"],
     queryFn: () => fetchAdminMatches(),
@@ -287,7 +336,10 @@ export function useAdminMatches(options = {}) {
 // Legacy compatibility
 export const useTeams = useAdminTeams;
 
-export function useTeamRanking(params: PublicTeamRankingRequest, options = {}) {
+export function useTeamRanking(
+  params: PublicTeamRankingRequest,
+  options: QueryOptions<typeof fetchPublicTeamRanking> = {},
+) {
   return useQuery({
     queryKey: ["public", "team-ranking", params],
     queryFn: () => fetchPublicTeamRanking(params),
@@ -299,7 +351,7 @@ export function useTeamRanking(params: PublicTeamRankingRequest, options = {}) {
 export function useTeamRankingHistory(
   teamId: string | undefined,
   seasonId: string | undefined,
-  options = {},
+  options: QueryOptions<typeof fetchPublicTeamRankingHistory> = {},
 ) {
   return useQuery({
     queryKey: ["public", "rankings", "team-history", teamId, seasonId],
@@ -313,7 +365,10 @@ export function useTeamRankingHistory(
 
 // Public Events Hooks
 
-export function usePublicEvents(params: EventQueryParams = {}, options = {}) {
+export function usePublicEvents(
+  params: EventQueryParams = {},
+  options: QueryOptions<typeof fetchPublicEvents> = {},
+) {
   return useQuery({
     queryKey: ["public", "events", params],
     queryFn: () => fetchPublicEvents(params),
@@ -339,7 +394,10 @@ export function useInfinitePublicEvents(
   });
 }
 
-export function usePublicEvent(id: string, options = {}) {
+export function usePublicEvent(
+  id: string,
+  options: QueryOptions<typeof fetchPublicEvent> = {},
+) {
   return useQuery({
     queryKey: ["public", "events", id],
     queryFn: () => fetchPublicEvent(id),
@@ -349,7 +407,10 @@ export function usePublicEvent(id: string, options = {}) {
   });
 }
 
-export function usePublicSearch(params: PublicSearchQueryParams, options = {}) {
+export function usePublicSearch(
+  params: PublicSearchQueryParams,
+  options: QueryOptions<typeof fetchPublicSearch> = {},
+) {
   return useQuery({
     queryKey: ["public", "search", params],
     queryFn: () => fetchPublicSearch(params),
@@ -359,7 +420,9 @@ export function usePublicSearch(params: PublicSearchQueryParams, options = {}) {
   });
 }
 
-export function useFeaturedEvents(options = {}) {
+export function useFeaturedEvents(
+  options: QueryOptions<typeof fetchPublicEvents> = {},
+) {
   return useQuery({
     queryKey: ["public", "events", "featured"],
     queryFn: () =>
@@ -369,7 +432,10 @@ export function useFeaturedEvents(options = {}) {
   });
 }
 
-export function useUpcomingEvents(limit = 5, options = {}) {
+export function useUpcomingEvents(
+  limit = 5,
+  options: QueryOptions<typeof fetchPublicEvents> = {},
+) {
   return useQuery({
     queryKey: ["public", "events", "upcoming", limit],
     queryFn: () =>
@@ -385,7 +451,9 @@ export function useUpcomingEvents(limit = 5, options = {}) {
 
 // Admin Custom Events Hooks
 
-export function useAdminCustomEvents(options = {}) {
+export function useAdminCustomEvents(
+  options: QueryOptions<typeof fetchAdminCustomEvents> = {},
+) {
   return useQuery({
     queryKey: ["admin", "custom-events"],
     queryFn: () => fetchAdminCustomEvents(),
@@ -394,7 +462,10 @@ export function useAdminCustomEvents(options = {}) {
   });
 }
 
-export function useAdminCustomEvent(id: string, options = {}) {
+export function useAdminCustomEvent(
+  id: string,
+  options: QueryOptions<typeof fetchAdminCustomEvent> = {},
+) {
   return useQuery({
     queryKey: ["admin", "custom-events", id],
     queryFn: () => fetchAdminCustomEvent(id),

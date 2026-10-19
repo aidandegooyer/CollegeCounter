@@ -39,10 +39,10 @@ function MergeTeams() {
   const [error, setError] = useState<string>("");
 
   const { data: teamsData } = useTeams();
-  const teams: any[] = teamsData || [];
+  const teams = teamsData || [];
 
   // Create options for SearchSelect
-  const teamOptions = teams.map((team: any) => ({
+  const teamOptions = teams.map((team) => ({
     value: team.id,
     label: team.school_name ? `${team.name} (${team.school_name})` : team.name,
   }));
@@ -57,8 +57,8 @@ function MergeTeams() {
     disabled: option.value === primaryTeamId,
   }));
 
-  const primaryTeam = teams.find((team: any) => team.id === primaryTeamId);
-  const secondaryTeam = teams.find((team: any) => team.id === secondaryTeamId);
+  const primaryTeam = teams.find((team) => team.id === primaryTeamId);
+  const secondaryTeam = teams.find((team) => team.id === secondaryTeamId);
 
   const canMerge =
     primaryTeamId &&

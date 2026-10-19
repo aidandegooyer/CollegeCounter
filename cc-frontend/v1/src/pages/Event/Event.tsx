@@ -68,13 +68,13 @@ export function Event() {
     data: matches,
     isLoading: matchesLoading,
     error: matchesError,
-  } = usePublicMatches({ event_id: event?.id }, { disabled: !event?.id });
+  } = usePublicMatches({ event_id: event?.id }, { enabled: !!event?.id });
 
   const {
     data: teams,
     isLoading: teamsLoading,
     error: teamsError,
-  } = usePublicTeams({ event_id: event?.id }, { disabled: !event?.id });
+  } = usePublicTeams({ event_id: event?.id }, { enabled: !!event?.id });
 
   if (isLoading) {
     return (
@@ -437,11 +437,11 @@ function MainContentSwitcher(
   event: PublicEvent,
   matches: PublicMatch[] = [],
   teams: PublicTeam[] = [],
-  { isLoading, error }: { isLoading: boolean; error: any },
+  { isLoading, error }: { isLoading: boolean; error: Error | null },
   {
     isLoading: teamsLoading,
     error: teamsError,
-  }: { isLoading: boolean; error: any },
+  }: { isLoading: boolean; error: Error | null },
 ) {
   const getStatus = () => {
     if (!event) return null;
@@ -577,7 +577,7 @@ function Stream(event: PublicEvent) {
 
 function Teams(
   teams: PublicTeam[],
-  { isLoading, error }: { isLoading: boolean; error: any },
+  { isLoading, error }: { isLoading: boolean; error: Error | null },
 ) {
   if (isLoading) {
     return (
@@ -688,7 +688,7 @@ function Info(event: PublicEvent) {
 
 function Matches(
   matches: PublicMatch[],
-  { isLoading, error }: { isLoading: boolean; error: any },
+  { isLoading, error }: { isLoading: boolean; error: Error | null },
 ) {
   if (isLoading) {
     return (

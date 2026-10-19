@@ -2,7 +2,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router";
 
 import { initializeApp } from "firebase/app";
 
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getAuth, onAuthStateChanged, type User } from "firebase/auth";
 import { useEffect, useState } from "react";
 
 import Navbar from "@/components/Navbar";
@@ -44,7 +44,9 @@ initializeApp(firebaseConfig);
 
 function ProtectedRoute({ children }: { children: React.ReactElement }) {
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<Pick<User, "email" | "displayName"> | null>(
+    null,
+  );
 
   useEffect(() => {
     // Bypass auth in development mode

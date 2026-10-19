@@ -130,9 +130,6 @@ jobs:
         run: npm run build
 
       - name: Lint
-        # Not blocking yet: main has ~100 existing lint errors. Remove this
-        # once they're fixed so new ones fail the build.
-        continue-on-error: true
         run: npm run lint
 
   docker:

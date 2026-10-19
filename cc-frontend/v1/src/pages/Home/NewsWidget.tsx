@@ -65,7 +65,7 @@ function NewsWidget({ post_count = 8 }: NewsWidgetProps) {
     };
 
     fetchPosts();
-  }, []);
+  }, [post_count]);
 
   // If there are no posts but we're not loading, render a placeholder
   const renderContent = () => {

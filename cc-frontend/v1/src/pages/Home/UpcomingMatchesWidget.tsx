@@ -68,9 +68,9 @@ function UpcomingMatchesWidget({ teamId, limit }: UpcomingMatchesWidgetProps) {
 
     return (
       <>
-        {data.results.map((match, index) => (
+        {data.results.map((match) => (
           <Match
-            key={index}
+            key={match.id}
             match={match}
             stars={calculateMatchStars(
               match.team1?.elo || 1000,

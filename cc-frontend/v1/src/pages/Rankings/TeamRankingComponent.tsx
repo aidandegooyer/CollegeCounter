@@ -8,7 +8,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import RankChange from "@/components/RankChange";
 
 interface TeamRankingComponentProps {
-  team: PublicTeam;
+  team: Pick<PublicTeam, "id" | "name" | "picture" | "elo">;
   rank: number;
   rankChange?: number;
 }

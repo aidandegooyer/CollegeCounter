@@ -1,3 +1,7 @@
+// This file converts raw FACEIT, LeagueSpot and Regents League responses,
+// which we don't have schemas for, so `any` is allowed here
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { isAxiosError } from "axios";
 import { useState, useEffect } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { Label } from "@/components/ui/label";
@@ -462,8 +466,11 @@ function CreateSeasonForm({
     try {
       const newSeason = await createSeason(name, startDate, endDate);
       onSuccess(newSeason);
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to create season");
+    } catch (err) {
+      setError(
+        (isAxiosError(err) && err.response?.data?.error) ||
+          "Failed to create season",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -552,8 +559,11 @@ function CreateEventForm({
         season_id: selectedSeason,
       });
       onSuccess(newEvent.id, newEvent.name);
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to create event");
+    } catch (err) {
+      setError(
+        (isAxiosError(err) && err.response?.data?.error) ||
+          "Failed to create event",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -1163,9 +1173,12 @@ function ParticipantMatcher({
           return next;
         });
         setLoaded(true);
-      } catch (err: any) {
+      } catch (err) {
         if (cancelled) return;
-        setError(err.response?.data?.error || "Failed to check teams");
+        setError(
+          (isAxiosError(err) && err.response?.data?.error) ||
+            "Failed to check teams",
+        );
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -1600,12 +1613,13 @@ function NewImport() {
             (pick) => `${pick.name || pick.key}: ${pick.reason}`,
           ),
         });
-      } catch (error: any) {
+      } catch (error) {
         console.error("Import failed:", error);
         setImportStatus({
           success: false,
           message:
-            error.response?.data?.error || "Import failed. Please try again.",
+            (isAxiosError(error) && error.response?.data?.error) ||
+            "Import failed. Please try again.",
         });
       }
       setIsLoading(false);
