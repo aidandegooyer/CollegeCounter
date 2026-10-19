@@ -19,6 +19,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import type {
+  PublicPlayer,
+  PublicRankingItem,
+  PublicTeam,
+} from "@/services/api";
 
 function Rankings() {
   const [seasonFilter, setSeasonFilter] = useState<string | undefined>(
@@ -41,7 +46,9 @@ function Rankings() {
   const [rankingType, setRankingType] = useState(
     getInitialRankingType() || "team",
   );
-  window.location.hash = rankingType;
+  useEffect(() => {
+    window.location.hash = rankingType;
+  }, [rankingType]);
 
   return (
     <div className="app-container mx-4 flex justify-center">
@@ -121,12 +128,21 @@ interface RankingBodyProps {
   rankingWeekFilter?: string;
 }
 
+// A team row in the rankings list, from either live ELO or a ranking snapshot
+type RankedTeam = Pick<
+  PublicTeam,
+  "id" | "name" | "picture" | "school_name" | "elo"
+> & {
+  rank?: number;
+  currentRank: number;
+};
+
 function TeamRankingBody({
   seasonFilter,
   rankingWeekFilter,
 }: RankingBodyProps) {
   const [page, setPage] = useState(1);
-  const [teams, setTeams] = useState<any[]>([]);
+  const [teams, setTeams] = useState<RankedTeam[]>([]);
   const [hasMore, setHasMore] = useState(true);
 
   // Determine if we're showing current rankings or a specific ranking snapshot
@@ -209,7 +225,6 @@ function TeamRankingBody({
     error: currentError,
   } = usePublicTeams(currentRankingsParams, {
     staleTime: 1000 * 60 * 5,
-    keepPreviousData: true,
     enabled: isCurrentRankings,
   });
 
@@ -220,7 +235,6 @@ function TeamRankingBody({
     error: historicalError,
   } = usePublicRankingItems(historicalRankingsParams, {
     staleTime: 1000 * 60 * 5,
-    keepPreviousData: true,
     enabled: !isCurrentRankings && !!rankingWeekFilter,
   });
 
@@ -241,7 +255,7 @@ function TeamRankingBody({
     if (!previousRankingData?.results) return {};
 
     const map: { [teamId: string]: number } = {};
-    previousRankingData.results.forEach((item: any) => {
+    previousRankingData.results.forEach((item) => {
       map[item.team.id] = item.rank;
     });
     return map;
@@ -250,17 +264,19 @@ function TeamRankingBody({
   // Update teams when data changes
   useEffect(() => {
     if (data?.results) {
-      let processedResults;
+      let processedResults: RankedTeam[];
 
       if (isCurrentRankings) {
         // For current rankings, use team data directly
-        processedResults = data.results.map((team: any, index: number) => ({
+        const results = data.results as PublicTeam[];
+        processedResults = results.map((team, index) => ({
           ...team,
           currentRank: index + 1 + (page - 1) * 20, // Calculate current rank based on position
         }));
       } else {
         // For historical rankings, extract team data from ranking items
-        processedResults = data.results.map((item: any) => ({
+        const results = data.results as PublicRankingItem[];
+        processedResults = results.map((item) => ({
           id: item.team.id,
           name: item.team.name,
           picture: item.team.picture,
@@ -329,7 +345,7 @@ function TeamRankingBody({
 
 function PlayerRankingBody({ seasonFilter }: RankingBodyProps) {
   const [page, setPage] = useState(1);
-  const [players, setPlayers] = useState<any[]>([]);
+  const [players, setPlayers] = useState<PublicPlayer[]>([]);
   const [hasMore, setHasMore] = useState(true);
 
   // Build query params with filters
@@ -344,7 +360,6 @@ function PlayerRankingBody({ seasonFilter }: RankingBodyProps) {
 
   const { data, isLoading, error } = usePublicPlayers(queryParams, {
     staleTime: 1000 * 60 * 5,
-    keepPreviousData: true,
   });
 
   // Reset pagination when filters change
@@ -426,17 +441,18 @@ function RankingsFilter(props: RankingsFilterProps) {
   );
 
   // Auto-select the most recent ranking week after data is received
+  const { rankingWeekFilter, setRankingWeekFilter } = props;
   useEffect(() => {
     if (
       rankingsData?.results &&
       rankingsData.results.length > 0 &&
-      !props.rankingWeekFilter
+      !rankingWeekFilter
     ) {
       // Select the first ranking (most recent due to desc order)
       const mostRecentRanking = rankingsData.results[0];
-      props.setRankingWeekFilter(mostRecentRanking.id);
+      setRankingWeekFilter(mostRecentRanking.id);
     }
-  }, [rankingsData, props.rankingWeekFilter, props.setRankingWeekFilter]);
+  }, [rankingsData, rankingWeekFilter, setRankingWeekFilter]);
 
   return (
     <div className="flex flex-wrap justify-center gap-4">

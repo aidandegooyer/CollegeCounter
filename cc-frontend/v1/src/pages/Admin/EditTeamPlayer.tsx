@@ -1,3 +1,4 @@
+import { isAxiosError } from "axios";
 import { useState, useEffect } from "react";
 import { fetchAllTeams, fetchAllPlayers } from "@/services/api";
 import {
@@ -20,9 +21,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import SearchSelect, {
-  useSearchSelectOptions,
-} from "@/components/SearchSelect";
+import SearchSelect from "@/components/SearchSelect";
+import { toSearchSelectOptions } from "@/lib/searchSelect";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { AlertCircle, Check, Upload } from "lucide-react";
 import imageCompression from "browser-image-compression";
@@ -119,7 +119,7 @@ function EditTeamPlayer() {
                   </div>
                 ) : (
                   <SearchSelect
-                    options={useSearchSelectOptions(
+                    options={toSearchSelectOptions(
                       [...teams].sort((a, b) => a.name.localeCompare(b.name)),
                       "name",
                       "id",
@@ -277,6 +277,7 @@ function TeamEditForm({ team, setNotification }: TeamEditFormProps) {
         setFileToUpload(fixedFile);
         setPreviewUrl(URL.createObjectURL(compressedFile));
       } catch (error) {
+        console.error("Image compression failed:", error);
         alert("Image compression failed");
       }
     }
@@ -489,6 +490,7 @@ function PlayerEditForm({
         setFileToUpload(fixedFile);
         setPreviewUrl(URL.createObjectURL(compressedFile));
       } catch (error) {
+        console.error("Image compression failed:", error);
         alert("Image compression failed");
       }
     }
@@ -594,7 +596,7 @@ function PlayerEditForm({
             <SearchSelect
               options={[
                 { value: "", label: "No Team" },
-                ...useSearchSelectOptions(teams, "name", "id"),
+                ...toSearchSelectOptions(teams, "name", "id"),
               ]}
               value={formData.team_id}
               onValueChange={(value) => handleSelectChange(value, "team_id")}
@@ -736,10 +738,11 @@ function CreateTeamFromFaceit({ setNotification }: CreateTeamFromFaceitProps) {
 
       // Clear the form
       setFaceitUrl("");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error importing team:", error);
       const errorMessage =
-        error.response?.data?.error || "Failed to import team from Faceit";
+        (isAxiosError(error) && error.response?.data?.error) ||
+        "Failed to import team from Faceit";
       setNotification({
         type: "error",
         message: errorMessage,

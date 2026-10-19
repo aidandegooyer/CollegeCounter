@@ -49,8 +49,8 @@ function ResultsWidget({ teamId, limit }: ResultsWidgetProps) {
     }
     return (
       <>
-        {data.results.map((match, index) => (
-          <Match key={index} {...match} />
+        {data.results.map((match) => (
+          <Match key={match.id} {...match} />
         ))}
       </>
     );

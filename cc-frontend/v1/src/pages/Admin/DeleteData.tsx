@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { isAxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -77,11 +78,11 @@ function DeleteData() {
       // Reload competitions list
       await loadCompetitions();
       setCompetitionSecurityKey(""); // Clear the security key
-    } catch (error: any) {
+    } catch (error) {
       setResult({
         success: false,
         message:
-          error.response?.data?.error ||
+          (isAxiosError(error) && error.response?.data?.error) ||
           "Failed to delete competition. Please try again.",
       });
     } finally {
@@ -107,11 +108,11 @@ function DeleteData() {
         success: true,
         message: response.message,
       });
-    } catch (error: any) {
+    } catch (error) {
       setResult({
         success: false,
         message:
-          error.response?.data?.error ||
+          (isAxiosError(error) && error.response?.data?.error) ||
           "Failed to clear database. Please try again.",
       });
     } finally {

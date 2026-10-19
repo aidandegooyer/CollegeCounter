@@ -11,8 +11,8 @@ function SignIn() {
   async function handleSignIn(email: string, password: string) {
     try {
       await signInWithEmailAndPassword(auth, email, password);
-    } catch (error: any) {
-      alert(error.message);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : String(error));
     } finally {
       window.location.href = "/admin";
     }

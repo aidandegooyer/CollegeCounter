@@ -171,7 +171,7 @@ function Graphic() {
       return currentData.results;
     } else if (!isCurrentRankings && historicalData?.results) {
       // For historical data, transform ranking items to team-like objects
-      return historicalData.results.map((item: any) => ({
+      return historicalData.results.map((item) => ({
         id: item.team.id,
         name: item.team.name,
         picture: item.team.picture,

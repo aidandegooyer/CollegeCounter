@@ -39,9 +39,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 
-import SearchSelect, {
-  useSearchSelectOptions,
-} from "@/components/SearchSelect";
+import SearchSelect from "@/components/SearchSelect";
+import { toSearchSelectOptions } from "@/lib/searchSelect";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { AlertCircle, Check, Plus, Trash2 } from "lucide-react";
 import imageCompression from "browser-image-compression";
@@ -1258,7 +1257,7 @@ function EventCreateForm({
             <SearchSelect
               options={[
                 { value: "", label: "Create New Event" },
-                ...useSearchSelectOptions(events, "name", "id"),
+                ...toSearchSelectOptions(events, "name", "id"),
               ]}
               value={formData.event_id}
               onValueChange={(value) => handleSelectChange(value, "event_id")}

@@ -24,6 +24,7 @@ import type {
   CreateEventMatchRequest,
   UpdateMatchRequest,
   UpdateEventMatchRequest,
+  EventMatch,
 } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,9 +55,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-import SearchSelect, {
-  useSearchSelectOptions,
-} from "@/components/SearchSelect";
+import SearchSelect from "@/components/SearchSelect";
+import { toSearchSelectOptions } from "@/lib/searchSelect";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { AlertCircle, Check, Plus, Trash2, Menu } from "lucide-react";
 
@@ -1025,7 +1025,7 @@ function MatchEditForm({
           <div className="space-y-2">
             <Label htmlFor="team1_id">Team 1</Label>
             <SearchSelect
-              options={useSearchSelectOptions(teams, "name", "id")}
+              options={toSearchSelectOptions(teams, "name", "id")}
               value={formData.team1_id}
               onValueChange={(value) => handleSelectChange(value, "team1_id")}
               placeholder="Select Team 1"
@@ -1035,7 +1035,7 @@ function MatchEditForm({
           <div className="space-y-2">
             <Label htmlFor="team2_id">Team 2</Label>
             <SearchSelect
-              options={useSearchSelectOptions(teams, "name", "id")}
+              options={toSearchSelectOptions(teams, "name", "id")}
               value={formData.team2_id}
               onValueChange={(value) => handleSelectChange(value, "team2_id")}
               placeholder="Select Team 2"
@@ -1134,7 +1134,7 @@ function MatchEditForm({
             <SearchSelect
               options={[
                 { value: "", label: "No Season" },
-                ...useSearchSelectOptions(seasons, "name", "id"),
+                ...toSearchSelectOptions(seasons, "name", "id"),
               ]}
               value={formData.season_id}
               onValueChange={(value) => handleSelectChange(value, "season_id")}
@@ -1157,7 +1157,7 @@ function MatchEditForm({
             <SearchSelect
               options={[
                 { value: "", label: "No Competition" },
-                ...useSearchSelectOptions(competitions, "name", "id"),
+                ...toSearchSelectOptions(competitions, "name", "id"),
               ]}
               value={formData.competition_id}
               onValueChange={(value) =>
@@ -1396,7 +1396,7 @@ function MatchCreateForm({
           <div className="space-y-2">
             <Label htmlFor="team1_id">Team 1 *</Label>
             <SearchSelect
-              options={useSearchSelectOptions(teams, "name", "id")}
+              options={toSearchSelectOptions(teams, "name", "id")}
               value={formData.team1_id}
               onValueChange={(value) => handleSelectChange(value, "team1_id")}
               placeholder="Select Team 1"
@@ -1406,7 +1406,7 @@ function MatchCreateForm({
           <div className="space-y-2">
             <Label htmlFor="team2_id">Team 2 *</Label>
             <SearchSelect
-              options={useSearchSelectOptions(teams, "name", "id")}
+              options={toSearchSelectOptions(teams, "name", "id")}
               value={formData.team2_id}
               onValueChange={(value) => handleSelectChange(value, "team2_id")}
               placeholder="Select Team 2"
@@ -1506,7 +1506,7 @@ function MatchCreateForm({
             <SearchSelect
               options={[
                 { value: "", label: "No Season" },
-                ...useSearchSelectOptions(seasons, "name", "id"),
+                ...toSearchSelectOptions(seasons, "name", "id"),
               ]}
               value={formData.season_id}
               onValueChange={(value) => handleSelectChange(value, "season_id")}
@@ -1529,7 +1529,7 @@ function MatchCreateForm({
             <SearchSelect
               options={[
                 { value: "", label: "No Competition" },
-                ...useSearchSelectOptions(competitions, "name", "id"),
+                ...toSearchSelectOptions(competitions, "name", "id"),
               ]}
               value={formData.competition_id}
               onValueChange={(value) =>
@@ -1763,7 +1763,7 @@ function EventMatchCreateForm({
         <div className="space-y-2">
           <Label htmlFor="event_id">Event *</Label>
           <SearchSelect
-            options={useSearchSelectOptions(events, "name", "id")}
+            options={toSearchSelectOptions(events, "name", "id")}
             value={formData.event_id}
             onValueChange={(value) => handleSelectChange(value, "event_id")}
             placeholder="Select Event"
@@ -1775,7 +1775,7 @@ function EventMatchCreateForm({
           <div className="space-y-2">
             <Label htmlFor="team1_id">Team 1 *</Label>
             <SearchSelect
-              options={useSearchSelectOptions(teams, "name", "id")}
+              options={toSearchSelectOptions(teams, "name", "id")}
               value={formData.team1_id}
               onValueChange={(value) => handleSelectChange(value, "team1_id")}
               placeholder="Select Team 1"
@@ -1785,7 +1785,7 @@ function EventMatchCreateForm({
           <div className="space-y-2">
             <Label htmlFor="team2_id">Team 2 *</Label>
             <SearchSelect
-              options={useSearchSelectOptions(teams, "name", "id")}
+              options={toSearchSelectOptions(teams, "name", "id")}
               value={formData.team2_id}
               onValueChange={(value) => handleSelectChange(value, "team2_id")}
               placeholder="Select Team 2"
@@ -1923,7 +1923,7 @@ function EventMatchCreateForm({
             <SearchSelect
               options={[
                 { value: "", label: "No Season" },
-                ...useSearchSelectOptions(seasons, "name", "id"),
+                ...toSearchSelectOptions(seasons, "name", "id"),
               ]}
               value={formData.season_id}
               onValueChange={(value) => handleSelectChange(value, "season_id")}
@@ -1946,7 +1946,7 @@ function EventMatchCreateForm({
             <SearchSelect
               options={[
                 { value: "", label: "No Competition" },
-                ...useSearchSelectOptions(competitions, "name", "id"),
+                ...toSearchSelectOptions(competitions, "name", "id"),
               ]}
               value={formData.competition_id}
               onValueChange={(value) =>
@@ -2135,8 +2135,24 @@ interface EventMatchEditFormProps {
   onMatchDeleted: () => void;
 }
 
-function EventMatchEditForm({
+function EventMatchEditForm(props: EventMatchEditFormProps) {
+  if (!props.match.event_match) {
+    return (
+      <div className="text-muted-foreground">
+        This match is not an event match.
+      </div>
+    );
+  }
+
+  return (
+    <EventMatchEditFields {...props} eventMatch={props.match.event_match} />
+  );
+}
+
+// Split from EventMatchEditForm so its hooks never run after an early return
+function EventMatchEditFields({
   match,
+  eventMatch,
   teams,
   seasons,
   competitions,
@@ -2145,17 +2161,7 @@ function EventMatchEditForm({
   onMatchUpdated,
   onCompetitionCreated,
   onMatchDeleted,
-}: EventMatchEditFormProps) {
-  const eventMatch = match.event_match;
-
-  if (!eventMatch) {
-    return (
-      <div className="text-muted-foreground">
-        This match is not an event match.
-      </div>
-    );
-  }
-
+}: EventMatchEditFormProps & { eventMatch: EventMatch }) {
   const [formData, setFormData] = useState({
     team1_id: match.team1.id,
     team2_id: match.team2.id,
@@ -2183,11 +2189,10 @@ function EventMatchEditForm({
   });
 
   const [extraInfo, setExtraInfo] = useState({
-    round_name: (eventMatch.extra_info as any)?.round_name || "",
-    bracket_position: (eventMatch.extra_info as any)?.bracket_position || "",
-    notes: (eventMatch.extra_info as any)?.notes || "",
-    external_match_ids:
-      (eventMatch.extra_info as any)?.external_match_ids || ([] as string[]),
+    round_name: eventMatch.extra_info?.round_name || "",
+    bracket_position: eventMatch.extra_info?.bracket_position || "",
+    notes: eventMatch.extra_info?.notes || "",
+    external_match_ids: eventMatch.extra_info?.external_match_ids || [],
   });
   const [externalMatchIdInput, setExternalMatchIdInput] = useState("");
   const [saving, setSaving] = useState(false);
@@ -2222,12 +2227,10 @@ function EventMatchEditForm({
         is_bye: eventMatch.is_bye,
       });
       setExtraInfo({
-        round_name: (eventMatch.extra_info as any)?.round_name || "",
-        bracket_position:
-          (eventMatch.extra_info as any)?.bracket_position || "",
-        notes: (eventMatch.extra_info as any)?.notes || "",
-        external_match_ids:
-          (eventMatch.extra_info as any)?.external_match_ids || [],
+        round_name: eventMatch.extra_info?.round_name || "",
+        bracket_position: eventMatch.extra_info?.bracket_position || "",
+        notes: eventMatch.extra_info?.notes || "",
+        external_match_ids: eventMatch.extra_info?.external_match_ids || [],
       });
     }
   }, [match, eventMatch]);
@@ -2333,7 +2336,7 @@ function EventMatchEditForm({
         <div className="space-y-2">
           <Label htmlFor="event_id">Event *</Label>
           <SearchSelect
-            options={useSearchSelectOptions(events, "name", "id")}
+            options={toSearchSelectOptions(events, "name", "id")}
             value={formData.event_id}
             onValueChange={(value) => handleSelectChange(value, "event_id")}
             placeholder="Select Event"
@@ -2345,7 +2348,7 @@ function EventMatchEditForm({
           <div className="space-y-2">
             <Label htmlFor="team1_id">Team 1</Label>
             <SearchSelect
-              options={useSearchSelectOptions(teams, "name", "id")}
+              options={toSearchSelectOptions(teams, "name", "id")}
               value={formData.team1_id}
               onValueChange={(value) => handleSelectChange(value, "team1_id")}
               placeholder="Select Team 1"
@@ -2355,7 +2358,7 @@ function EventMatchEditForm({
           <div className="space-y-2">
             <Label htmlFor="team2_id">Team 2</Label>
             <SearchSelect
-              options={useSearchSelectOptions(teams, "name", "id")}
+              options={toSearchSelectOptions(teams, "name", "id")}
               value={formData.team2_id}
               onValueChange={(value) => handleSelectChange(value, "team2_id")}
               placeholder="Select Team 2"
@@ -2492,7 +2495,7 @@ function EventMatchEditForm({
             <SearchSelect
               options={[
                 { value: "", label: "No Season" },
-                ...useSearchSelectOptions(seasons, "name", "id"),
+                ...toSearchSelectOptions(seasons, "name", "id"),
               ]}
               value={formData.season_id}
               onValueChange={(value) => handleSelectChange(value, "season_id")}
@@ -2515,7 +2518,7 @@ function EventMatchEditForm({
             <SearchSelect
               options={[
                 { value: "", label: "No Competition" },
-                ...useSearchSelectOptions(competitions, "name", "id"),
+                ...toSearchSelectOptions(competitions, "name", "id"),
               ]}
               value={formData.competition_id}
               onValueChange={(value) =>
@@ -2746,10 +2749,11 @@ function CreateCompetitionDialog({
       });
       setOpen(false);
       setCompetitionName("");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating competition:", error);
       const errorMessage =
-        error.response?.data?.error || "Failed to create competition";
+        (isAxiosError(error) && error.response?.data?.error) ||
+        "Failed to create competition";
       setNotification({
         type: "error",
         message: errorMessage,

@@ -7,7 +7,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-interface PlayerStats {
+export interface PlayerStats {
   stat_username?: string;
   stat_kills: number;
   stat_deaths: number;

@@ -123,6 +123,15 @@ export interface Match {
   event_match?: EventMatch; // Optional, present if this match is part of an event
 }
 
+// Free-form JSON on an event match; these are the keys the admin UI edits
+export interface EventMatchExtraInfo {
+  round_name?: string;
+  bracket_position?: string;
+  notes?: string;
+  external_match_ids?: string[]; // "<tournament_id>:<match_id>" pairs from NWES
+  [key: string]: unknown;
+}
+
 export interface EventMatch {
   id: string;
   event: {
@@ -132,14 +141,14 @@ export interface EventMatch {
   round: number;
   num_in_bracket: number;
   is_bye: boolean;
-  extra_info: Record<string, any>;
+  extra_info: EventMatchExtraInfo;
 }
 
 export interface ImportMatchesRequest {
   platform: "faceit" | "leaguespot" | "regentsleague";
   competition_name: string;
   season_id: string;
-  data: any; // The raw API response data
+  data: unknown; // The raw API response data
   participant_matches?: Record<string, string>; // Map of participant_id to team_id
   event_id?: string; // For importing matches as event matches
   import_type?: "league" | "event"; // Type of import
@@ -347,7 +356,7 @@ export interface ResolvedImportTeam {
 export const resolveImportTeams = async (request: {
   platform: ImportMatchesRequest["platform"];
   season_id: string;
-  data: any;
+  data: unknown;
 }): Promise<{ teams: ResolvedImportTeam[] }> => {
   const response = await api.post(`/import-matches/resolve-teams/`, request);
   return response.data;
@@ -668,6 +677,10 @@ export const createRankingSnapshot = async (
   return response.data;
 };
 
+// Raw third-party payloads (FACEIT, Playfly, Regents League, LeagueSpot) that
+// ImportMatches walks field by field; we don't have schemas for them
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 // fetch data from Faceit API
 export const fetchFaceitMatches = async (eventId: string): Promise<any> => {
   const limit = 100;
@@ -760,6 +773,7 @@ export interface LeagueSpotParticipant {
   users: any[];
   [key: string]: any;
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 // LeagueSpot API functions for reverse engineering Playfly matches
 // Using backend proxy to avoid CORS issues
@@ -1015,7 +1029,7 @@ export interface RankingItemQueryParams {
 }
 
 // Helper function to convert query params to URL search params
-const convertToQueryString = (params: Record<string, any>): string => {
+const convertToQueryString = (params: object): string => {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
@@ -1194,7 +1208,7 @@ export interface CreateMatchRequest {
   round?: number; // Required if event_id is provided
   num_in_bracket?: number; // Required if event_id is provided
   is_bye?: boolean; // Optional, defaults to false
-  extra_info?: Record<string, any>; // Optional, extra information for event matches
+  extra_info?: EventMatchExtraInfo; // Optional, extra information for event matches
 }
 
 export interface CreateEventMatchRequest {
@@ -1213,7 +1227,7 @@ export interface CreateEventMatchRequest {
   competition_id?: string;
   winner_id?: string;
   is_bye?: boolean;
-  extra_info?: Record<string, any>;
+  extra_info?: EventMatchExtraInfo;
 }
 
 export interface UpdateMatchRequest {
@@ -1327,7 +1341,7 @@ export interface UpdateEventMatchRequest {
   competition_id?: string;
   winner_id?: string;
   is_bye?: boolean;
-  extra_info?: Record<string, any>;
+  extra_info?: EventMatchExtraInfo;
 }
 
 export const updateEventMatch = async (
@@ -1468,7 +1482,7 @@ export interface PublicEvent {
     registration_open: boolean;
     registration_deadline?: string;
     twitter_hashtag?: string;
-    metadata: Record<string, any>;
+    metadata: Record<string, unknown>;
   };
 }
 
@@ -1537,7 +1551,7 @@ export interface CustomEvent {
   registration_open: boolean;
   registration_deadline?: string;
   twitter_hashtag?: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -1569,13 +1583,11 @@ export interface CustomEventCreateRequest {
   registration_open?: boolean;
   registration_deadline?: string;
   twitter_hashtag?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
-export interface CustomEventUpdateRequest
-  extends Partial<CustomEventCreateRequest> {
-  // All fields are optional for updates
-}
+// All fields are optional for updates
+export type CustomEventUpdateRequest = Partial<CustomEventCreateRequest>;
 
 export interface CustomEventsResponse {
   custom_events: CustomEvent[];
@@ -1620,17 +1632,19 @@ export const deleteAdminCustomEvent = async (
 // NWES API Proxy
 export interface NWESProxyParams {
   tournament_id?: string;
-  [key: string]: any; // Allow any other query parameters
+  [key: string]: string | number | boolean | undefined; // Allow any other query parameters
 }
 
 /**
  * Proxy request to NWES API. The API key is automatically added on the backend.
  *
  * @param params - Query parameters to send to NWES API (excluding api_key)
- * @returns Promise with the NWES API response
+ * @returns Promise with the NWES API response, typed by the caller
  */
-export const proxyNWES = async (params: NWESProxyParams): Promise<any> => {
-  const response = await api.get("/proxy/nwes/", { params });
+export const proxyNWES = async <T = unknown>(
+  params: NWESProxyParams,
+): Promise<T> => {
+  const response = await api.get<T>("/proxy/nwes/", { params });
   return response.data;
 };
 
