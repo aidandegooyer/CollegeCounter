@@ -8,7 +8,7 @@ import {
   Trophy,
   Users,
   ExternalLink,
-  Twitch,
+  MonitorPlay,
   MessageCircle,
   ArrowLeft,
   DollarSign,
@@ -373,7 +373,7 @@ export function Event() {
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          <Twitch className="mr-2 h-4 w-4" />
+                          <MonitorPlay className="mr-2 h-4 w-4" />
                           Watch Stream
                         </a>
                       </Button>
@@ -386,7 +386,7 @@ export function Event() {
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          <Twitch className="mr-2 h-4 w-4" />
+                          <MonitorPlay className="mr-2 h-4 w-4" />
                           Secondary Stream
                         </a>
                       </Button>
@@ -520,7 +520,7 @@ function Stream(event: PublicEvent) {
     return (
       <Card className="bg-background">
         <CardContent className="flex flex-col items-center justify-center py-12">
-          <Twitch className="text-muted-foreground mb-4 h-12 w-12" />
+          <MonitorPlay className="text-muted-foreground mb-4 h-12 w-12" />
           <p className="text-muted-foreground">
             No stream available for this event
           </p>
@@ -544,7 +544,7 @@ function Stream(event: PublicEvent) {
       return (
         <Card className="bg-background">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <Twitch className="text-muted-foreground mb-4 h-12 w-12" />
+            <MonitorPlay className="text-muted-foreground mb-4 h-12 w-12" />
             <p className="text-muted-foreground">Invalid stream URL</p>
           </CardContent>
         </Card>
