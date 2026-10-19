@@ -4,6 +4,12 @@
 const STORED_PICTURE = /^(.*\/[0-9a-f]{12}\/)(64|128|256|512)\.webp$/;
 const PICTURE_WIDTHS = [64, 128, 256, 512];
 
+// Whether `url` is one of our stored copies. The CDN sends CORS headers for
+// them, so they can be drawn into a canvas without the backend proxy.
+export function isStoredPicture(url: string) {
+  return STORED_PICTURE.test(url);
+}
+
 // srcset of every stored size, or undefined for pictures hosted elsewhere
 export function pictureSrcSet(url: string | null | undefined) {
   const match = url?.match(STORED_PICTURE);

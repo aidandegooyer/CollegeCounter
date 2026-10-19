@@ -21,15 +21,21 @@ import Logo from "@/components/Logo";
 import { domToPng } from "modern-screenshot";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { fetchProxiedImage } from "@/services/api";
+import { Switch } from "@/components/ui/switch";
+import RankChange from "@/components/RankChange";
+import { isStoredPicture } from "@/lib/images";
 
-// Data, blob and same-site pictures can be drawn into the export directly
+// Data, blob, same-origin and CDN pictures can be drawn into the export
+// directly. Compare whole origins: a host merely containing the site's (like
+// img.collegecounter.org) is a different origin.
 function needsProxy(url: string) {
-  return !(
-    url.startsWith("data:") ||
-    url.startsWith("blob:") ||
-    url.startsWith("/") ||
-    url.includes(window.location.host)
-  );
+  if (url.startsWith("data:") || url.startsWith("blob:")) return false;
+  if (isStoredPicture(url)) return false;
+  try {
+    return new URL(url, window.location.href).origin !== window.location.origin;
+  } catch {
+    return true;
+  }
 }
 
 function Graphic() {
@@ -45,6 +51,7 @@ function Graphic() {
   const [titleColor, setTitleColor] = useState("#ffffff");
   const [teamTextColor, setTeamTextColor] = useState("#ffffff");
   const [backgroundColor, setBackgroundColor] = useState("rgba(0, 0, 0, 0.7)");
+  const [showRankChange, setShowRankChange] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -123,6 +130,37 @@ function Graphic() {
     usePublicRankingItems(historicalRankingsParams, {
       enabled: !isCurrentRankings && !!rankingWeekFilter,
     });
+
+  // Ranking to measure rank changes against, as on the rankings page: the
+  // week before the selected one, or the latest week for live rankings
+  const previousRankingId = (() => {
+    const rankings = rankingsData?.results ?? [];
+    if (isCurrentRankings) return rankings[0]?.id;
+    const index = rankings.findIndex(
+      (ranking) => ranking.id === rankingWeekFilter,
+    );
+    return index >= 0 ? rankings[index + 1]?.id : undefined;
+  })();
+
+  const { data: previousRankingData } = usePublicRankingItems(
+    {
+      ranking_id: previousRankingId || "",
+      page: 1,
+      page_size: 1000, // Get all teams for comparison
+      sort: "rank" as const,
+      order: "asc" as const,
+    },
+    {
+      enabled: showRankChange && !!previousRankingId,
+    },
+  );
+
+  const previousRanks: Record<string, number> = Object.fromEntries(
+    (previousRankingData?.results ?? []).map((item) => [
+      item.team.id,
+      item.rank,
+    ]),
+  );
 
   // Use the appropriate data source
   const isLoading = isCurrentRankings ? isLoadingCurrent : isLoadingHistorical;
@@ -437,6 +475,18 @@ function Graphic() {
                   placeholder="rgba(0, 0, 0, 0.7)"
                 />
               </div>
+
+              {/* Rank Change Arrows */}
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="show-rank-change"
+                  checked={showRankChange}
+                  onCheckedChange={setShowRankChange}
+                />
+                <Label htmlFor="show-rank-change">
+                  Show rank change since previous week
+                </Label>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -523,8 +573,18 @@ function Graphic() {
                             )}
                           </div>
                         </div>
-                        <div className="bg-secondary shadow-secondary/30 rounded-md px-2 py-1 font-mono text-xl shadow-xl">
-                          {Math.round(team.elo)}
+                        <div className="flex items-center gap-3">
+                          {showRankChange &&
+                            previousRanks[team.id] !== undefined && (
+                              <RankChange
+                                change={previousRanks[team.id] - (index + 1)}
+                                className="text-2xl"
+                                iconClassName="h-6 w-6"
+                              />
+                            )}
+                          <div className="bg-secondary shadow-secondary/30 rounded-md px-2 py-1 font-mono text-xl shadow-xl">
+                            {Math.round(team.elo)}
+                          </div>
                         </div>
                       </div>
                     ))}
