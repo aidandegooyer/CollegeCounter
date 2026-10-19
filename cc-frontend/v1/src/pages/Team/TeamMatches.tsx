@@ -22,10 +22,11 @@ interface TeamMatchesProps {
 // A team's matches seen from its own side: the opponent, the result, and the
 // team's score first
 export default function TeamMatches({ teamId }: TeamMatchesProps) {
-  // The selected tab lives in the hash, so back/forward switch tabs
+  // The selected tab lives in the hash, so back/forward switch tabs. Results
+  // is the default
   const location = useLocation();
   const navigate = useNavigate();
-  const tab: Tab = location.hash === "#results" ? "results" : "upcoming";
+  const tab: Tab = location.hash === "#upcoming" ? "upcoming" : "results";
   const setTab = (t: Tab) => {
     if (t !== tab) navigate({ hash: t }, { replace: true });
   };
