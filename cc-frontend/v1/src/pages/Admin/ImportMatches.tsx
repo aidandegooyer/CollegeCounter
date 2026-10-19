@@ -2107,9 +2107,9 @@ function UpdateCompetition() {
   const [matcherReady, setMatcherReady] = useState(false);
 
   const load = () => {
-    setLoadError("");
     Promise.all([listCompetitions(), fetchSeasons(), fetchAllEvents()])
       .then(([competitionsData, seasonsData, eventsData]) => {
+        setLoadError("");
         setCompetitions(
           [...competitionsData.competitions].sort((a, b) =>
             a.name.localeCompare(b.name),

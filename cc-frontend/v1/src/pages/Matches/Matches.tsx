@@ -5,7 +5,7 @@ import {
   Star,
   X,
 } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import {
@@ -1109,7 +1109,12 @@ function DateFilterInput({
   onCommit,
 }: DateFilterInputProps) {
   const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
+  // Follow outside changes to value (e.g. Clear filters) during render
+  const [shownValue, setShownValue] = useState(value);
+  if (value !== shownValue) {
+    setShownValue(value);
+    setDraft(value);
+  }
 
   const isComplete = (date: string) =>
     date === "" || Number(date.slice(0, 4)) >= 2000;

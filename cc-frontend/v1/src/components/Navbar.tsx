@@ -6,7 +6,7 @@ import {
   useNavigate,
   useSearchParams,
 } from "react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import logo from "../assets/0.1x/C Logo@0.1x.png";
 import { ChevronDown, Menu, Search, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
@@ -159,16 +159,16 @@ function SearchInput() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    if (location.pathname === "/search") {
-      setQuery(searchParams.get("q") || "");
-      return;
-    }
-
-    setQuery("");
-  }, [location.pathname, searchParams]);
+  // The box shows the current search on /search and is empty elsewhere. It's
+  // reset during render when that changes, rather than in an effect
+  const urlQuery =
+    location.pathname === "/search" ? searchParams.get("q") || "" : "";
+  const [query, setQuery] = useState(urlQuery);
+  const [shownUrlQuery, setShownUrlQuery] = useState(urlQuery);
+  if (urlQuery !== shownUrlQuery) {
+    setShownUrlQuery(urlQuery);
+    setQuery(urlQuery);
+  }
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
