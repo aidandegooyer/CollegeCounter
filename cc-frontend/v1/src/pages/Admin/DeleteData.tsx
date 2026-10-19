@@ -28,28 +28,23 @@ function DeleteData() {
   const [securityKey, setSecurityKey] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
-  const [isLoadingCompetitions, setIsLoadingCompetitions] = useState(false);
+  // The list loads on mount; reloads after a delete set this themselves
+  const [isLoadingCompetitions, setIsLoadingCompetitions] = useState(true);
   const [competitionSecurityKey, setCompetitionSecurityKey] = useState("");
   const [result, setResult] = useState<{
     success: boolean;
     message: string;
   } | null>(null);
 
+  const loadCompetitions = () =>
+    listCompetitions()
+      .then((response) => setCompetitions(response.competitions))
+      .catch((error) => console.error("Failed to load competitions:", error))
+      .finally(() => setIsLoadingCompetitions(false));
+
   useEffect(() => {
     loadCompetitions();
   }, []);
-
-  const loadCompetitions = async () => {
-    setIsLoadingCompetitions(true);
-    try {
-      const response = await listCompetitions();
-      setCompetitions(response.competitions);
-    } catch (error) {
-      console.error("Failed to load competitions:", error);
-    } finally {
-      setIsLoadingCompetitions(false);
-    }
-  };
 
   const handleDeleteCompetition = async (
     competitionId: string,

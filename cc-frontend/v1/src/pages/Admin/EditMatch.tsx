@@ -864,17 +864,9 @@ interface MatchEditFormProps {
   onMatchDeleted: () => void;
 }
 
-function MatchEditForm({
-  match,
-  teams,
-  seasons,
-  competitions,
-  setNotification,
-  onMatchUpdated,
-  onCompetitionCreated,
-  onMatchDeleted,
-}: MatchEditFormProps) {
-  const [formData, setFormData] = useState({
+// The edit form's fields for a match
+function matchFormData(match: Match) {
+  return {
     team1_id: match.team1.id,
     team2_id: match.team2.id,
     date: dateToLocalInput(match.date),
@@ -891,38 +883,32 @@ function MatchEditForm({
       | "playfly"
       | "regentsleague"
       | "other",
-    season_id: "", // Will be set from match data
-    competition_id: "", // Will be set from match data
+    season_id: match.season?.id || "",
+    competition_id: match.competition?.id || "",
     winner_id: match.winner?.id || "",
-  });
+  };
+}
+
+function MatchEditForm({
+  match,
+  teams,
+  seasons,
+  competitions,
+  setNotification,
+  onMatchUpdated,
+  onCompetitionCreated,
+  onMatchDeleted,
+}: MatchEditFormProps) {
+  const [formData, setFormData] = useState(() => matchFormData(match));
+  // Reset the form when the parent passes a different or refetched match
+  const [formMatch, setFormMatch] = useState(match);
+  if (match !== formMatch) {
+    setFormMatch(match);
+    setFormData(matchFormData(match));
+  }
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [applyingElo, setApplyingElo] = useState(false);
-
-  // Update form data when match changes
-  useEffect(() => {
-    setFormData({
-      team1_id: match.team1.id,
-      team2_id: match.team2.id,
-      date: dateToLocalInput(match.date),
-      status: match.status as
-        | "scheduled"
-        | "in_progress"
-        | "completed"
-        | "cancelled",
-      url: match.url || "",
-      score_team1: match.score_team1,
-      score_team2: match.score_team2,
-      platform: match.platform as
-        | "faceit"
-        | "playfly"
-        | "regentsleague"
-        | "other",
-      season_id: match.season?.id || "",
-      competition_id: match.competition?.id || "",
-      winner_id: match.winner?.id || "",
-    });
-  }, [match]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -2149,20 +2135,9 @@ function EventMatchEditForm(props: EventMatchEditFormProps) {
   );
 }
 
-// Split from EventMatchEditForm so its hooks never run after an early return
-function EventMatchEditFields({
-  match,
-  eventMatch,
-  teams,
-  seasons,
-  competitions,
-  events,
-  setNotification,
-  onMatchUpdated,
-  onCompetitionCreated,
-  onMatchDeleted,
-}: EventMatchEditFormProps & { eventMatch: EventMatch }) {
-  const [formData, setFormData] = useState({
+// The event match edit form's fields
+function eventMatchFormData(match: Match, eventMatch: EventMatch) {
+  return {
     team1_id: match.team1.id,
     team2_id: match.team2.id,
     event_id: eventMatch.event.id,
@@ -2186,54 +2161,49 @@ function EventMatchEditFields({
     competition_id: match.competition?.id || "",
     winner_id: match.winner?.id || "",
     is_bye: eventMatch.is_bye,
-  });
+  };
+}
 
-  const [extraInfo, setExtraInfo] = useState({
+function eventMatchExtraInfo(eventMatch: EventMatch) {
+  return {
     round_name: eventMatch.extra_info?.round_name || "",
     bracket_position: eventMatch.extra_info?.bracket_position || "",
     notes: eventMatch.extra_info?.notes || "",
     external_match_ids: eventMatch.extra_info?.external_match_ids || [],
-  });
+  };
+}
+
+// Split from EventMatchEditForm so its hooks never run after an early return
+function EventMatchEditFields({
+  match,
+  eventMatch,
+  teams,
+  seasons,
+  competitions,
+  events,
+  setNotification,
+  onMatchUpdated,
+  onCompetitionCreated,
+  onMatchDeleted,
+}: EventMatchEditFormProps & { eventMatch: EventMatch }) {
+  const [formData, setFormData] = useState(() =>
+    eventMatchFormData(match, eventMatch),
+  );
+
+  const [extraInfo, setExtraInfo] = useState(() =>
+    eventMatchExtraInfo(eventMatch),
+  );
+  // Reset the form when the parent passes a different or refetched match
+  const [formMatch, setFormMatch] = useState(match);
+  if (match !== formMatch) {
+    setFormMatch(match);
+    setFormData(eventMatchFormData(match, eventMatch));
+    setExtraInfo(eventMatchExtraInfo(eventMatch));
+  }
+
   const [externalMatchIdInput, setExternalMatchIdInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-
-  // Update form data when match changes
-  useEffect(() => {
-    if (eventMatch) {
-      setFormData({
-        team1_id: match.team1.id,
-        team2_id: match.team2.id,
-        event_id: eventMatch.event.id,
-        round: eventMatch.round,
-        num_in_bracket: eventMatch.num_in_bracket,
-        date: dateToLocalInput(match.date),
-        status: match.status as
-          | "scheduled"
-          | "in_progress"
-          | "completed"
-          | "cancelled",
-        url: match.url || "",
-        score_team1: match.score_team1,
-        score_team2: match.score_team2,
-        platform: match.platform as
-          | "faceit"
-          | "playfly"
-          | "regentsleague"
-          | "other",
-        season_id: match.season?.id || "",
-        competition_id: match.competition?.id || "",
-        winner_id: match.winner?.id || "",
-        is_bye: eventMatch.is_bye,
-      });
-      setExtraInfo({
-        round_name: eventMatch.extra_info?.round_name || "",
-        bracket_position: eventMatch.extra_info?.bracket_position || "",
-        notes: eventMatch.extra_info?.notes || "",
-        external_match_ids: eventMatch.extra_info?.external_match_ids || [],
-      });
-    }
-  }, [match, eventMatch]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;

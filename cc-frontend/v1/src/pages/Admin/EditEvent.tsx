@@ -383,13 +383,9 @@ interface EventEditFormProps {
   onEventDeleted: () => void;
 }
 
-function EventEditForm({
-  customEvent,
-  setNotification,
-  onEventUpdated,
-  onEventDeleted,
-}: EventEditFormProps) {
-  const [formData, setFormData] = useState({
+// The edit form's fields for a custom event
+function eventFormData(customEvent: CustomEvent) {
+  return {
     event_id: customEvent.event.id,
     name: customEvent.event.name,
     start_date: dateToLocalInput(customEvent.event.start_date),
@@ -416,46 +412,27 @@ function EventEditForm({
     registration_open: customEvent.registration_open,
     registration_deadline: dateToLocalInput(customEvent.registration_deadline),
     twitter_hashtag: customEvent.twitter_hashtag || "",
-  });
+  };
+}
+
+function EventEditForm({
+  customEvent,
+  setNotification,
+  onEventUpdated,
+  onEventDeleted,
+}: EventEditFormProps) {
+  const [formData, setFormData] = useState(() => eventFormData(customEvent));
+  // Reset the form when the parent passes a different or refetched event
+  const [formEvent, setFormEvent] = useState(customEvent);
+  if (customEvent !== formEvent) {
+    setFormEvent(customEvent);
+    setFormData(eventFormData(customEvent));
+  }
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [uploadingPicture, setUploadingPicture] = useState(false);
   const [eventTeams, setEventTeams] = useState<PublicTeam[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(false);
-
-  // Update form data when event changes
-  useEffect(() => {
-    setFormData({
-      event_id: customEvent.event.id,
-      name: customEvent.event.name,
-      start_date: dateToLocalInput(customEvent.event.start_date),
-      end_date: dateToLocalInput(customEvent.event.end_date),
-      description: customEvent.event.description || "",
-      picture: customEvent.event.picture || "",
-      winner_id: customEvent.event.winner?.id || "",
-      bracket_link: customEvent.bracket_link || "",
-      stream_link: customEvent.stream_link || "",
-      secondary_stream_link: customEvent.secondary_stream_link || "",
-      discord_link: customEvent.discord_link || "",
-      registration_link: customEvent.registration_link || "",
-      rules_document: customEvent.rules_document || "",
-      prize_pool: parseFloat(customEvent.prize_pool || "0"),
-      prize_currency: customEvent.prize_currency || "USD",
-      max_teams: customEvent.max_teams || undefined,
-      entry_fee: parseFloat(customEvent.entry_fee || "0"),
-      format: customEvent.format || "",
-      game_mode: customEvent.game_mode || "",
-      division: customEvent.division || "",
-      is_featured: customEvent.is_featured,
-      is_trophycase: customEvent.is_trophycase, 
-      is_public: customEvent.is_public,
-      registration_open: customEvent.registration_open,
-      registration_deadline: dateToLocalInput(
-        customEvent.registration_deadline,
-      ),
-      twitter_hashtag: customEvent.twitter_hashtag || "",
-    });
-  }, [customEvent]);
 
   // Fetch teams for this event
   useEffect(() => {

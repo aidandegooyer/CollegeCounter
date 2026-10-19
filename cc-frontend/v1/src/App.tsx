@@ -43,18 +43,14 @@ const isDevelopment =
 initializeApp(firebaseConfig);
 
 function ProtectedRoute({ children }: { children: React.ReactElement }) {
-  const [loading, setLoading] = useState(true);
+  // Bypass auth in development mode
+  const [loading, setLoading] = useState(!isDevelopment);
   const [user, setUser] = useState<Pick<User, "email" | "displayName"> | null>(
-    null,
+    isDevelopment ? { email: "dev@localhost", displayName: "Dev User" } : null,
   );
 
   useEffect(() => {
-    // Bypass auth in development mode
-    if (isDevelopment) {
-      setUser({ email: "dev@localhost", displayName: "Dev User" });
-      setLoading(false);
-      return;
-    }
+    if (isDevelopment) return;
 
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {

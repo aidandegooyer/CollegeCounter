@@ -24,6 +24,7 @@ import {
   fetchAdminCustomEvent,
 } from "@/services/api";
 import type {
+  PaginatedResponse,
   PublicMatch,
   TeamQueryParams,
   PlayerQueryParams,
@@ -86,8 +87,15 @@ export function usePublicMatches(
   });
 }
 
-// Pages through matches for infinite scroll; previous results stay visible
-// while a new filter set loads
+// The page after this one for an infinite query, or undefined on the last
+const nextPage = (lastPage: PaginatedResponse<unknown>) =>
+  lastPage.current_page < lastPage.total_pages
+    ? lastPage.current_page + 1
+    : undefined;
+
+// The infinite hooks below page through a list for infinite scroll; previous
+// results stay visible while a new filter set loads
+
 export function useInfinitePublicMatches(
   params: Omit<MatchQueryParams, "page"> = {},
 ) {
@@ -96,12 +104,55 @@ export function useInfinitePublicMatches(
     queryFn: ({ pageParam }) =>
       fetchPublicMatches({ ...params, page: pageParam }),
     initialPageParam: 1,
-    getNextPageParam: (lastPage) =>
-      lastPage.current_page < lastPage.total_pages
-        ? lastPage.current_page + 1
-        : undefined,
+    getNextPageParam: nextPage,
     placeholderData: keepPreviousData,
     staleTime: DEFAULT_STALE_TIME,
+  });
+}
+
+export function useInfinitePublicTeams(
+  params: Omit<TeamQueryParams, "page"> = {},
+  options: { enabled?: boolean } = {},
+) {
+  return useInfiniteQuery({
+    queryKey: ["public", "teams", "infinite", params],
+    queryFn: ({ pageParam }) =>
+      fetchPublicTeams({ ...params, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: nextPage,
+    placeholderData: keepPreviousData,
+    staleTime: DEFAULT_STALE_TIME,
+    ...options,
+  });
+}
+
+export function useInfinitePublicPlayers(
+  params: Omit<PlayerQueryParams, "page"> = {},
+) {
+  return useInfiniteQuery({
+    queryKey: ["public", "players", "infinite", params],
+    queryFn: ({ pageParam }) =>
+      fetchPublicPlayers({ ...params, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: nextPage,
+    placeholderData: keepPreviousData,
+    staleTime: DEFAULT_STALE_TIME,
+  });
+}
+
+export function useInfinitePublicRankingItems(
+  params: Omit<RankingItemQueryParams, "page">,
+  options: { enabled?: boolean } = {},
+) {
+  return useInfiniteQuery({
+    queryKey: ["public", "ranking-items", "infinite", params],
+    queryFn: ({ pageParam }) =>
+      fetchPublicRankingItems({ ...params, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: nextPage,
+    placeholderData: keepPreviousData,
+    staleTime: DEFAULT_STALE_TIME,
+    enabled: !!params.ranking_id && options.enabled !== false,
   });
 }
 

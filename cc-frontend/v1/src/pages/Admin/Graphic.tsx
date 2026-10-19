@@ -43,7 +43,8 @@ function Graphic() {
   const [seasonFilter, setSeasonFilter] = useState<string | undefined>(
     import.meta.env.VITE_CURRENT_SEASON_ID || undefined,
   );
-  const [rankingWeekFilter, setRankingWeekFilter] = useState<
+  // The week picked in the dropdown; until one is picked, the newest week
+  const [pickedRankingWeek, setPickedRankingWeek] = useState<
     string | undefined
   >(undefined);
   const [titleText, setTitleText] = useState("TOP 10 TEAMS");
@@ -82,17 +83,7 @@ function Graphic() {
     },
   );
 
-  // Auto-select the most recent ranking week when rankings are loaded
-  useEffect(() => {
-    if (
-      rankingsData?.results &&
-      rankingsData.results.length > 0 &&
-      !rankingWeekFilter
-    ) {
-      const mostRecentRanking = rankingsData.results[0];
-      setRankingWeekFilter(mostRecentRanking.id);
-    }
-  }, [rankingsData, rankingWeekFilter]);
+  const rankingWeekFilter = pickedRankingWeek ?? rankingsData?.results[0]?.id;
 
   // Determine if we're showing current rankings or a specific ranking snapshot
   const isCurrentRankings =
@@ -397,7 +388,7 @@ function Graphic() {
                 <Label htmlFor="rankingWeek">Ranking Week</Label>
                 <Select
                   value={rankingWeekFilter}
-                  onValueChange={setRankingWeekFilter}
+                  onValueChange={setPickedRankingWeek}
                 >
                   <SelectTrigger id="rankingWeek">
                     <SelectValue placeholder="Select a week" />

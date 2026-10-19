@@ -4,8 +4,9 @@ import TeamRankingComponent from "./TeamRankingComponent";
 import InfiniteScroll from "react-infinite-scroll-component";
 import PlayerRankingComponent from "./PlayerRankingComponent";
 import {
-  usePublicPlayers,
-  usePublicTeams,
+  useInfinitePublicPlayers,
+  useInfinitePublicRankingItems,
+  useInfinitePublicTeams,
   usePublicSeasons,
   usePublicRankings,
   usePublicRankingItems,
@@ -19,11 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import type {
-  PublicPlayer,
-  PublicRankingItem,
-  PublicTeam,
-} from "@/services/api";
+import type { PublicTeam } from "@/services/api";
 
 function Rankings() {
   const [seasonFilter, setSeasonFilter] = useState<string | undefined>(
@@ -141,10 +138,6 @@ function TeamRankingBody({
   seasonFilter,
   rankingWeekFilter,
 }: RankingBodyProps) {
-  const [page, setPage] = useState(1);
-  const [teams, setTeams] = useState<RankedTeam[]>([]);
-  const [hasMore, setHasMore] = useState(true);
-
   // Determine if we're showing current rankings or a specific ranking snapshot
   const isCurrentRankings =
     !rankingWeekFilter || rankingWeekFilter === "current";
@@ -153,7 +146,6 @@ function TeamRankingBody({
   const currentRankingsParams = {
     sort: "elo" as const,
     order: "desc" as const,
-    page,
     page_size: 20,
     ...(seasonFilter &&
       seasonFilter !== "all_seasons" && { season_id: seasonFilter }),
@@ -162,7 +154,6 @@ function TeamRankingBody({
   // Query for historical ranking data
   const historicalRankingsParams = {
     ranking_id: rankingWeekFilter || "",
-    page,
     page_size: 20,
     sort: "rank" as const,
     order: "asc" as const,
@@ -219,36 +210,19 @@ function TeamRankingBody({
   );
 
   // Fetch current team data
-  const {
-    data: currentData,
-    isLoading: isLoadingCurrent,
-    error: currentError,
-  } = usePublicTeams(currentRankingsParams, {
-    staleTime: 1000 * 60 * 5,
+  const currentQuery = useInfinitePublicTeams(currentRankingsParams, {
     enabled: isCurrentRankings,
   });
 
   // Fetch historical ranking items
-  const {
-    data: historicalData,
-    isLoading: isLoadingHistorical,
-    error: historicalError,
-  } = usePublicRankingItems(historicalRankingsParams, {
-    staleTime: 1000 * 60 * 5,
-    enabled: !isCurrentRankings && !!rankingWeekFilter,
-  });
+  const historicalQuery = useInfinitePublicRankingItems(
+    historicalRankingsParams,
+    { enabled: !isCurrentRankings },
+  );
 
   // Use the appropriate data source
-  const data = isCurrentRankings ? currentData : historicalData;
-  const isLoading = isCurrentRankings ? isLoadingCurrent : isLoadingHistorical;
-  const error = isCurrentRankings ? currentError : historicalError;
-
-  // Reset pagination when filters change
-  useEffect(() => {
-    setPage(1);
-    setTeams([]);
-    setHasMore(true);
-  }, [seasonFilter, rankingWeekFilter]);
+  const { isLoading, error, hasNextPage, isFetchingNextPage, fetchNextPage } =
+    isCurrentRankings ? currentQuery : historicalQuery;
 
   // Create a map of previous rankings for quick lookup
   const previousRankingsMap = useMemo(() => {
@@ -261,43 +235,32 @@ function TeamRankingBody({
     return map;
   }, [previousRankingData]);
 
-  // Update teams when data changes
-  useEffect(() => {
-    if (data?.results) {
-      let processedResults: RankedTeam[];
-
-      if (isCurrentRankings) {
-        // For current rankings, use team data directly
-        const results = data.results as PublicTeam[];
-        processedResults = results.map((team, index) => ({
-          ...team,
-          currentRank: index + 1 + (page - 1) * 20, // Calculate current rank based on position
-        }));
-      } else {
-        // For historical rankings, extract team data from ranking items
-        const results = data.results as PublicRankingItem[];
-        processedResults = results.map((item) => ({
-          id: item.team.id,
-          name: item.team.name,
-          picture: item.team.picture,
-          school_name: item.team.school_name,
-          elo: item.elo, // Use historical ELO from ranking
-          rank: item.rank, // Historical rank
-          currentRank: item.rank, // For historical data, current rank is the historical rank
-        }));
-      }
-
-      setTeams((prevTeams) =>
-        page === 1 ? processedResults : [...prevTeams, ...processedResults],
-      );
-      setHasMore(processedResults.length > 0 && processedResults.length === 20);
+  const teams: RankedTeam[] = useMemo(() => {
+    if (isCurrentRankings) {
+      // For current rankings, use team data directly
+      const results =
+        currentQuery.data?.pages.flatMap((page) => page.results) ?? [];
+      return results.map((team, index) => ({
+        ...team,
+        currentRank: index + 1,
+      }));
     }
-  }, [data, page, isCurrentRankings]);
+    // For historical rankings, extract team data from ranking items
+    const results =
+      historicalQuery.data?.pages.flatMap((page) => page.results) ?? [];
+    return results.map((item) => ({
+      id: item.team.id,
+      name: item.team.name,
+      picture: item.team.picture,
+      school_name: item.team.school_name,
+      elo: item.elo, // Use historical ELO from ranking
+      rank: item.rank, // Historical rank
+      currentRank: item.rank, // For historical data, current rank is the historical rank
+    }));
+  }, [isCurrentRankings, currentQuery.data, historicalQuery.data]);
 
   const loadMoreTeams = () => {
-    if (!isLoading && hasMore) {
-      setPage((prevPage) => prevPage + 1);
-    }
+    if (!isFetchingNextPage) fetchNextPage();
   };
 
   if (error) return <div>Error loading teams</div>;
@@ -305,7 +268,7 @@ function TeamRankingBody({
   return (
     <InfiniteScroll
       dataLength={teams.length}
-      hasMore={hasMore}
+      hasMore={isLoading || !!hasNextPage}
       next={loadMoreTeams}
       loader={
         <div className="flex h-10 justify-center">
@@ -344,45 +307,28 @@ function TeamRankingBody({
 }
 
 function PlayerRankingBody({ seasonFilter }: RankingBodyProps) {
-  const [page, setPage] = useState(1);
-  const [players, setPlayers] = useState<PublicPlayer[]>([]);
-  const [hasMore, setHasMore] = useState(true);
-
   // Build query params with filters
   const queryParams = {
     sort: "elo" as const,
     order: "desc" as const,
-    page,
     page_size: 20,
     ...(seasonFilter &&
       seasonFilter !== "all_seasons" && { season_id: seasonFilter }),
   };
 
-  const { data, isLoading, error } = usePublicPlayers(queryParams, {
-    staleTime: 1000 * 60 * 5,
-  });
+  const {
+    data,
+    isLoading,
+    error,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfinitePublicPlayers(queryParams);
 
-  // Reset pagination when filters change
-  useEffect(() => {
-    setPage(1);
-    setPlayers([]);
-    setHasMore(true);
-  }, [seasonFilter]);
-
-  // Update teams when data changes
-  useEffect(() => {
-    if (data?.results) {
-      setPlayers((prevPlayers) =>
-        page === 1 ? data.results : [...prevPlayers, ...data.results],
-      );
-      setHasMore(data.results.length > 0 && data.results.length === 20);
-    }
-  }, [data, page]);
+  const players = data?.pages.flatMap((page) => page.results) ?? [];
 
   const loadMorePlayers = () => {
-    if (!isLoading && hasMore) {
-      setPage((prevPage) => prevPage + 1);
-    }
+    if (!isFetchingNextPage) fetchNextPage();
   };
 
   if (error) return <div>Error loading teams</div>;
@@ -390,7 +336,7 @@ function PlayerRankingBody({ seasonFilter }: RankingBodyProps) {
   return (
     <InfiniteScroll
       dataLength={players.length}
-      hasMore={hasMore}
+      hasMore={isLoading || !!hasNextPage}
       next={loadMorePlayers}
       loader={
         <div className="flex h-10 justify-center">

@@ -238,8 +238,10 @@ function TeamEditForm({ team, setNotification }: TeamEditFormProps) {
   );
   const [saving, setSaving] = useState(false);
 
-  // Update form data when team changes
-  useEffect(() => {
+  // Reset the form when the parent passes a different or refetched team
+  const [formTeam, setFormTeam] = useState(team);
+  if (team !== formTeam) {
+    setFormTeam(team);
     setFormData({
       name: team.name,
       school_name: team.school_name || "",
@@ -247,7 +249,7 @@ function TeamEditForm({ team, setNotification }: TeamEditFormProps) {
     });
     setPreviewUrl(team.picture || null);
     setFileToUpload(null);
-  }, [team]);
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -434,8 +436,10 @@ function PlayerEditForm({
   );
   const [saving, setSaving] = useState(false);
 
-  // Update form data when player changes
-  useEffect(() => {
+  // Reset the form when the parent passes a different or refetched player
+  const [formPlayer, setFormPlayer] = useState(player);
+  if (player !== formPlayer) {
+    setFormPlayer(player);
     setFormData({
       name: player.name,
       steam_id: player.steam_id || "",
@@ -448,7 +452,7 @@ function PlayerEditForm({
     });
     setPreviewUrl(player.picture || null);
     setFileToUpload(null);
-  }, [player]);
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;

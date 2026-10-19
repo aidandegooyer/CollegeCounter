@@ -29,9 +29,11 @@ function SyncReview() {
   const [message, setMessage] = useState("");
 
   const load = () => {
-    setLoadError("");
     fetchSyncReview()
-      .then(setMatches)
+      .then((data) => {
+        setMatches(data);
+        setLoadError("");
+      })
       .catch((err) => {
         console.error("Failed to load matches needing review:", err);
         setLoadError(
