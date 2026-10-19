@@ -1,5 +1,6 @@
 import { Label } from "@/components/ui/label";
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router";
 import TeamRankingComponent from "./TeamRankingComponent";
 import InfiniteScroll from "react-infinite-scroll-component";
 import PlayerRankingComponent from "./PlayerRankingComponent";
@@ -43,9 +44,11 @@ function Rankings() {
   const [rankingType, setRankingType] = useState(
     getInitialRankingType() || "team",
   );
+  // Replace rather than push, so the hash doesn't add a Back-button step
+  const navigate = useNavigate();
   useEffect(() => {
-    window.location.hash = rankingType;
-  }, [rankingType]);
+    navigate({ hash: rankingType }, { replace: true });
+  }, [rankingType, navigate]);
 
   return (
     <div className="app-container mx-4 flex justify-center">
