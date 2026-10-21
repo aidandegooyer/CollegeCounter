@@ -5,9 +5,7 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . ./
-ARG REACT_APP_API_URL
 ARG VITE_CURRENT_SEASON_ID
-ENV REACT_APP_API_URL=$REACT_APP_API_URL
 ENV VITE_CURRENT_SEASON_ID=$VITE_CURRENT_SEASON_ID
 # The commit this was built from (scripts/deploy-prod.sh), shown in the footer
 ARG GIT_SHA=dev

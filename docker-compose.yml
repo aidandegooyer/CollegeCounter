@@ -36,7 +36,6 @@ services:
     build:
       context: ./cc-frontend/v1
       args:
-        REACT_APP_API_URL: ${REACT_APP_API_URL}
         VITE_CURRENT_SEASON_ID: ${VITE_CURRENT_SEASON_ID}
         # Set by scripts/deploy-prod.sh; "dev" for a plain `docker compose build`
         GIT_SHA: ${GIT_SHA:-dev}
