@@ -12,6 +12,16 @@ updates:
       frontend-minor-and-patch:
         update-types: [minor, patch]
 
+  - package-ecosystem: npm
+    directory: /studio-cc-cms
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      studio-minor-and-patch:
+        update-types: [minor, patch]
+
   # requirements.txt is what the backend Docker image installs, so it's the
   # one that matters in production (pyproject.toml/uv.lock are local dev).
   - package-ecosystem: pip
