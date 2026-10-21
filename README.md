@@ -1,6 +1,6 @@
 # College Counter
 
-College Counter is a platform to view scores, rankings, and news for collegiate Counter-Strike. College Counter combines a React frontend with Python backends (legacy Flask and a newer Django-based v1 API) to deliver live match results, team/player ELO rankings, event brackets, and editorial content.
+College Counter is a platform to view scores, rankings, and news for collegiate Counter-Strike. College Counter combines a React frontend with a Django REST API backend to deliver live match results, team/player ELO rankings, event brackets, and editorial content.
 
 ## Features
 
@@ -180,7 +180,6 @@ Create a `.env` file in the project root (for Docker) or set these variables in 
 
 - `VITE_API_BASE_URL` - Backend API base URL (default: `https://api.collegecounter.org/v1`, for local dev: `http://localhost:8000/v1`)
 - `VITE_CURRENT_SEASON_ID` - Current season UUID (optional)
-- `REACT_APP_API_URL` - Legacy frontend API URL (Docker build arg)
 
 #### Optional Backend Variables
 
@@ -371,9 +370,7 @@ Add `--endpoint-url https://<region>.digitaloceanspaces.com` to the `aws` comman
 ## Project Structure
 
 - `cc-backend/v1/` - Current Django REST API backend
-- `cc-backend/legacy/` - Legacy Flask backend (deprecated)
 - `cc-frontend/v1/` - Current React + TypeScript + Vite frontend
-- `cc-frontend/legacy/` - Legacy frontend (deprecated)
 - `studio-cc-cms/` - Sanity CMS for content management
 
 ## Development Tips
