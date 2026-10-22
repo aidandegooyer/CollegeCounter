@@ -180,6 +180,13 @@ class PublicTeamsTests(PublicFixtures, TestCase):
         # 500 on every paginated public endpoint.
         self.assertEqual(self.get("public_teams", "page=abc").status_code, 200)
 
+    def test_browser_request_gets_json(self):
+        # What a browser sends when someone opens the URL
+        accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        response = self.client.get(reverse("public_teams"), HTTP_ACCEPT=accept)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/json")
+
 
 class PublicPlayersTests(PublicFixtures, TestCase):
     def setUp(self):

@@ -186,6 +186,10 @@ REST_FRAMEWORK = {
     # the last X-Forwarded-For entry. Without this, REMOTE_ADDR is the
     # proxy's and every visitor would share one limit.
     "NUM_PROXIES": 1,
+    # JSON only. The default browsable API needs "rest_framework" in
+    # INSTALLED_APPS for its templates, so opening an endpoint in a browser
+    # (Accept: text/html) was a 500. The OpenAPI docs cover browsing.
+    "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
