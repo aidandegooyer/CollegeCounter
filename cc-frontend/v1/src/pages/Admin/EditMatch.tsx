@@ -924,7 +924,7 @@ function MatchEditForm({
   const handleSelectChange = (value: string, name: string) => {
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === "winner_id" && value === "__no_winner__" ? "" : value,
     }));
   };
 
@@ -944,7 +944,7 @@ function MatchEditForm({
         platform: formData.platform,
         season_id: formData.season_id || undefined,
         competition_id: formData.competition_id || undefined,
-        winner_id: formData.winner_id || undefined,
+        winner_id: formData.winner_id || null,
       };
 
       await updateMatch(match.id, updateData);
@@ -2224,7 +2224,7 @@ function EventMatchEditFields({
   const handleSelectChange = (value: string, name: string) => {
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === "winner_id" && value === "__no_winner__" ? "" : value,
     }));
   };
 
@@ -2258,7 +2258,7 @@ function EventMatchEditFields({
         platform: formData.platform,
         season_id: formData.season_id || undefined,
         competition_id: formData.competition_id || undefined,
-        winner_id: formData.winner_id || undefined,
+        winner_id: formData.winner_id || null,
         extra_info: extraInfo,
       };
 

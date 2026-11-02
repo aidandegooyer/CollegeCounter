@@ -149,6 +149,17 @@ class AdminEndpointTests(EloTrackingTestCase):
         match.refresh_from_db()
         self.assertFalse(match.elo_applied)
 
+    def test_uncompleting_match_with_null_winner_clears_winner(self):
+        match = self.make_match(winner=self.alpha)
+        update_match_elos(match)
+
+        body = self.patch_match(match, {"status": "scheduled", "winner_id": None})
+        self.assertIsNone(body["winner"])
+        self.assertEqual(self.elos(), [1000, 1200, 900])
+        match.refresh_from_db()
+        self.assertIsNone(match.winner)
+        self.assertFalse(match.elo_applied)
+
     def test_team_change_reverts_old_team_and_applies_to_new_team(self):
         match = self.make_match(winner=self.alpha)
         update_match_elos(match)
