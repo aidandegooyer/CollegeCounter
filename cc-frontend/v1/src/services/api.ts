@@ -1241,7 +1241,7 @@ export interface UpdateMatchRequest {
   platform?: "faceit" | "playfly" | "regentsleague" | "other";
   season_id?: string;
   competition_id?: string;
-  winner_id?: string;
+  winner_id?: string | null; // null clears the winner
 }
 
 export interface DeleteMatchRequest {
@@ -1339,7 +1339,7 @@ export interface UpdateEventMatchRequest {
   platform?: "faceit" | "playfly" | "regentsleague" | "other";
   season_id?: string;
   competition_id?: string;
-  winner_id?: string;
+  winner_id?: string | null; // null clears the winner
   is_bye?: boolean;
   extra_info?: EventMatchExtraInfo;
 }
