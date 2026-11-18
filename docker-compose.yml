@@ -2,7 +2,9 @@
 services:
   # Reverse proxy (nginx)
   proxy:
-    image: jwilder/nginx-proxy
+    # Maintained image name (jwilder/ is the legacy alias). Pinned so upgrades
+    # are deliberate; bump when a release ships a patched nginx.
+    image: nginxproxy/nginx-proxy:1.11.6
     restart: always
     ports:
       - "80:80"
@@ -16,6 +18,10 @@ services:
       - PROXY_CONNECT_TIMEOUT=600
       - PROXY_SEND_TIMEOUT=600
       - PROXY_READ_TIMEOUT=600
+      # HTTP/2 disabled to mitigate CVE-2026-123007 (HTTP/2 flow-control RCE,
+      # nginx 1.9.5-1.31.8). Re-enable once the pinned image ships nginx
+      # >= 1.31.9 / 1.30.7.
+      - ENABLE_HTTP2=false
 
   # Let's Encrypt companion
   acme-companion:
